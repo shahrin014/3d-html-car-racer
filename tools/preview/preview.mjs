@@ -11,6 +11,10 @@ import {
  * path definitions and car proportions, so these previews are a contract for
  * the catalog rather than concept art.
  *
+ * The track surface and rails are continuous swept meshes, not instanced
+ * boxes: seams are drawn in the texture so the plastic look survives without
+ * breaking the surface into gaps.
+ *
  * Query: ?piece=<id>. See PIECES below.
  */
 
@@ -19,7 +23,10 @@ const TRACK = {
   thickness: 0.12,
   railWidth: 0.12,
   railHeight: 0.35,
-  plank: 1.5,
+  /** Metres per plastic seam in the surface texture. */
+  seam: 1.5,
+  /** Forward distance the loop gains from entrance to exit. */
+  loopAdvance: 4,
 };
 
 const DESIGN_SPEED = 12;
@@ -62,17 +69,25 @@ function turnPath({ radius, angleDeg, clockwise }) {
   };
 }
 
-function loopPath(radius) {
+/**
+ * Vertical loop with a forward advance. A pure circle starts and ends at the
+ * same point, which looks like a closed ring with no way in or out. Advancing
+ * the exit four metres gives a visible entrance and exit while keeping entry
+ * and exit headings identical, so the piece still joins any straight.
+ */
+function loopPath(radius, advance = TRACK.loopAdvance) {
   return (t) => {
     const theta = Math.PI * 2 * t;
+    const position = new THREE.Vector3(
+      0,
+      radius * (1 - Math.cos(theta)),
+      radius * Math.sin(theta) + advance * t,
+    );
+    const center = new THREE.Vector3(0, radius, advance * t);
     return {
-      position: new THREE.Vector3(
-        0,
-        radius * (1 - Math.cos(theta)),
-        radius * Math.sin(theta),
-      ),
+      position,
       tangent: new THREE.Vector3(0, Math.sin(theta), Math.cos(theta)).normalize(),
-      up: new THREE.Vector3(0, Math.cos(theta), -Math.sin(theta)).normalize(),
+      up: center.clone().sub(position).normalize(),
       bank: 0,
     };
   };
@@ -124,10 +139,11 @@ const PIECES = {
   },
   'loop-r7': {
     title: 'Vertical loop · R7',
-    meta: '360° · entry frame equals exit frame',
-    length: Math.PI * 2 * 7,
+    meta: `360° · entrance and exit ${TRACK.loopAdvance} m apart`,
+    length: Math.PI * 2 * 7 + TRACK.loopAdvance,
     path: loopPath(7),
-    view: new THREE.Vector3(1.2, 0.35, 1),
+    view: new THREE.Vector3(0.9, 0.55, 0.7),
+    showLeadIn: true,
   },
   'hill-crest-2.5': {
     title: 'Hill · crest 2.5 m',
@@ -146,8 +162,8 @@ const PIECES = {
   },
   car: {
     kind: 'car',
-    title: 'Hot-wheels car · die-cast',
-    meta: '2.2 × 1.0 × 0.7 m · rear wheels oversized · generated flame livery',
+    title: 'Hypercar · die-cast',
+    meta: '2.45 × 1.0 × 0.72 m · candy red · gold aero wheels · swan-neck wing',
   },
   cockpit: {
     kind: 'cockpit',
@@ -205,8 +221,10 @@ const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = environment;
 scene.environmentIntensity = 0.55;
 
-const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x05080e });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMaterial);
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.MeshBasicMaterial({ color: 0x05080e }),
+);
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
@@ -215,48 +233,77 @@ grid.material.transparent = true;
 grid.material.opacity = 0.3;
 scene.add(grid);
 
-const orangeDark = new THREE.Color(0xe8500a);
-const orangeLight = new THREE.Color(0xff6a12);
-const surfaceMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffffff,
-  roughness: 0.52,
-  metalness: 0.08,
-});
 const railMaterial = new THREE.MeshStandardMaterial({
   color: 0xc6cedb,
   roughness: 0.34,
   metalness: 0.3,
+  side: THREE.DoubleSide,
 });
 const supportMaterial = new THREE.MeshStandardMaterial({
   color: 0x232a36,
   roughness: 0.9,
   metalness: 0.1,
 });
-const boostMaterial = new THREE.MeshStandardMaterial({
-  color: 0x19e3ff,
-  emissive: 0x0aa4c4,
-  emissiveIntensity: 1.4,
-  roughness: 0.35,
-});
 
-const matrix = new THREE.Matrix4();
-const quaternion = new THREE.Quaternion();
-const basis = new THREE.Matrix4();
-const offset = new THREE.Vector3();
+/** Orange plastic with seam lines, optionally carrying boost chevrons. */
+function createTrackTexture({ boost = false } = {}) {
+  const canvasTexture = document.createElement('canvas');
+  canvasTexture.width = 128;
+  canvasTexture.height = 256;
+  const ctx = canvasTexture.getContext('2d');
+  if (!ctx) {
+    throw new Error('2D canvas unavailable');
+  }
 
-function buildTrack(path, length, { boost = false } = {}) {
-  const group = new THREE.Group();
-  const planks = Math.max(18, Math.round(length / TRACK.plank));
-  const plankLength = (length / planks) * 1.04;
+  const gradient = ctx.createLinearGradient(0, 0, 128, 0);
+  gradient.addColorStop(0, '#d94c0b');
+  gradient.addColorStop(0.5, '#ff7a18');
+  gradient.addColorStop(1, '#d94c0b');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 256);
+
+  // Seam every tile (one tile equals TRACK.seam metres of track).
+  ctx.fillStyle = 'rgba(74, 20, 0, 0.5)';
+  ctx.fillRect(0, 0, 128, 4);
+  ctx.fillStyle = 'rgba(255, 200, 150, 0.18)';
+  ctx.fillRect(0, 4, 128, 3);
+
+  // Faint darker centre strip for a molded-plastic look.
+  ctx.fillStyle = 'rgba(120, 40, 0, 0.08)';
+  ctx.fillRect(56, 0, 16, 256);
+
+  if (boost) {
+    ctx.strokeStyle = '#19e3ff';
+    ctx.shadowColor = '#19e3ff';
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 9;
+    for (const offsetY of [190, 120]) {
+      ctx.beginPath();
+      ctx.moveTo(30, offsetY);
+      ctx.lineTo(64, offsetY - 44);
+      ctx.lineTo(98, offsetY);
+      ctx.stroke();
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvasTexture);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Sample a piece path into orthonormal frames at roughly fixed spacing. */
+function framesFor(path, length, step = 0.35) {
+  const count = Math.max(24, Math.round(length / step));
   const frames = [];
-
-  for (let index = 0; index < planks; index += 1) {
-    const t = (index + 0.5) / planks;
+  for (let index = 0; index <= count; index += 1) {
+    const t = index / count;
     const sample = path(t);
     const uprightRight = new THREE.Vector3()
       .crossVectors(sample.up, sample.tangent)
       .normalize();
-    const bankedUp = sample.up
+    const up = sample.up
       .clone()
       .multiplyScalar(Math.cos(sample.bank))
       .addScaledVector(uprightRight, Math.sin(sample.bank))
@@ -264,95 +311,197 @@ function buildTrack(path, length, { boost = false } = {}) {
     frames.push({
       position: sample.position,
       tangent: sample.tangent,
-      up: bankedUp,
+      up,
       right: new THREE.Vector3()
-        .crossVectors(bankedUp, sample.tangent)
+        .crossVectors(up, sample.tangent)
         .normalize(),
+      s: t * length,
     });
   }
+  return frames;
+}
 
-  const plankMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(TRACK.width, TRACK.thickness, plankLength),
-    surfaceMaterial,
-    frames.length,
-  );
-  plankMesh.instanceColor = new THREE.InstancedBufferAttribute(
-    new Float32Array(frames.length * 3),
-    3,
-  );
-  const railMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(TRACK.railWidth, TRACK.railHeight, plankLength),
-    railMaterial,
-    frames.length * 2,
-  );
+/**
+ * Sweep a two-point cross-section along the frames into one continuous strip.
+ * `pointA` and `pointB` return the strip edges; `normal` gives the flat normal
+ * for the strip so edges stay crisp.
+ */
+function buildStrip(frames, pointA, pointB, normalOf) {
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
 
   frames.forEach((frame, index) => {
-    basis.makeBasis(frame.right, frame.up, frame.tangent);
-    quaternion.setFromRotationMatrix(basis);
-
-    offset
-      .copy(frame.position)
-      .addScaledVector(frame.up, -TRACK.thickness / 2);
-    matrix.compose(offset, quaternion, new THREE.Vector3(1, 1, 1));
-    plankMesh.setMatrixAt(index, matrix);
-    plankMesh.setColorAt(index, index % 2 === 0 ? orangeDark : orangeLight);
-
-    [-1, 1].forEach((side, sideIndex) => {
-      offset
-        .copy(frame.position)
-        .addScaledVector(
-          frame.right,
-          side * (TRACK.width / 2 - TRACK.railWidth / 2),
-        )
-        .addScaledVector(frame.up, TRACK.railHeight / 2 - 0.01);
-      matrix.compose(offset, quaternion, new THREE.Vector3(1, 1, 1));
-      railMesh.setMatrixAt(index * 2 + sideIndex, matrix);
-    });
+    const a = pointA(frame);
+    const b = pointB(frame);
+    const normal = normalOf(frame);
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    normals.push(normal.x, normal.y, normal.z, normal.x, normal.y, normal.z);
+    const v = frame.s / TRACK.seam;
+    uvs.push(0, v, 1, v);
+    if (index > 0) {
+      const base = (index - 1) * 2;
+      indices.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
+    }
   });
 
-  plankMesh.instanceMatrix.needsUpdate = true;
-  plankMesh.instanceColor.needsUpdate = true;
-  railMesh.instanceMatrix.needsUpdate = true;
-  plankMesh.frustumCulled = false;
-  railMesh.frustumCulled = false;
-  group.add(plankMesh, railMesh);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3),
+  );
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  return geometry;
+}
 
+function addStrip(group, frames, material, pointA, pointB, normalOf) {
+  const mesh = new THREE.Mesh(
+    buildStrip(frames, pointA, pointB, normalOf),
+    material,
+  );
+  mesh.frustumCulled = false;
+  group.add(mesh);
+}
+
+function addCap(group, frame, material) {
+  const half = TRACK.width / 2;
+  const topLeft = frame.position.clone().addScaledVector(frame.right, -half);
+  const topRight = frame.position.clone().addScaledVector(frame.right, half);
+  const bottomLeft = topLeft.clone().addScaledVector(frame.up, -TRACK.thickness);
+  const bottomRight = topRight.clone().addScaledVector(frame.up, -TRACK.thickness);
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(
+      [
+        ...topLeft.toArray(),
+        ...topRight.toArray(),
+        ...bottomRight.toArray(),
+        ...bottomLeft.toArray(),
+      ],
+      3,
+    ),
+  );
+  geometry.setAttribute(
+    'uv',
+    new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2),
+  );
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  group.add(mesh);
+}
+
+function buildTrack(path, length, { boost = false } = {}) {
+  const group = new THREE.Group();
+  const frames = framesFor(path, length);
+  const surfaceMaterial = new THREE.MeshStandardMaterial({
+    map: createTrackTexture({ boost }),
+    roughness: 0.48,
+    metalness: 0.06,
+    side: THREE.DoubleSide,
+  });
+
+  const half = TRACK.width / 2;
+  const topLeft = (frame) =>
+    frame.position.clone().addScaledVector(frame.right, -half);
+  const topRight = (frame) =>
+    frame.position.clone().addScaledVector(frame.right, half);
+  const bottomLeft = (frame) =>
+    topLeft(frame).addScaledVector(frame.up, -TRACK.thickness);
+  const bottomRight = (frame) =>
+    topRight(frame).addScaledVector(frame.up, -TRACK.thickness);
+
+  addStrip(group, frames, surfaceMaterial, topLeft, topRight, (frame) => frame.up);
+  addStrip(group, frames, surfaceMaterial, bottomLeft, bottomRight, (frame) =>
+    frame.up.clone().negate(),
+  );
+  addStrip(group, frames, surfaceMaterial, topLeft, bottomLeft, (frame) =>
+    frame.right.clone().negate(),
+  );
+  addStrip(group, frames, surfaceMaterial, topRight, bottomRight, (frame) =>
+    frame.right.clone(),
+  );
+
+  const firstFrame = frames[0];
+  const lastFrame = frames[frames.length - 1];
+  if (firstFrame) {
+    addCap(group, firstFrame, surfaceMaterial);
+  }
+  if (lastFrame) {
+    addCap(group, lastFrame, surfaceMaterial);
+  }
+
+  // Continuous rails: four swept faces per rail.
+  for (const side of [-1, 1]) {
+    const lateral =
+      side * (TRACK.width / 2 - TRACK.railWidth / 2);
+    const railBase = (frame) =>
+      frame.position.clone().addScaledVector(frame.right, lateral);
+    const innerEdge = (frame) =>
+      railBase(frame).addScaledVector(
+        frame.right,
+        -side * (TRACK.railWidth / 2),
+      );
+    const outerEdge = (frame) =>
+      railBase(frame).addScaledVector(
+        frame.right,
+        side * (TRACK.railWidth / 2),
+      );
+    const lift = (point, frame) =>
+      point.clone().addScaledVector(frame.up, TRACK.railHeight);
+
+    addStrip(
+      group,
+      frames,
+      railMaterial,
+      (frame) => lift(innerEdge(frame), frame),
+      (frame) => lift(outerEdge(frame), frame),
+      (frame) => frame.up,
+    );
+    addStrip(
+      group,
+      frames,
+      railMaterial,
+      innerEdge,
+      (frame) => lift(innerEdge(frame), frame),
+      (frame) => frame.right.clone().multiplyScalar(-side),
+    );
+    addStrip(
+      group,
+      frames,
+      railMaterial,
+      (frame) => lift(outerEdge(frame), frame),
+      outerEdge,
+      (frame) => frame.right.clone().multiplyScalar(side),
+    );
+  }
+
+  const supportSpacing = Math.max(1, Math.round(6 / 0.35));
   frames.forEach((frame, index) => {
-    if (index % 4 !== 0 || frame.position.y < 0.8) {
+    // Pillars only under near-horizontal elevated track; a loop's ring is
+    // carried by its own base, not by columns inside the opening.
+    if (
+      index % supportSpacing !== 0 ||
+      frame.position.y < 0.8 ||
+      frame.up.y < 0.75
+    ) {
       return;
     }
-    const height = frame.position.y - TRACK.thickness;
+    const top = frame.position.y - TRACK.thickness;
+    const height = top + 1;
     const column = new THREE.Mesh(
       new THREE.BoxGeometry(0.3, height, 0.3),
       supportMaterial,
     );
-    column.position.set(frame.position.x, height / 2, frame.position.z);
+    column.position.set(frame.position.x, (top - 1) / 2, frame.position.z);
     group.add(column);
   });
-
-  if (boost) {
-    const barGeometry = new THREE.BoxGeometry(0.95, 0.04, 0.26);
-    const baseQuaternion = new THREE.Quaternion();
-    for (let distance = 2; distance < length - 1; distance += 1.6) {
-      const frame = path(distance / length);
-      const right = new THREE.Vector3()
-        .crossVectors(frame.up, frame.tangent)
-        .normalize();
-      basis.makeBasis(right, frame.up, frame.tangent);
-      baseQuaternion.setFromRotationMatrix(basis);
-      [-1, 1].forEach((side) => {
-        const bar = new THREE.Mesh(barGeometry, boostMaterial);
-        bar.quaternion.copy(baseQuaternion);
-        bar.rotateY(side * 0.55);
-        bar.position
-          .copy(frame.position)
-          .addScaledVector(frame.up, 0.01)
-          .addScaledVector(right, side * 0.5)
-          .addScaledVector(frame.tangent, 0.32);
-        group.add(bar);
-      });
-    }
-  }
 
   return group;
 }
@@ -443,9 +592,9 @@ if (piece.kind === 'car') {
   const hood = new THREE.Mesh(
     new THREE.BoxGeometry(1.02, 0.06, 1.2),
     new THREE.MeshStandardMaterial({
-      color: 0xc0103f,
-      metalness: 0.6,
-      roughness: 0.28,
+      color: 0xa30f1d,
+      metalness: 0.78,
+      roughness: 0.2,
     }),
   );
   hood.position.set(0, 0.3, 1.1);
@@ -476,7 +625,16 @@ if (piece.kind === 'car') {
 } else {
   const track = buildTrack(piece.path, piece.length, { boost: piece.boost });
   assetGroup.add(track);
-  fitCamera(track, piece.view ?? new THREE.Vector3(1, 0.72, 1));
+  if (piece.showLeadIn) {
+    // Show the loop in context: track leading in and out proves the
+    // entrance and exit rather than reading as a closed ring.
+    const leadIn = buildTrack(straightPath(7), 7);
+    leadIn.position.z = -7;
+    const leadOut = buildTrack(straightPath(7), 7);
+    leadOut.position.z = TRACK.loopAdvance;
+    assetGroup.add(leadIn, leadOut);
+  }
+  fitCamera(assetGroup, piece.view ?? new THREE.Vector3(1, 0.72, 1), 1.12);
 }
 
 // Drop the ground below the lowest geometry so banks never sink through it.

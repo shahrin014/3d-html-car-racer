@@ -70,18 +70,29 @@ Levels control the piece pool and the counts; the seed controls the order.
 
 ### Elevation and loops
 
-Hills and loops are self-contained pieces that return to their entry height, so
-assembly stays two-dimensional and closure is unaffected. The loop piece is a
-360° vertical arc in the tangent/up plane; its exit frame equals its entry frame,
-so it can be spliced into any straight slot.
+Hills and loops are self-contained pieces that return to ground level, so
+assembly stays two-dimensional and closure is unaffected. A hill rises and falls
+within its own length with zero slope at both ends.
+
+The loop is a 360° vertical arc that advances 4 m along the track. A pure circle
+would start and end at the same point, which reads as a closed ring with no way
+in or out; the advance gives the loop a visible entrance and exit while keeping
+the entry and exit headings identical, so it still joins any straight. The
+driver climbs in at the front, inverts over the top, and lands 4 m further on.
 
 ## Track construction
 
-The sampled centreline becomes 1.5 m planks: a convex box 3.0 m wide and 0.12 m
-thick, with rail boxes 0.35 m tall on both edges. Convex pieces keep contact
-cheap and stable, give the plastic-seam look, and work inside a loop. Support
-pillars connect raised track to the ground. Planks, rails, supports, boosts, and
-the gate share materials; no geometry is created during a race.
+Each piece is one continuous swept mesh. The centreline is sampled every 0.35 m
+and a rectangular cross-section (3.0 m wide, 0.12 m thick) is swept along the
+frames, with explicit normals so the side edges stay crisp. Seam lines are drawn
+into a repeating surface texture (one tile per 1.5 m) instead of splitting the
+surface into boxes, so there are no gaps, cracks, or steps for the car to catch
+on. Rails are swept rectangular tubes with the same treatment. Support pillars
+remain separate columns; they are not part of the driving surface.
+
+Collision geometry is generated from the same frames as convex segments, so the
+visual mesh never doubles as a physics mesh. If Rapier is adopted, the swept
+surface can be used directly as a trimesh collider.
 
 Visual language: saturated orange surface with darker seams, light-grey rails,
 dark supports, chevron boost strips, and a start/finish gate with a timing line.

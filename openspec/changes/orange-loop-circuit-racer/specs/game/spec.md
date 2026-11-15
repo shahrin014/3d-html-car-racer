@@ -371,11 +371,12 @@ rule SHALL be rejected and regenerated from the next deterministic seed offset.
 
 ### Requirement: The track is a narrow orange surface with guide rails
 
-The track SHALL be one surface about three car widths wide with guide rails on
-both edges. It SHALL read as orange plastic with visible segment seams, and the
-rails, supports, boost strips, and start/finish gate SHALL be visually distinct.
-Supports SHALL connect raised track to the ground, including under loops. The
-track SHALL NOT contain gaps or floating sections.
+The track SHALL be one continuous surface about three car widths wide with guide
+rails on both edges. It SHALL read as orange plastic with visible segment seams,
+and the rails, supports, boost strips, and start/finish gate SHALL be visually
+distinct. Supports SHALL connect raised track to the ground, including under
+loops. The surface SHALL NOT contain gaps, cracks, or steps, and vertical loops
+SHALL have a distinct entrance and exit.
 
 #### Scenario: Track width
 
@@ -388,11 +389,20 @@ track SHALL NOT contain gaps or floating sections.
 - **GIVEN** any raised track section outside a loop
 - **THEN** it is connected to the ground by at least one support
 
-#### Scenario: No gaps
+#### Scenario: Continuous surface
 
 - **GIVEN** the built track
-- **WHEN** consecutive planks are inspected
-- **THEN** their surfaces meet without a step or gap the car can catch on
+- **WHEN** the surface is inspected
+- **THEN** it is one continuous mesh with no gap or step between sections
+- **AND** seam lines come from the surface texture, not from separate pieces
+
+#### Scenario: Loop entrance and exit
+
+- **GIVEN** a vertical loop
+- **WHEN** the loop is inspected
+- **THEN** the car enters at the front at ground level
+- **AND** exits at ground level a short distance ahead of the entrance
+- **AND** the entrance and exit headings match the straight it joins
 
 ### Requirement: The car is simulated as a rigid body
 

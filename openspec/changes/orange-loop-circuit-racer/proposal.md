@@ -17,10 +17,15 @@ longer describe the game.
   catalog of known-good pieces (straights, banked turns, loops, hills, boost
   straights). A seed decides the combination, never the piece geometry, so every
   circuit is guaranteed to close and every piece has tested physics.
-- **One narrow track.** The surface is three car widths wide, orange, with guide
-  rails. There are no lanes and no traffic.
+- **One narrow track.** The surface is three car widths wide, orange, and swept
+  as one continuous mesh with guide rails. Seams are drawn in the texture, not
+  cut into the surface. There are no lanes and no traffic.
 - **Track features.** Every circuit contains at least one vertical loop, at least
-  two banked turns, and at least one boost strip, scaled by level.
+  two banked turns, and at least one boost strip, scaled by level. The loop
+  advances 4 m from entrance to exit, so it reads as a loop rather than a ring.
+- **Die-cast hypercar.** A low, wide candy-red car with a black canopy, black
+  aero, gold multi-spoke wheels, and a swan-neck rear wing. Our own design and
+  name; no third-party branding or trade dress.
 - **Rigid-body physics.** Gravity, tyre contact, motor torque, and impacts come
   from a rigid-body engine behind a small adapter, so the engine can change
   without touching gameplay code.
