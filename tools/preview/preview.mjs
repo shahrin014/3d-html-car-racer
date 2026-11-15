@@ -321,7 +321,7 @@ function buildTrack(path, length, { boost = false } = {}) {
     if (index % 4 !== 0 || frame.position.y < 0.8) {
       return;
     }
-    const height = frame.position.y;
+    const height = frame.position.y - TRACK.thickness;
     const column = new THREE.Mesh(
       new THREE.BoxGeometry(0.3, height, 0.3),
       supportMaterial,

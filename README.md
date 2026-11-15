@@ -95,7 +95,9 @@ src/
     constants.ts     all tuning values
 public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator
+assets/              rendered catalog: track pieces, car, cockpit
 build/               bundle budget, service worker cache stamping
+tools/               asset preview renderer (three.js in headless Chromium)
 e2e/                 Playwright browser smoke tests
 openspec/            behavior and deployment specs
 ```

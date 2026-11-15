@@ -16,6 +16,7 @@ cover anything that needs WebGL, physics, or a device sensor.
 - [ ] 2.1 Build orange planks, guide rails, supports, boost chevrons, and a start/finish gate from the sampled frames, sharing materials. Verified by screenshots in both cameras.
 - [ ] 2.2 Keep geometry static for the whole race and dispose it with the scene. Verified by a manual memory check over three races.
 - [ ] 2.3 Verify supports reach the ground outside loops and that no plank floats. Verified by screenshots and a geometry unit test.
+- [ ] 2.4 Render the catalog into `assets/track`, `assets/car`, and `assets/cockpit` with `npm run assets`, and keep `assets/README.md` indexed. Verified by reviewing the renders.
 
 ## 3. Physics backend and spike
 

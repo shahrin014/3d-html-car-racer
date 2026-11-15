@@ -86,6 +86,22 @@ the gate share materials; no geometry is created during a race.
 Visual language: saturated orange surface with darker seams, light-grey rails,
 dark supports, chevron boost strips, and a start/finish gate with a timing line.
 
+## Asset catalog
+
+Every gameplay asset has a rendered reference in `assets/`:
+
+```
+assets/track/    straight, 45/90/180 turns, loop, hill, boost straight
+assets/car/      die-cast car hero render
+assets/cockpit/  driver's-eye rig with the generated dashboard
+```
+
+`tools/preview/` builds each asset from the same parametric definitions the game
+uses and renders it in headless Chromium with three.js; `npm run assets`
+regenerates the catalog. The renders are documentation only: the game still
+loads no models, textures, or fonts at runtime, and the catalog is excluded from
+the production bundle.
+
 ## Physics
 
 ### Adapter
