@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import {
+  CAR_WIDTH,
   DESIGN_SPEED,
   LOOP_OFFSET,
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
+  MIN_TURN_RADIUS,
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
@@ -137,14 +139,24 @@ export interface Piece {
   /** Matrix that places the piece's local frame in the circuit. */
   matrix: THREE.Matrix4;
   boost?: boolean;
+  /** Authored turn radius and angle, used by layout validation. */
+  radius?: number;
+  angleDegrees?: number;
 }
 
-/** Seeded, template-based circuit: a stadium with a loop module inline. */
+/** Seeded, catalogue-based circuit: a stadium with a loop and a hill. */
 export interface Circuit {
   seed: string;
   level: number;
+  /** Deterministic retry offset that produced the accepted combination. */
+  seedOffset: number;
   pieces: Piece[];
   frameCount: number;
+}
+
+export interface CircuitValidation {
+  ok: boolean;
+  reasons: string[];
 }
 
 function seededRandom(seed: string): () => number {
@@ -163,10 +175,36 @@ function seededRandom(seed: string): () => number {
 }
 
 /** Straight lengths the seeded assembly may choose from, in metres. */
-const STRAIGHT_CATALOG = [8, 12, 16] as const;
-const HILL_LENGTH = 20;
-const HILL_HEIGHT = 1.6;
-const MIN_CLOSING_STRAIGHT = 8;
+const HILL_LENGTH = 30;
+const HILL_HEIGHT = 2.4;
+const MIN_CLOSING_STRAIGHT = 12;
+const TURN_RADII = [18, 14, 10, 8] as const;
+const MAX_ASSEMBLY_ATTEMPTS = 32;
+
+/** Straight lengths offered at a level, scaled with the rest of the track. */
+export function straightCatalogForLevel(level: number): readonly number[] {
+  if (level >= 7) {
+    return [18, 24, 30];
+  }
+  if (level >= 3) {
+    return [12, 18, 24];
+  }
+  return [12, 18];
+}
+
+/** Turn radius offered at a level; tighter tiers unlock as the level rises. */
+export function turnRadiusForLevel(level: number): number {
+  const tier = Math.min(
+    TURN_RADII.length - 1,
+    Math.max(0, Math.floor((level - 1) / 3)),
+  );
+  return (TURN_RADII[tier] ?? TURN_RADII[0]) * 1.5;
+}
+
+/** Loop radius offered at a level; it shrinks toward two thirds at level 12. */
+export function loopRadiusForLevel(level: number): number {
+  return Math.max(LOOP_RADIUS * 0.68, LOOP_RADIUS - (level - 1) * 0.3);
+}
 
 /** One assembled side of the stadium, measured along its local +Z axis. */
 interface SideModule {
@@ -175,21 +213,32 @@ interface SideModule {
   length: number;
 }
 
+interface PlanPoint {
+  x: number;
+  z: number;
+  s: number;
+}
+
 /**
- * Build the piece list. The circuit is a stadium: two sides joined by two 180°
- * banked turns. The seed picks the turn direction, which side carries the loop
- * and the hill, the straight lengths, and the order of those modules. Every
- * piece starts at its own origin heading +Z, so the placement matrix is the
- * accumulated frame.
+ * Assemble the piece list for one seeded attempt. The circuit is a stadium:
+ * two sides joined by two 180° banked turns. The seed picks the turn direction,
+ * which side carries the loop and the hill, the straight lengths, and the order
+ * of those modules. Every piece starts at its own origin heading +Z, so the
+ * placement matrix is the accumulated frame.
  *
  * Closure is guaranteed by construction: both sides are assembled to the same
  * forward length, the loop's sideways exit is cancelled by a shift piece, and
  * the two equal turns return the heading and lateral offset to the start.
  */
-export function generateCircuit(seed: string, level: number): Circuit {
-  const random = seededRandom(`${seed}:${level}`);
-  const radius = [18, 14, 10][Math.min(2, Math.floor((level - 1) / 2))] ?? 14;
-  const loopRadius = Math.max(5.5, LOOP_RADIUS - (level - 1) * 0.25);
+function assembleCircuit(
+  seed: string,
+  level: number,
+  seedOffset: number,
+): Circuit {
+  const random = seededRandom(`${seed}:${level}:${seedOffset}`);
+  const radius = turnRadiusForLevel(level);
+  const loopRadius = loopRadiusForLevel(level);
+  const straights = straightCatalogForLevel(level);
   const pieces: Piece[] = [];
 
   // Raise the whole circuit so the low edge of a banked turn never reaches
@@ -231,10 +280,23 @@ export function generateCircuit(seed: string, level: number): Circuit {
     pieces.push({ kind, path, length, matrix });
   };
 
+  const addTurn = (): void => {
+    const last = pieces[pieces.length - 1];
+    const matrix = last ? frameAt(last.matrix, last.path, 1) : identity.clone();
+    pieces.push({
+      kind: 'turn',
+      path: turnPath(radius, 180, clockwise),
+      length: Math.PI * radius,
+      matrix,
+      radius,
+      angleDegrees: 180,
+    });
+  };
+
   const pick = <T,>(values: readonly T[]): T => {
     const value = values[Math.floor(random() * values.length)];
     if (value === undefined) {
-      throw new Error('empty track catalog');
+      throw new Error('empty track catalogue');
     }
     return value;
   };
@@ -246,7 +308,7 @@ export function generateCircuit(seed: string, level: number): Circuit {
   ): SideModule[] => {
     // Start on a straight so the grid and finish gate always sit on flat track.
     const modules: SideModule[] = [
-      { kind: 'straight', length: pick(STRAIGHT_CATALOG) },
+      { kind: 'straight', length: pick(straights) },
     ];
     if (withLoop) {
       modules.push({ kind: 'loop', length: LOOP_RETURN_LENGTH });
@@ -255,7 +317,7 @@ export function generateCircuit(seed: string, level: number): Circuit {
       modules.push({ kind: 'hill', length: HILL_LENGTH });
     }
     for (let index = 0; index < extraStraights; index += 1) {
-      modules.push({ kind: 'straight', length: pick(STRAIGHT_CATALOG) });
+      modules.push({ kind: 'straight', length: pick(straights) });
     }
 
     // Keep the leading straight fixed, shuffle the rest of the combination.
@@ -275,7 +337,7 @@ export function generateCircuit(seed: string, level: number): Circuit {
   const loopSide = random() < 0.5 ? 0 : 1;
   // Put the hill on the other side so the two halves stay comparable in length.
   const hillSide = loopSide === 0 ? 1 : 0;
-  const extraStraights = 1 + Math.floor(random() * 2);
+  const extraStraights = 1 + Math.min(2, Math.floor((level - 1) / 4));
   const sides: [SideModule[], SideModule[]] = [
     buildSide(loopSide === 0, hillSide === 0, extraStraights),
     buildSide(loopSide === 1, hillSide === 1, extraStraights),
@@ -291,8 +353,8 @@ export function generateCircuit(seed: string, level: number): Circuit {
   // difference, so the circuit still meets itself at the seam.
   const targetLength =
     Math.max(...fixedLengths) +
-    MIN_CLOSING_STRAIGHT +
-    Math.round(random() * MIN_CLOSING_STRAIGHT);
+    MIN_CLOSING_STRAIGHT * 1.5 +
+    Math.round(random() * MIN_CLOSING_STRAIGHT * 1.5);
   const closingStraights: [number, number] = [
     targetLength - fixedLengths[0],
     targetLength - fixedLengths[1],
@@ -322,19 +384,153 @@ export function generateCircuit(seed: string, level: number): Circuit {
   };
 
   addSide(sides[0], closingStraights[0]);
-  addPiece('turn', turnPath(radius, 180, clockwise), Math.PI * radius);
+  addTurn();
   addSide(sides[1], closingStraights[1]);
-  addPiece('turn', turnPath(radius, 180, clockwise), Math.PI * radius);
+  addTurn();
 
   return {
     seed,
     level,
+    seedOffset,
     pieces,
     frameCount: pieces.reduce(
       (total, piece) => total + Math.ceil(piece.length / 0.35),
       0,
     ),
   };
+}
+
+/** Sample a circuit's horizontal footprint without the vertical loop ring. */
+function planPoints(circuit: Circuit): PlanPoint[] {
+  const points: PlanPoint[] = [];
+  let distance = 0;
+  for (const piece of circuit.pieces) {
+    if (piece.kind === 'loop') {
+      continue;
+    }
+    const count = Math.max(2, Math.ceil(piece.length));
+    for (let index = 0; index <= count; index += 1) {
+      if (
+        index === count &&
+        piece !== circuit.pieces[circuit.pieces.length - 1]
+      ) {
+        continue;
+      }
+      const sample = piece.path(index / count);
+      const position = sample.position.clone().applyMatrix4(piece.matrix);
+      points.push({
+        x: position.x,
+        z: position.z,
+        s: distance + (index / count) * piece.length,
+      });
+    }
+    distance += piece.length;
+  }
+  return points;
+}
+
+/**
+ * Validate the behaviour rules independently of assembly: closure, required
+ * features, minimum turn radius, and plan-view clearance between sections that
+ * are not adjacent along the circuit.
+ */
+export function validateCircuit(circuit: Circuit): CircuitValidation {
+  const reasons = new Set<string>();
+
+  const loops = circuit.pieces.filter((piece) => piece.kind === 'loop').length;
+  const turns = circuit.pieces.filter((piece) => piece.kind === 'turn').length;
+  const boosts = circuit.pieces.filter((piece) => piece.kind === 'boost').length;
+  if (loops < 1) {
+    reasons.add('missing a vertical loop');
+  }
+  if (turns < 2) {
+    reasons.add('needs at least two banked turns');
+  }
+  if (boosts < 2) {
+    reasons.add('needs at least two boost strips');
+  }
+
+  for (const piece of circuit.pieces) {
+    if (piece.kind !== 'turn') {
+      continue;
+    }
+    const radius =
+      piece.radius ??
+      (piece.angleDegrees
+        ? piece.length / ((piece.angleDegrees * Math.PI) / 180)
+        : Number.POSITIVE_INFINITY);
+    if (radius < MIN_TURN_RADIUS - 1e-6) {
+      reasons.add(
+        `turn radius ${radius.toFixed(2)} m is below ${MIN_TURN_RADIUS} m`,
+      );
+    }
+  }
+
+  const frames = buildFrames(circuit);
+  const first = frames[0];
+  const last = frames[frames.length - 1];
+  if (!first || !last) {
+    reasons.add('circuit has no sampled frames');
+  } else {
+    if (first.position.distanceTo(last.position) > 0.05) {
+      reasons.add('seam position does not close');
+    }
+    if (first.tangent.dot(last.tangent) < 0.999) {
+      reasons.add('seam heading does not close');
+    }
+  }
+
+  const points = planPoints(circuit);
+  const lastPoint = points[points.length - 1];
+  const total = lastPoint ? lastPoint.s : 0;
+  const adjacentArc = TRACK_WIDTH * 2;
+  const clearance = TRACK_WIDTH + CAR_WIDTH;
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index];
+    if (!a) {
+      continue;
+    }
+    for (let other = index + 1; other < points.length; other += 1) {
+      const b = points[other];
+      if (!b) {
+        continue;
+      }
+      const direct = Math.abs(a.s - b.s);
+      const arc = Math.min(direct, Math.max(0, total - direct));
+      if (arc < adjacentArc) {
+        continue;
+      }
+      const distance = Math.hypot(a.x - b.x, a.z - b.z);
+      if (distance < TRACK_WIDTH - 0.01) {
+        reasons.add('plan view self-intersects');
+      } else if (distance < clearance - 0.01) {
+        reasons.add('plan view clearance is below one car width');
+      }
+    }
+  }
+
+  return { ok: reasons.size === 0, reasons: [...reasons] };
+}
+
+/**
+ * Build a validated circuit. Each rejected attempt advances a deterministic
+ * seed offset, so the same seed and level always settle on the same circuit.
+ */
+export function generateCircuit(seed: string, level: number): Circuit {
+  const failures: string[] = [];
+  for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
+    const circuit = assembleCircuit(seed, level, offset);
+    const validation = validateCircuit(circuit);
+    if (validation.ok) {
+      return circuit;
+    }
+    failures.push(`offset ${offset}: ${validation.reasons.join(', ')}`);
+  }
+  throw new Error(
+    `Could not assemble a playable circuit for ${seed} at level ${level}: ${failures
+      .slice(0, 3)
+      .join(' | ')}`,
+  );
 }
 
 /** Sample a circuit into world-space frames at roughly fixed spacing. */
