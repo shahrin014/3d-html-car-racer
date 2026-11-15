@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from './helpers.ts';
 
 test.describe('offline', () => {
   test.use({ serviceWorkers: 'allow' });
 
   test('reloads from cache after one online visit', async ({ page, context }) => {
     test.setTimeout(90_000);
-    await page.goto('/');
+    await gotoApp(page);
     await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.ready;
       if (!registration.active) {

@@ -43,14 +43,14 @@ Run this against the public URL after every deployment:
 | --- | --- |
 | Base URL | Returns 200 over HTTPS |
 | Assets | Script, styles, manifest, icons, and favicon return 200 under the subpath |
-| Game | Menu loads; a run starts; steering and pause work; a collision costs a heart |
-| Persistence | Best score survives a reload |
-| Install | Manifest is valid and the app installs or opens standalone |
+| Game | Menu loads; a race starts; steering, braking, and pause work; a lap completes |
+| Persistence | Best race time survives a reload |
+| Install | Manifest is valid, opens in landscape, and the app installs or opens standalone |
 | Offline | After one online load, a reload with the network disabled still starts the game |
-| Console | No uncaught errors during menu, run, pause, and game over |
+| Console | No uncaught errors during menu, countdown, race, pause, and finish |
 | Revision | The deployed content matches the `main` commit recorded by the workflow run |
 
-The shell, run lifecycle, persistence, and offline rows are also covered
+The shell, race lifecycle, persistence, and offline rows are also covered
 automatically by `e2e/`; the remaining rows need a real device or a manual
 browser pass.
 
@@ -157,8 +157,10 @@ refuse to deploy any ref other than `main` and SHALL use concurrency group
 
 A `pull_request` workflow SHALL run the quality gate without deploy
 permissions. It SHALL run type checking, unit tests, the production build
-(including the transfer budget), and the browser smoke suite. The workflow SHALL
-request only `contents: read` and SHALL NOT deploy.
+(including the transfer budget), and the browser smoke suite. The browser suite
+SHALL run at a landscape phone viewport and SHALL cover orientation handling and
+the input fallbacks. The workflow SHALL request only `contents: read` and SHALL
+NOT deploy.
 
 #### Scenario: Pull request runs the gate
 
@@ -166,6 +168,13 @@ request only `contents: read` and SHALL NOT deploy.
 - **WHEN** it is opened or updated
 - **THEN** the checks workflow runs type checking, unit tests, the build, and the browser smoke tests
 - **AND** no deployment is triggered
+
+#### Scenario: Landscape coverage
+
+- **GIVEN** a pull request changes layout, controls, or physics
+- **WHEN** the browser job runs
+- **THEN** the suite runs at 844×390
+- **AND** it exercises button and keyboard steering with tilt unavailable
 
 #### Scenario: Fork pull request
 
@@ -240,7 +249,7 @@ workflow, SHALL NOT deploy, and SHALL leave the previous deployment live.
 
 #### Scenario: Browser smoke failure
 
-- **GIVEN** the built app cannot boot, start a run, or update the HUD
+- **GIVEN** the built app cannot boot, start a race, or update the HUD
 - **WHEN** the browser job runs
 - **THEN** it fails
 - **AND** the deploy job does not run
@@ -299,8 +308,15 @@ passes against the public URL.
 #### Scenario: Post-deploy smoke test
 
 - **GIVEN** the workflow succeeded
-- **WHEN** the verification checklist is run on a phone-sized viewport
+- **WHEN** the verification checklist is run on a landscape phone-sized viewport
 - **THEN** all checks pass before the deployment is announced
+- **AND** the race starts, a lap completes, and the HUD reports time and damage
+
+#### Scenario: Installed orientation
+
+- **GIVEN** the deployed build is installed on a phone
+- **WHEN** it is launched from the home screen
+- **THEN** it opens in landscape
 
 #### Scenario: Broken asset path
 
@@ -339,7 +355,7 @@ last successful one.
 
 Hashed assets SHALL be immutable and cache-first. The app shell SHALL be
 network-first so a new deployment is discovered promptly. A new service worker
-SHALL take effect on the next launch, not mid-run. The service worker cache name
+SHALL take effect on the next launch, not mid-race. The service worker cache name
 SHALL be derived from the emitted build so it changes whenever the app shell or
 the core asset list changes, and SHALL be identical for identical builds.
 
@@ -350,10 +366,10 @@ the core asset list changes, and SHALL be identical for identical builds.
 - **THEN** the new page shell is fetched
 - **AND** new hashed assets are downloaded and cached
 
-#### Scenario: No mid-run interruption
+#### Scenario: No mid-race interruption
 
-- **GIVEN** a new service worker is installed while a run is in progress
-- **THEN** the run continues without a forced reload
+- **GIVEN** a new service worker is installed while a race is in progress
+- **THEN** the race continues without a forced reload
 - **AND** the update applies on the next launch
 
 #### Scenario: Cache version tracks the build

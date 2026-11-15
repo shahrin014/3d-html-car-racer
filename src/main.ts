@@ -147,6 +147,10 @@ try {
           setScreen(snapshot.state);
         }
       },
+      onPhysicsError: (message: string) => {
+        startButton.disabled = true;
+        startButton.textContent = message;
+      },
       onFinish: (totalTime: number, damage: number) => {
         finalTime.textContent = formatTime(totalTime);
         finalDamage.textContent = `${Math.round(damage)}%`;

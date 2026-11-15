@@ -2,16 +2,13 @@
 
 | Item | Value |
 | --- | --- |
-| Worktree | `/root/.local/share/opencode/worktree/62f8c4/nimble-moon` |
-| Branch | `feat/rapier-physics` |
+| Branch | `main` (merged from `feat/rapier-physics`) |
 | Base | `8964a69` — Rapier physics handover |
-| Live branch | `main` (arcade model, deployed) |
 | Runtime | Node 26 LTS (`.nvmrc`) |
 
-The circuit-racer concept, specs, assets, and the playable arcade build are on
-`main`. This branch replaces the track-constrained movement with a Rapier
-rigid-body car. **Do not merge it to `main` until the branch has been reviewed
-and the merge is explicitly requested.**
+The circuit-racer concept, specs, assets, and the playable build are on `main`.
+This document records the Rapier rigid-body integration that replaced the
+track-constrained movement.
 
 ## What is done
 
@@ -27,8 +24,8 @@ and the merge is explicitly requested.**
   - contact-force events converted to damage impulses
   - `read()`, `reset(frame)`, `boost(impulse)`, `takeImpact()`, `dispose()`
 - `src/game/Game.ts` integrates the adapter:
-  - loads Rapier on the first Start during the countdown, with the arcade model
-    as a fallback if the engine cannot start
+  - loads Rapier on the first Start; the countdown waits for the engine, and a
+    failed load disables Start with a Physics unavailable message
   - fixed 1/120 s simulation with at most four substeps per rendered frame
   - wall-clock countdown, so a slow first Rapier load cannot restart the countdown
   - drives the car group, cameras, speed, lap progress, boost strips, damage,
@@ -72,30 +69,25 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
   alignment and adds **no forward energy**. Steering and impacts remain
   physical. It switches off when the car is more than one track width from the
   frame, so a fall cannot be flung back by a distant spring.
-- **Arcade fallback stays**: if Rapier fails to initialise, the first race can
-  still start on the track-constrained model. The fallback is a safety net, not
-  the primary path.
+- **No arcade fallback**: the rigid body is the only vehicle simulation. If
+  Rapier cannot initialise, the game reports the failure and disables Start
+  rather than silently changing the handling.
 
 ## Known issues
 
 - The sandbox has repeatedly killed `tsc`/build/vitest runs when several
   sessions share a repository or memory is low. Keep one session per worktree
   and run one heavy command at a time.
-- `main` intentionally still ships the arcade model. Merge only after reviewing
-  the branch and after `npm run check` and `npm run test:e2e` pass on this
-  worktree.
 - The car model was iterated in a separate session; `src/game/Car.ts` is the
   game's model and `tools/preview/car-model.mjs` is the catalog model.
 - Playwright covers Chromium only; iOS tilt and install paths still need the
   phone-sized manual pass.
 - The Playwright suite is tuned for small runners: one worker, one spec per
-  process through `tools/run-e2e.mjs`, trace and video off, and a 256 MB
-  renderer heap cap. CI builds `dist/` first and runs with `E2E_SKIP_BUILD=1`,
-  so the build process is not alive while Chromium runs.
-- The full Playwright suite could not finish in this 1 GB worktree because the
-  sandbox killed Chromium under memory pressure. A minimal Playwright check
-  confirmed the menu, Start, wall-clock countdown, physics race start (9 km/h
-  after 2.5 s), and a clean console. Run `npm run test:e2e` in CI before merge.
+  process through `tools/run-e2e.mjs`, Chromium `--single-process`, trace and
+  video off, and a 256 MB renderer heap cap. The browser tree peaks around
+  413 MB with Rapier loaded, and the full suite passes on a 1 GB worktree. CI
+  builds `dist/` first and runs with `E2E_SKIP_BUILD=1`, so the build process is
+  not alive while Chromium runs.
 
 ## Current state of the game
 

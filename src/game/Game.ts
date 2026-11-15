@@ -43,6 +43,7 @@ export interface RaceSnapshot {
 export interface GameCallbacks {
   onSnapshot: (snapshot: RaceSnapshot) => void;
   onFinish: (totalTime: number, damage: number) => void;
+  onPhysicsError?: (message: string) => void;
 }
 
 interface BoostZone {
@@ -52,7 +53,7 @@ interface BoostZone {
 
 const clamp = THREE.MathUtils.clamp;
 
-/** Track-constrained dynamics: speed integrates gravity, engine, and damage. */
+/** Generated circuit, Rapier rigid-body vehicle, cameras, and race timing. */
 export class Game {
   private readonly container: HTMLElement;
   private readonly callbacks: GameCallbacks;
@@ -70,7 +71,6 @@ export class Game {
   private s = 0;
   private speed = 0;
   private steerTarget = 0;
-  private lateral = 0;
   private damage = 0;
   private lap = 1;
   private lapStart = 0;
@@ -78,9 +78,9 @@ export class Game {
   private countdownEndsAt = 0;
   private brake = false;
   private boostCooldown = 0;
+  private pausedFromCountdown = false;
   private stallTime = 0;
   private lastTime = 0;
-  private lastLapTopCheck = false;
   private physics: PhysicsHandle | null = null;
   private pendingPhysics: PhysicsHandle | null = null;
   private physicsLoad: Promise<void> | null = null;
@@ -167,14 +167,13 @@ export class Game {
   startRace(): void {
     this.s = 0;
     this.speed = 0;
-    this.lateral = 0;
     this.steerTarget = 0;
     this.damage = 0;
     this.lap = 1;
     this.lapStart = 0;
     this.totalTime = 0;
     this.time = 0;
-    this.countdownEndsAt = performance.now() + COUNTDOWN_SECONDS * 1000;
+    this.countdownEndsAt = 0;
     this.stallTime = 0;
     this.boostCooldown = 0;
     this.physicsAccumulator = 0;
@@ -196,6 +195,7 @@ export class Game {
 
   pause(): void {
     if (this.state === 'racing' || this.state === 'countdown') {
+      this.pausedFromCountdown = this.state === 'countdown';
       this.state = 'paused';
       this.report();
     }
@@ -203,7 +203,7 @@ export class Game {
 
   resume(): void {
     if (this.state === 'paused') {
-      this.state = 'racing';
+      this.state = this.pausedFromCountdown ? 'countdown' : 'racing';
       this.lastTime = performance.now();
       this.report();
     }
@@ -246,10 +246,10 @@ export class Game {
   }
 
   /**
-   * Load Rapier on the first Start, during the countdown. The menu and the
-   * countdown never wait for the WASM payload; if it is not ready in time the
-   * first race runs on the track-constrained fallback and the next race uses
-   * the rigid body.
+   * Load Rapier on the first Start. The countdown waits for the engine, so the
+   * menu stays responsive and the race never begins without physics. A failed
+   * load disables Start and reports the problem instead of silently changing
+   * the driving model.
    */
   private loadPhysics(): Promise<void> {
     if (this.physics || this.physicsFailed) {
@@ -274,10 +274,10 @@ export class Game {
       })
       .catch((error: unknown) => {
         this.physicsFailed = true;
-        console.warn(
-          'Rapier could not start; using the track-constrained model.',
-          error,
-        );
+        console.error('Rapier could not start.', error);
+        this.state = 'menu';
+        this.callbacks.onPhysicsError?.('Physics unavailable');
+        this.report();
       });
     return this.physicsLoad;
   }
@@ -349,110 +349,26 @@ export class Game {
     const delta = Math.min(MAX_FRAME_DELTA, Math.max(0, (now - this.lastTime) / 1000));
     this.lastTime = now;
     if (this.state === 'countdown') {
-      // Wall-clock, not accumulated ticks: loading Rapier can block the main
-      // thread for a moment, and the countdown must not restart after it.
-      if (now >= this.countdownEndsAt) {
-        this.state = 'racing';
+      if (this.physics) {
+        // Start the clock only once the engine is ready. Loading Rapier can
+        // block the main thread, and the countdown must neither run during
+        // that gap nor restart after it.
+        if (this.countdownEndsAt === 0) {
+          this.countdownEndsAt = now + COUNTDOWN_SECONDS * 1000;
+        } else if (now >= this.countdownEndsAt) {
+          this.state = 'racing';
+        }
+      } else if (this.physicsFailed) {
+        this.state = 'menu';
       }
     } else if (this.state === 'racing') {
-      this.simulate(delta);
+      this.simulatePhysics(delta);
     }
     this.updateCarVisuals(delta);
     this.updateCamera(delta);
     this.renderer.render(this.scene, this.camera);
     this.report();
   };
-
-  private simulate(delta: number): void {
-    if (this.physics) {
-      this.simulatePhysics(delta);
-      return;
-    }
-    this.simulateArcade(delta);
-  }
-
-  private simulateArcade(delta: number): void {
-    this.time += delta;
-    this.totalTime += delta;
-
-    const frame = this.frameAt(this.s);
-    const damageScale = 1 - (this.damage / 100) * 0.45;
-    const engine = this.brake ? -26 : 9.5 * damageScale;
-    const maxSpeed = 24 * damageScale;
-    const gravity = -9.82 * frame.tangent.y;
-
-    this.speed += (engine + gravity) * delta;
-    this.speed -= this.speed * 0.22 * delta;
-    if (this.speed > maxSpeed) {
-      this.speed = maxSpeed;
-    }
-    if (this.speed < 0) {
-      this.speed = 0;
-    }
-
-    // Lateral movement inside the rails.
-    const halfUsable = TRACK_WIDTH / 2 - 0.55;
-    const previousLateral = this.lateral;
-    this.lateral = clamp(
-      this.lateral + this.steerTarget * 3.4 * delta,
-      -halfUsable,
-      halfUsable,
-    );
-    if (
-      Math.abs(this.lateral) >= halfUsable - 0.001 &&
-      Math.abs(this.steerTarget) > 0.5 &&
-      Math.abs(this.lateral - previousLateral) < 0.0001
-    ) {
-      this.damage = Math.min(100, this.damage + 9 * delta);
-      this.speed *= 0.985;
-    }
-
-    // Boost strips.
-    this.boostCooldown = Math.max(0, this.boostCooldown - delta);
-    if (this.boostCooldown === 0) {
-      const zone = this.boosts.find(
-        (candidate) => this.s >= candidate.from && this.s < candidate.to,
-      );
-      if (zone) {
-        this.speed = Math.min(maxSpeed + 6, this.speed + 7);
-        this.boostCooldown = 1.6;
-      }
-    }
-
-    // Losing contact at the top of a loop damages the car and scrubs speed.
-    const loopTop = frame.up.y < -0.7 && frame.position.y > 6;
-    if (loopTop && !this.lastLapTopCheck && this.speed < 9.5) {
-      this.damage = Math.min(100, this.damage + 22);
-      this.speed *= 0.55;
-    }
-    this.lastLapTopCheck = loopTop;
-
-    this.s += this.speed * delta;
-    if (this.s >= this.length) {
-      this.s -= this.length;
-      this.lapStart = this.time;
-      this.lap += 1;
-      if (this.lap > LAPS) {
-        this.state = 'finished';
-        this.callbacks.onFinish(this.totalTime, this.damage);
-        return;
-      }
-    }
-
-    // Rescue when stuck.
-    if (this.speed < 1) {
-      this.stallTime += delta;
-      if (this.stallTime > 2.5) {
-        this.stallTime = 0;
-        this.totalTime += 3;
-        this.s = Math.max(0, this.s - 12);
-        this.lateral *= 0.5;
-        this.speed = 4;
-      }
-    } else {
-      this.stallTime = 0;
-    }
-  }
 
   private simulatePhysics(delta: number): void {
     const physics = this.physics;
@@ -553,9 +469,7 @@ export class Game {
       this.car.group.quaternion.copy(state.quaternion);
       this.wheelSpin += (this.speed * delta) / WHEEL_RADIUS;
     } else {
-      const frame = this.frameAt(this.s);
-      this.placeCar(this.s, this.lateral, frame);
-      this.wheelSpin += (this.speed * delta) / WHEEL_RADIUS;
+      this.placeCar(0, 0);
     }
     for (const wheel of this.car.wheels) {
       wheel.rotation.x = this.wheelSpin;

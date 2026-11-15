@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoIssues, startRace, watchPage } from './helpers.ts';
+import { expectNoIssues, gotoApp, startRace, watchPage } from './helpers.ts';
 
 /**
  * Boot, menu, and first race. Split into its own file so the runner can give it
@@ -8,7 +8,7 @@ import { expectNoIssues, startRace, watchPage } from './helpers.ts';
 test('menu boots in landscape and starts a race', async ({ page }) => {
   test.setTimeout(90_000);
   const issues = watchPage(page);
-  await page.goto('/');
+  await gotoApp(page);
 
   await expect(page.locator('[data-overlay="menu"]')).toBeVisible();
   await expect(page.locator('#time')).toHaveText('--:--.-');

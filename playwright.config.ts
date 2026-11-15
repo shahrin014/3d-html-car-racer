@@ -38,9 +38,13 @@ export default defineConfig({
       args: [
         // Do not map shared memory through /dev/shm, which is small in CI.
         '--disable-dev-shm-usage',
+        // Collapse the renderer and GPU processes. The runner starts a fresh
+        // browser per spec, so single-process mode is stable and saves roughly
+        // 40% of the browser tree's RSS on a small runner.
+        '--single-process',
+        '--no-zygote',
         // Keep the renderer heap bounded; the app is a small canvas game.
         '--js-flags=--max-old-space-size=256',
-        '--renderer-process-limit=1',
       ],
     },
   },

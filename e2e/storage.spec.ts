@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { gotoApp } from './helpers.ts';
 
 test('best time is restored from storage and corrupt values are ignored', async ({
   page,
@@ -7,7 +8,7 @@ test('best time is restored from storage and corrupt values are ignored', async 
   const seed = new Date().toISOString().slice(0, 10);
   const key = `neon-racer.best-time.${seed}.1`;
 
-  await page.goto('/');
+  await gotoApp(page);
   await page.evaluate(
     ({ storageKey, value }) => window.localStorage.setItem(storageKey, value),
     { storageKey: key, value: '81.4' },

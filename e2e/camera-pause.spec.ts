@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { expectNoIssues, startRace, watchPage } from './helpers.ts';
+import { expectNoIssues, gotoApp, startRace, watchPage } from './helpers.ts';
 
 test('camera toggle and pause keep the race state', async ({ page }) => {
   test.setTimeout(90_000);
   const issues = watchPage(page);
-  await page.goto('/');
+  await gotoApp(page);
   await startRace(page);
 
   await expect(page.locator('#camera')).toHaveAttribute(

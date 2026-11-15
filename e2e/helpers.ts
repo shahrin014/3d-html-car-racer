@@ -1,6 +1,12 @@
 import { expect, type Page } from '@playwright/test';
 import { E2E_BASE_URL } from './base-url.ts';
 
+export const APP_PATH = '/';
+
+export async function gotoApp(page: Page): Promise<void> {
+  await page.goto(APP_PATH);
+}
+
 export interface PageIssues {
   consoleErrors: string[];
   pageErrors: string[];
