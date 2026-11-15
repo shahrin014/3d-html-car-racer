@@ -341,6 +341,35 @@ current UTC date so the day's circuit is stable.
 - **THEN** the same circuit is used
 - **AND** a new UTC date produces a different circuit
 
+### Requirement: Track randomization is seeded and bounded
+
+Randomization SHALL choose among the authored pieces in the catalog and SHALL
+NOT invent new geometry. The seed SHALL decide the combination, and the level
+SHALL decide the available piece sizes. A different seed or level SHALL be able
+to produce a different combination, and every randomized circuit SHALL still
+satisfy the closure and required-feature rules.
+
+#### Scenario: Different seeds spread the combination
+
+- **GIVEN** several different seeds at the same level
+- **WHEN** the circuits are generated
+- **THEN** more than one combination appears
+- **AND** every piece still comes from the fixed catalog
+
+#### Scenario: Levels scale the combination
+
+- **GIVEN** one seed and two different levels
+- **WHEN** both circuits are generated
+- **THEN** turns tighten and loops shrink as the level rises
+- **AND** both circuits are closed and contain the required features
+
+#### Scenario: Randomization never invents geometry
+
+- **GIVEN** one level and two different seeds
+- **WHEN** both circuits are generated
+- **THEN** the authored loops, turns, and hills keep their sizes
+- **AND** only the seeded straight lengths differ
+
 ### Requirement: Every generated circuit is closed and playable
 
 A generated circuit SHALL be a closed loop: position and heading SHALL match at
