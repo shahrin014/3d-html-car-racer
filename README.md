@@ -105,7 +105,7 @@ openspec/            behavior and deployment specs
 ## Handover
 
 Operational ownership, release procedures, rollback, known gaps, and onboarding
-steps are documented in [`docs/HANDOVER.md`](docs/HANDOVER.md).
+steps are documented in [`docs/HANDOVER-RAPIER.md`](docs/HANDOVER-RAPIER.md).
 
 ## Specs
 
