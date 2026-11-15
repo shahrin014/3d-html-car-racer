@@ -103,7 +103,9 @@ export function shiftPath(offset: number, length = 14): TrackPath {
     const drift = t * t * (3 - 2 * t);
     const driftRate = (6 * t * (1 - t)) / length;
     return {
-      position: new THREE.Vector3(offset * (1 - drift), 0, length * t),
+      // Local path: the piece starts on the offset lane and returns to the
+      // parent centreline, which is offset metres to its left.
+      position: new THREE.Vector3(-offset * drift, 0, length * t),
       tangent: new THREE.Vector3(-offset * driftRate, 0, 1).normalize(),
       up: new THREE.Vector3(0, 1, 0),
       bank: 0,

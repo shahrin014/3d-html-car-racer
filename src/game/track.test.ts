@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { buildFrames, generateCircuit, loopPath, turnPath } from './track';
+import { buildFrames, generateCircuit, loopPath, shiftPath, turnPath } from './track';
 
 const SEED = '2026-11-15';
 
@@ -67,12 +67,14 @@ describe('track pieces', () => {
     expect(top.position.y).toBeGreaterThan(10);
   });
 
-  it('returns to the same frame at the loop exit, so it merges flush', () => {
+  it('swings the loop exit sideways, then the shift returns to the centreline', () => {
     const path = loopPath(7);
     const start = path(0);
     const end = path(1);
-    expect(start.position.distanceTo(end.position)).toBeLessThan(1e-6);
+    expect(end.position.x - start.position.x).toBeCloseTo(4, 5);
     expect(start.up.dot(end.up)).toBeCloseTo(1, 6);
+    const shifted = shiftPath(4, 14)(1);
+    expect(shifted.position.x).toBeCloseTo(-4, 6);
   });
 
   it('clamps turn banking to the documented range', () => {
