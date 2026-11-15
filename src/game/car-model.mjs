@@ -507,7 +507,7 @@ function tyreGeometry(radius, width) {
     new THREE.Vector2(radius * 0.93, width / 2 - 0.008),
     new THREE.Vector2(radius * 0.6, width / 2),
   ];
-  const geometry = new THREE.LatheGeometry(profile, 30);
+  const geometry = new THREE.LatheGeometry(profile, 34);
   geometry.rotateZ(Math.PI / 2);
   return geometry;
 }
@@ -515,10 +515,10 @@ function tyreGeometry(radius, width) {
 /** Rear wing: a deep extruded airfoil spanning the width of the car. */
 function wingGeometry() {
   const shape = new THREE.Shape();
-  shape.moveTo(-0.2, 0.006);
-  shape.quadraticCurveTo(-0.13, 0.07, 0.1, 0.045);
-  shape.quadraticCurveTo(0.17, 0.024, 0.2, 0);
-  shape.quadraticCurveTo(0, -0.032, -0.2, 0.006);
+  shape.moveTo(-0.14, 0.005);
+  shape.quadraticCurveTo(-0.09, 0.055, 0.07, 0.035);
+  shape.quadraticCurveTo(0.12, 0.019, 0.14, 0);
+  shape.quadraticCurveTo(0, -0.025, -0.14, 0.005);
   const geometry = new THREE.ExtrudeGeometry(shape, {
     depth: 0.93,
     bevelEnabled: false,
@@ -608,26 +608,27 @@ function sharedGeometry() {
     noseCap: buildCap(last, last.z, RING, 1),
     canopy: buildLoft(canopySections(44), RING, Math.PI / 3.6),
     wing: wingGeometry(),
-    splitter: plateGeometry(0.46, 1.0, 1.225, 0.012),
+    splitter: plateGeometry(0.46, 0.96, 1.22, 0.012),
     diffuserFin: new THREE.BoxGeometry(0.014, 0.15, 0.17),
     upright: new THREE.BoxGeometry(0.028, 0.36, 0.075),
-    endplate: new THREE.BoxGeometry(0.016, 0.17, 0.42),
+    endplate: new THREE.BoxGeometry(0.016, 0.15, 0.3),
     intake: new THREE.BoxGeometry(0.52, 0.1, 0.16),
     mouth: new THREE.BoxGeometry(0.44, 0.085, 0.1),
     lampBar: new THREE.PlaneGeometry(0.64, 0.075),
     mirrorPod: new THREE.SphereGeometry(0.045, 14, 10),
     mirrorStalk: { [-1]: mirrorStalkGeometry(-1), 1: mirrorStalkGeometry(1) },
     fin: finGeometry(),
-    spokes: new THREE.BoxGeometry(0.028, 0.4, 0.042),
-    rimLip: new THREE.RingGeometry(0.178, 0.22, 26),
+    spokes: new THREE.BoxGeometry(0.028, 0.44, 0.042),
+    rimLip: new THREE.RingGeometry(0.19, 0.24, 26),
     hub: new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16),
     tyre: keyed((radius, width) => tyreGeometry(radius, width)),
+    castShadow: true,
     barrel: keyed(
       (radius, width) =>
-        new THREE.CylinderGeometry(radius * 0.62, radius * 0.62, width * 0.9, 22),
+        new THREE.CylinderGeometry(radius * 0.7, radius * 0.7, width * 0.9, 24),
     ),
     rimDisc: keyed(
-      (radius) => new THREE.CylinderGeometry(radius * 0.6, radius * 0.6, 0.014, 24),
+      (radius) => new THREE.CylinderGeometry(radius * 0.68, radius * 0.68, 0.014, 24),
     ),
     brake: keyed(
       (radius) => new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, 0.02, 20),
@@ -638,15 +639,15 @@ function sharedGeometry() {
         back: -0.16, front: -0.13, stepsX: 6, stepsZ: 18,
       }),
       cover: patchGeometry({
-        z0: -1.0, z1: -0.42, x0: -0.24, x1: 0.24, stepsX: 8, stepsZ: 14,
+        z0: -0.98, z1: -0.4, x0: -0.22, x1: 0.22, stepsX: 8, stepsZ: 14,
       }),
-      sillRight: sidePanelGeometry({ z0: -0.38, z1: 0.4, y0: 0.095, y1: 0.18, side: 1 }),
-      sillLeft: sidePanelGeometry({ z0: -0.38, z1: 0.4, y0: 0.095, y1: 0.18, side: -1 }),
+      sillRight: sidePanelGeometry({ z0: -0.36, z1: 0.36, y0: 0.13, y1: 0.21, side: 1 }),
+      sillLeft: sidePanelGeometry({ z0: -0.36, z1: 0.36, y0: 0.13, y1: 0.21, side: -1 }),
       intakeRight: sidePanelGeometry({
-        z0: -0.3, z1: -0.02, y0: 0.3, y1: 0.5, side: 1, back: -0.08, front: -0.14, stepsZ: 8,
+        z0: -0.3, z1: -0.02, y0: 0.33, y1: 0.53, side: 1, back: -0.08, front: -0.14, stepsZ: 8,
       }),
       intakeLeft: sidePanelGeometry({
-        z0: -0.3, z1: -0.02, y0: 0.3, y1: 0.5, side: -1, back: -0.08, front: -0.14, stepsZ: 8,
+        z0: -0.3, z1: -0.02, y0: 0.33, y1: 0.53, side: -1, back: -0.08, front: -0.14, stepsZ: 8,
       }),
       lampRight: patchGeometry({
         z0: 0.94, z1: 1.04, x0: 0.28, x1: 0.38, back: -0.1, front: -0.08,
@@ -755,23 +756,23 @@ export function createCar(color = PAINT) {
 
   // Wide-mouth front opening, visible head-on under the pointed nose.
   const mouth = new THREE.Mesh(geo.mouth, materials.trim);
-  mouth.position.set(0, 0.2, 1.17);
+  mouth.position.set(0, 0.21, 1.17);
   group.add(mouth);
 
   const splitter = new THREE.Mesh(geo.splitter, materials.trim);
-  splitter.position.y = 0.06;
+  splitter.position.y = 0.11;
   group.add(splitter);
 
   // Rear diffuser fins under the tail.
   for (const x of [-0.27, -0.09, 0.09, 0.27]) {
     const fin = new THREE.Mesh(geo.diffuserFin, materials.trim);
-    fin.position.set(x, 0.15, -1.13);
+    fin.position.set(x, 0.19, -1.13);
     group.add(fin);
   }
 
   // Tail light bar across the rear panel.
   const tail = new THREE.Mesh(geo.lampBar, materials.taillight);
-  tail.position.set(0, 0.375, zMin - 0.004);
+  tail.position.set(0, 0.34, zMin - 0.004);
   tail.rotation.y = Math.PI;
   group.add(tail);
 
@@ -801,7 +802,7 @@ export function createCar(color = PAINT) {
 
   // Shark fin behind the canopy.
   const fin = new THREE.Mesh(geo.fin, materials.trim);
-  fin.position.set(0, 0.5, -0.76);
+  fin.position.set(0, 0.56, -0.76);
   group.add(fin);
 
   const wheels = [];
