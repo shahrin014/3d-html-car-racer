@@ -1,51 +1,71 @@
 /**
- * Central tuning values. Everything that affects difficulty, layout, or feel
- * lives here so the behavior described in openspec/specs/game/spec.md can be
- * tuned without hunting through the renderer code.
+ * Central tuning values for the circuit racer.
+ * Behavior lives in openspec/changes/orange-loop-circuit-racer.
  */
 
-/** Width of one lane in world units (metres). */
-export const LANE_WIDTH = 2.6;
+/** Track width in world units; the car is 1 wide, so this is three car widths. */
+export const TRACK_WIDTH = 3;
+export const TRACK_THICKNESS = 0.12;
+export const RAIL_WIDTH = 0.12;
+export const RAIL_HEIGHT = 0.35;
+export const TRACK_CLEARANCE = 0.02;
 
-/** Number of lanes the player can occupy. */
-export const LANE_COUNT = 3;
+/** Metres per plastic seam in the surface texture. */
+export const SEAM_LENGTH = 1.5;
 
-/** Lane centre positions on the x axis, from left to right. */
-export const LANE_X: readonly number[] = Array.from(
-  { length: LANE_COUNT },
-  (_, index) => (index - (LANE_COUNT - 1) / 2) * LANE_WIDTH,
-);
+export const GRAVITY = -9.82;
 
-export const ROAD_WIDTH = LANE_WIDTH * LANE_COUNT;
-export const ROAD_LENGTH = 260;
+export const LAPS = 3;
+export const COUNTDOWN_SECONDS = 3;
 
-/** Player car sits slightly ahead of the camera. */
-export const PLAYER_Z = 4;
-export const SPAWN_Z = -105;
-export const DESPAWN_Z = 18;
+/** Fixed simulation step and the most steps a single frame may take. */
+export const FIXED_STEP = 1 / 120;
+export const MAX_SUBSTEPS = 4;
+export const MAX_FRAME_DELTA = 0.1;
 
-/** Metres per second at the start of a run. */
-export const BASE_SPEED = 24;
-/** Speed ceiling reached by the ramp, in metres per second. */
-export const MAX_SPEED = 64;
-/** Added metres per second for every second of a run. */
-export const SPEED_RAMP = 0.5;
+export const CAR_MASS = 1.2;
+export const CAR_LENGTH = 2.45;
+export const CAR_WIDTH = 1;
+export const CAR_HEIGHT = 0.78;
 
-/** Traffic approaches at this fraction of the player's speed. */
-export const TRAFFIC_RELATIVE_SPEED = 0.55;
+/** Engine force along the direction of travel, newtons. */
+export const ENGINE_FORCE = 34;
+/** Braking force while the brake control is held. */
+export const BRAKE_FORCE = 26;
+/** Lateral acceleration available for steering. */
+export const STEER_FORCE = 26;
+/** How hard the body is rotated onto the track surface. */
+export const ALIGNMENT_STRENGTH = 12;
+export const ALIGNMENT_DAMPING = 2.6;
 
-export const STARTING_HEARTS = 3;
-export const INVULNERABLE_SECONDS = 1.4;
+/** Speed ceiling at zero damage. */
+export const MAX_SPEED = 24;
+/** Limp ceiling at maximum damage. */
+export const LIMP_SPEED = 10;
 
-export const PLAYER_HALF_WIDTH = 0.8;
-export const PLAYER_HALF_LENGTH = 1.8;
-export const TRAFFIC_HALF_WIDTH = 0.84;
-export const TRAFFIC_HALF_LENGTH = 1.85;
+export const DESIGN_SPEED = 12;
+export const LOOP_RADIUS = 7;
+export const LOOP_OFFSET = 4;
+export const LOOP_RETURN_LENGTH = 14;
 
-/** Maximum simulation step so an alt-tabbed tab cannot teleport the player. */
-export const MAX_DT = 0.05;
+export const BOOST_IMPULSE = 7;
+export const BOOST_COOLDOWN = 1.6;
 
-/** Points awarded per metre travelled. */
-export const POINTS_PER_METRE = 10;
+/** Damage per unit of impact impulse, before the level factor. */
+export const DAMAGE_PER_IMPULSE = 18;
+export const DAMAGE_IMPULSE_FLOOR = 1.6;
+export const MAX_DAMAGE = 100;
 
-export const BEST_SCORE_KEY = 'neon-racer.best-score';
+export const RESCUE_SPEED_THRESHOLD = 1;
+export const RESCUE_STALL_SECONDS = 2.5;
+export const RESCUE_PENALTY_SECONDS = 3;
+
+export const TILT_DEAD_ZONE_DEGREES = 3;
+export const TILT_RANGE_DEGREES = 25;
+export const TILT_SMOOTHING = 10;
+
+export const BEST_TIME_KEY_PREFIX = 'neon-racer.best-time';
+export const UNLOCKED_LEVEL_KEY = 'neon-racer.unlocked-level';
+
+export const DEFAULT_LEVEL = 1;
+export const MAX_LEVEL = 12;

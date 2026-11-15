@@ -21,7 +21,7 @@ export default defineConfig({
     // Service workers are blocked by default so tests never race an old cache.
     // The offline spec opts back in explicitly.
     serviceWorkers: 'block',
-    viewport: { width: 390, height: 844 },
+    viewport: { width: 844, height: 390 },
     // Headless Chromium renders WebGL in software. A 1x device pixel ratio keeps
     // the suite fast enough that simulated time tracks wall-clock time.
     deviceScaleFactor: 1,

@@ -9,48 +9,52 @@
     <meta name="theme-color" content="#050a12" />
     <meta
       name="description"
-      content="Neon Racer is a fast, mobile-first 3D endless car racer built with Three.js."
+      content="Orange-loop circuit racer: three laps on a generated toy track with loops, banks, and boost strips."
     />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    <meta name="apple-mobile-web-app-title" content="Neon Racer" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Orange Loop" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-    <title>Neon Racer — 3D HTML Car Racer</title>
+    <title>Orange Loop — 3D Circuit Racer</title>
   </head>
   <body data-screen="menu">
     <main id="app" class="stage"></main>
     <div class="vignette" aria-hidden="true"></div>
     <div id="hit-flash" class="hit-flash" aria-hidden="true"></div>
 
-    <header class="hud" aria-label="Run status">
+    <header class="hud" aria-label="Race status">
       <div class="hud__group">
         <div class="stat">
-          <span class="stat__label">Score</span>
-          <span class="stat__value" id="score">00000</span>
+          <span class="stat__label">Time</span>
+          <span class="stat__value" id="time">00:00.0</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Lap</span>
+          <span class="stat__value" id="lap">1 / 3</span>
         </div>
         <div class="stat stat--best">
           <span class="stat__label">Best</span>
-          <span class="stat__value" id="best">00000</span>
+          <span class="stat__value" id="best">--:--.-</span>
         </div>
       </div>
       <div class="hud__group hud__group--end">
-        <div class="hearts" id="hearts" role="img" aria-label="3 of 3 lives remaining">
-          <span class="heart" aria-hidden="true">&#9829;</span>
-          <span class="heart" aria-hidden="true">&#9829;</span>
-          <span class="heart" aria-hidden="true">&#9829;</span>
+        <div class="stat">
+          <span class="stat__label">Speed</span>
+          <span class="stat__value" id="speed">0</span>
         </div>
-        <button
-          type="button"
-          class="icon-button"
-          id="pause"
-          aria-label="Pause run"
-        >
+        <div class="damage" id="damage" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Damage">
+          <span class="damage__fill" id="damage-fill"></span>
+        </div>
+        <button type="button" class="icon-button" id="camera" aria-label="Switch camera">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 7h3l1.5-2h7L17 7h3v11H4z" />
+            <circle cx="12" cy="12.5" r="3.2" />
+          </svg>
+        </button>
+        <button type="button" class="icon-button" id="pause" aria-label="Pause race">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <rect x="7" y="5" width="3.5" height="14" rx="1.2" />
             <rect x="13.5" y="5" width="3.5" height="14" rx="1.2" />
@@ -60,130 +64,77 @@
     </header>
 
     <div class="controls" aria-label="Steering controls">
-      <button
-        type="button"
-        class="control"
-        id="steer-left"
-        aria-label="Steer left"
-      >
+      <button type="button" class="control" id="steer-left" aria-label="Steer left">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M15 5 8 12l7 7" />
         </svg>
       </button>
-      <button
-        type="button"
-        class="control"
-        id="steer-right"
-        aria-label="Steer right"
-      >
+      <button type="button" class="control" id="steer-right" aria-label="Steer right">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="m9 5 7 7-7 7" />
         </svg>
       </button>
+      <button type="button" class="control control--brake" id="brake" aria-label="Brake">
+        <span>Brake</span>
+      </button>
     </div>
 
-    <section
-      class="overlay"
-      data-overlay="menu"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="menu-title"
-    >
+    <section class="overlay" data-overlay="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
       <div class="panel">
-        <p class="eyebrow">Three.js &middot; Endless run</p>
-        <h1 class="title" id="menu-title">NEON<br /><span>RACER</span></h1>
+        <p class="eyebrow">Three.js &middot; Generated circuit</p>
+        <h1 class="title" id="menu-title">ORANGE<br /><span>LOOP</span></h1>
         <p class="lede">
-          Swipe, tap, or use the arrows to switch lanes. Dodge traffic and keep
-          the run alive.
+          Tilt to steer, hold brake for the hairpins, and keep the car off the
+          rails. Three laps, one loop, two banks per circuit.
         </p>
-        <p class="menu-best">
-          Personal best <strong id="menu-best">00000</strong>
-        </p>
-        <button type="button" class="button button--primary" id="start">
-          Start run
-        </button>
-        <button type="button" class="button button--ghost" id="install" hidden>
-          Install app
-        </button>
+        <p class="menu-best">Best <strong id="menu-best">--:--.-</strong></p>
+        <button type="button" class="button button--primary" id="start">Start race</button>
+        <button type="button" class="button button--ghost" id="install" hidden>Install app</button>
         <p class="hint">
-          <kbd>&larr;</kbd><kbd>&rarr;</kbd> or swipe &middot; 3 lives per run
+          Tilt or <kbd>&larr;</kbd><kbd>&rarr;</kbd> &middot; <kbd>Space</kbd> brake &middot;
+          <kbd>C</kbd> camera · 3 laps
         </p>
       </div>
     </section>
 
-    <section
-      class="overlay overlay--soft"
-      data-overlay="paused"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="paused-title"
-    >
+    <section class="overlay overlay--soft" data-overlay="paused" role="dialog" aria-modal="true" aria-labelledby="paused-title">
       <div class="panel">
         <p class="eyebrow">Engine idle</p>
         <h2 class="title title--small" id="paused-title">Paused</h2>
-        <p class="lede">Take a breath. Your run is waiting.</p>
+        <p class="lede">Your lap is waiting.</p>
         <div class="button-row">
-          <button
-            type="button"
-            class="button button--primary"
-            data-action="resume"
-          >
-            Resume
-          </button>
-          <button
-            type="button"
-            class="button button--ghost"
-            data-action="restart"
-          >
-            Restart
-          </button>
-          <button type="button" class="button button--quiet" data-action="menu">
-            Main menu
-          </button>
+          <button type="button" class="button button--primary" data-action="resume">Resume</button>
+          <button type="button" class="button button--ghost" data-action="restart">Restart</button>
+          <button type="button" class="button button--quiet" data-action="menu">Main menu</button>
         </div>
       </div>
     </section>
 
-    <section
-      class="overlay"
-      data-overlay="over"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="over-title"
-    >
+    <section class="overlay" data-overlay="finished" role="dialog" aria-modal="true" aria-labelledby="over-title">
       <div class="panel">
-        <p class="eyebrow" id="over-eyebrow">Run complete</p>
-        <h2 class="title title--small" id="over-title">Wrecked</h2>
+        <p class="eyebrow">Race complete</p>
+        <h2 class="title title--small" id="over-title">Finished</h2>
         <p class="badge" id="new-best" hidden>New personal best</p>
         <dl class="results">
-          <div class="result">
-            <dt>Score</dt>
-            <dd id="final-score">00000</dd>
-          </div>
-          <div class="result">
-            <dt>Distance</dt>
-            <dd id="final-distance">0 m</dd>
-          </div>
+          <div class="result"><dt>Total</dt><dd id="final-time">00:00.0</dd></div>
+          <div class="result"><dt>Damage</dt><dd id="final-damage">0%</dd></div>
         </dl>
         <div class="button-row">
-          <button
-            type="button"
-            class="button button--primary"
-            data-action="restart"
-          >
-            Race again
-          </button>
-          <button type="button" class="button button--quiet" data-action="menu">
-            Main menu
-          </button>
+          <button type="button" class="button button--primary" data-action="restart">Race again</button>
+          <button type="button" class="button button--quiet" data-action="menu">Main menu</button>
         </div>
       </div>
     </section>
 
+    <div class="rotate" id="rotate" role="dialog" aria-label="Rotate device">
+      <div class="panel">
+        <h2 class="title title--small">Rotate to landscape</h2>
+        <p class="lede">Orange Loop is played sideways. Turn your phone.</p>
+      </div>
+    </div>
+
     <noscript>
-      <p class="noscript">
-        Neon Racer needs JavaScript and WebGL. Please enable JavaScript to play.
-      </p>
+      <p class="noscript">Orange Loop needs JavaScript and WebGL.</p>
     </noscript>
 
     <script type="module" src="/src/main.ts"></script>

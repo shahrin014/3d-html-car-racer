@@ -297,7 +297,7 @@ body {
 
 body[data-screen="menu"] [data-overlay="menu"],
 body[data-screen="paused"] [data-overlay="paused"],
-body[data-screen="over"] [data-overlay="over"] {
+body[data-screen="finished"] [data-overlay="finished"] {
   display: grid;
 }
 
@@ -592,5 +592,57 @@ kbd {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Circuit racer additions ---------- */
+
+.damage {
+  position: relative;
+  width: clamp(84px, 16vw, 132px);
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.damage__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffb066, #ff5a3c);
+  transition: width 120ms linear;
+}
+
+.damage.is-heavy .damage__fill {
+  background: linear-gradient(90deg, #ff5a3c, #ff1f3d);
+}
+
+.control--brake {
+  width: auto;
+  min-width: 96px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font: 700 14px/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.rotate {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  place-items: center;
+  background: rgba(4, 8, 14, 0.92);
+  backdrop-filter: blur(8px);
+  padding: 24px;
+}
+
+@media (orientation: portrait) {
+  .rotate {
+    display: grid;
   }
 }

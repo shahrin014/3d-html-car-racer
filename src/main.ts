@@ -1,12 +1,14 @@
 import './style.css';
-import { BEST_SCORE_KEY, STARTING_HEARTS } from './game/constants';
-import { Game, type RunResult } from './game/Game';
-
-type Screen = 'menu' | 'playing' | 'paused' | 'over';
+import { BEST_TIME_KEY_PREFIX, LAPS, DEFAULT_LEVEL } from './game/constants';
+import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+interface DeviceOrientationEventWithPermission {
+  requestPermission?: () => Promise<'granted' | 'denied'>;
 }
 
 function mustQuery<T extends Element>(selector: string): T {
@@ -18,190 +20,217 @@ function mustQuery<T extends Element>(selector: string): T {
 }
 
 const app = mustQuery<HTMLElement>('#app');
-const scoreElement = mustQuery<HTMLElement>('#score');
+const timeElement = mustQuery<HTMLElement>('#time');
+const lapElement = mustQuery<HTMLElement>('#lap');
 const bestElement = mustQuery<HTMLElement>('#best');
 const menuBestElement = mustQuery<HTMLElement>('#menu-best');
-const heartsElement = mustQuery<HTMLElement>('#hearts');
-const heartElements = Array.from(
-  document.querySelectorAll<HTMLElement>('.heart'),
-);
+const speedElement = mustQuery<HTMLElement>('#speed');
+const damageElement = mustQuery<HTMLElement>('#damage');
+const damageFill = mustQuery<HTMLElement>('#damage-fill');
 const pauseButton = mustQuery<HTMLButtonElement>('#pause');
+const cameraButton = mustQuery<HTMLButtonElement>('#camera');
 const startButton = mustQuery<HTMLButtonElement>('#start');
 const installButton = mustQuery<HTMLButtonElement>('#install');
 const steerLeft = mustQuery<HTMLButtonElement>('#steer-left');
 const steerRight = mustQuery<HTMLButtonElement>('#steer-right');
-const finalScore = mustQuery<HTMLElement>('#final-score');
-const finalDistance = mustQuery<HTMLElement>('#final-distance');
+const brakeButton = mustQuery<HTMLButtonElement>('#brake');
+const finalTime = mustQuery<HTMLElement>('#final-time');
+const finalDamage = mustQuery<HTMLElement>('#final-damage');
 const newBest = mustQuery<HTMLElement>('#new-best');
-const hitFlash = mustQuery<HTMLElement>('#hit-flash');
+const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 
-let bestScore = readBestScore();
-bestElement.textContent = formatScore(bestScore);
-menuBestElement.textContent = formatScore(bestScore);
+const seed = new Date().toISOString().slice(0, 10);
+const bestKey = `${BEST_TIME_KEY_PREFIX}.${seed}.${DEFAULT_LEVEL}`;
 
-function formatScore(value: number): string {
-  const safe = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-  return safe.toString().padStart(5, '0');
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return '--:--.-';
+  }
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds - minutes * 60;
+  return `${String(minutes).padStart(2, '0')}:${rest
+    .toFixed(1)
+    .padStart(4, '0')}`;
 }
 
-function readBestScore(): number {
+function readBest(): number | null {
   try {
-    const raw = window.localStorage.getItem(BEST_SCORE_KEY);
-    const parsed = raw === null ? 0 : Number.parseInt(raw, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+    const raw = window.localStorage.getItem(bestKey);
+    const value = raw === null ? Number.NaN : Number.parseFloat(raw);
+    return Number.isFinite(value) && value > 0 ? value : null;
   } catch {
-    // Private browsing can make localStorage unavailable. Scores still work.
-    return 0;
+    return null;
   }
 }
 
-function writeBestScore(value: number): void {
+function writeBest(value: number): void {
   try {
-    window.localStorage.setItem(BEST_SCORE_KEY, String(Math.floor(value)));
+    window.localStorage.setItem(bestKey, value.toFixed(2));
   } catch {
-    // Persistence is best-effort; never block the game over a failed write.
+    // Persistence is best effort.
   }
 }
 
-function renderHearts(hearts: number): void {
-  const remaining = Math.max(0, Math.min(STARTING_HEARTS, Math.floor(hearts)));
-  for (const [index, heart] of heartElements.entries()) {
-    heart.classList.toggle('is-lost', index >= remaining);
-  }
-  heartsElement.setAttribute(
-    'aria-label',
-    `${remaining} of ${STARTING_HEARTS} lives remaining`,
-  );
-}
+let best = readBest();
+bestElement.textContent = formatTime(best ?? 0);
+menuBestElement.textContent = formatTime(best ?? 0);
 
-function flashHit(): void {
-  hitFlash.classList.remove('is-active');
-  // Restart the CSS animation even when hits happen in quick succession.
-  void hitFlash.offsetWidth;
-  hitFlash.classList.add('is-active');
-}
-
-function setScreen(screen: Screen): void {
+function setScreen(screen: 'menu' | 'countdown' | 'racing' | 'paused' | 'finished'): void {
   document.body.dataset.screen = screen;
-  if (screen === 'playing') {
-    const active = document.activeElement;
-    if (active instanceof HTMLElement) {
-      active.blur();
-    }
+  rotatePrompt.setAttribute('aria-hidden', String(!isPortrait()));
+}
+
+function isPortrait(): boolean {
+  return window.matchMedia('(orientation: portrait)').matches;
+}
+
+let tiltEnabled = false;
+let tiltNeutral = 0;
+let tiltValue = 0;
+let pointerSteer = 0;
+
+function applySteer(game: Game | null): void {
+  if (!game) {
     return;
   }
-  const primary = document.querySelector<HTMLButtonElement>(
-    `[data-overlay="${screen}"] .button--primary`,
-  );
-  window.requestAnimationFrame(() => {
-    primary?.focus({ preventScroll: true });
-  });
+  const tilt = tiltEnabled ? tiltValue : 0;
+  game.setSteer(Math.max(-1, Math.min(1, tilt + pointerSteer)));
 }
 
-function currentScreen(): Screen {
-  const value = document.body.dataset.screen;
-  if (value === 'playing' || value === 'paused' || value === 'over') {
-    return value;
+function handleOrientation(event: DeviceOrientationEvent): void {
+  if (!tiltEnabled || event.gamma === null) {
+    return;
   }
-  return 'menu';
+  const angle = event.gamma - tiltNeutral;
+  const deadZone = 3;
+  if (Math.abs(angle) < deadZone) {
+    tiltValue = 0;
+    return;
+  }
+  const normalised = (Math.sign(angle) * (Math.abs(angle) - deadZone)) / 22;
+  tiltValue = Math.max(-1, Math.min(1, normalised));
 }
 
-function handleGameOver(result: RunResult): void {
-  const previousBest = bestScore;
-  if (result.score > bestScore) {
-    bestScore = result.score;
-    writeBestScore(bestScore);
+async function enableTilt(): Promise<void> {
+  const orientation = DeviceOrientationEvent as unknown as DeviceOrientationEventWithPermission;
+  try {
+    if (typeof orientation.requestPermission === 'function') {
+      const result = await orientation.requestPermission();
+      if (result !== 'granted') {
+        tiltEnabled = false;
+        return;
+      }
+    }
+    tiltEnabled = true;
+    tiltNeutral = 0;
+    window.addEventListener('deviceorientation', handleOrientation);
+  } catch {
+    tiltEnabled = false;
   }
-  bestElement.textContent = formatScore(bestScore);
-  finalScore.textContent = formatScore(result.score);
-  finalDistance.textContent = `${Math.round(result.distance).toLocaleString(
-    'en-US',
-  )} m`;
-  newBest.hidden = result.score === 0 || result.score <= previousBest;
-  setScreen('over');
 }
 
 let game: Game | null = null;
 
 try {
-  game = new Game(app, {
-    onScore: (score) => {
-      scoreElement.textContent = formatScore(score);
+  game = new Game(
+    app,
+    {
+      onSnapshot: (snapshot: RaceSnapshot) => {
+        timeElement.textContent = formatTime(snapshot.totalTime);
+        lapElement.textContent = `${Math.min(snapshot.lap, LAPS)} / ${LAPS}`;
+        speedElement.textContent = String(Math.round(snapshot.speed * 3.6));
+        const damage = Math.round(snapshot.damage);
+        damageFill.style.width = `${damage}%`;
+        damageElement.setAttribute('aria-valuenow', String(damage));
+        damageElement.classList.toggle('is-heavy', damage > 60);
+        if (snapshot.state !== document.body.dataset.screen) {
+          setScreen(snapshot.state);
+        }
+      },
+      onFinish: (totalTime: number, damage: number) => {
+        finalTime.textContent = formatTime(totalTime);
+        finalDamage.textContent = `${Math.round(damage)}%`;
+        const improved = best === null || totalTime < best;
+        newBest.hidden = !improved;
+        if (improved) {
+          best = totalTime;
+          writeBest(totalTime);
+          bestElement.textContent = formatTime(totalTime);
+          menuBestElement.textContent = formatTime(totalTime);
+        }
+        setScreen('finished');
+        document
+          .querySelector<HTMLButtonElement>('[data-overlay="finished"] .button--primary')
+          ?.focus({ preventScroll: true });
+      },
     },
-    onHearts: renderHearts,
-    onHit: flashHit,
-    onGameOver: handleGameOver,
-    // Non-visual state for browser smoke tests. Lane itself is a simulation
-    // concern; this only mirrors it as an attribute on the stage element.
-    onLane: (lane) => {
-      app.dataset.lane = String(lane);
-    },
-  });
+    seed,
+  );
 } catch (error) {
   console.error('WebGL could not be initialised.', error);
-  showUnsupported();
+  startButton.disabled = true;
+  startButton.textContent = 'WebGL unavailable';
 }
 
-function startRun(): void {
+function startRace(): void {
   if (!game) {
     return;
   }
-  bestElement.textContent = formatScore(bestScore);
   newBest.hidden = true;
-  game.startRun();
-  setScreen('playing');
+  void enableTilt();
+  game.startRace();
+  pointerSteer = 0;
+  setScreen('countdown');
 }
 
-function pauseRun(): void {
-  if (!game || currentScreen() !== 'playing') {
+function pauseRace(): void {
+  if (!game) {
     return;
   }
   game.pause();
   setScreen('paused');
 }
 
-function resumeRun(): void {
-  if (!game || currentScreen() !== 'paused') {
+function resumeRace(): void {
+  if (!game) {
     return;
   }
   game.resume();
-  setScreen('playing');
+  setScreen('racing');
 }
 
 function showMenu(): void {
   if (!game) {
     return;
   }
-  game.showIdle();
-  bestElement.textContent = formatScore(bestScore);
+  game.toMenu();
   setScreen('menu');
 }
 
-function showUnsupported(): void {
-  startButton.disabled = true;
-  startButton.textContent = 'WebGL unavailable';
-  const notice = document.createElement('p');
-  notice.className = 'hint';
-  notice.textContent =
-    'This browser could not create a WebGL context. Try a recent version of Safari, Chrome, or Firefox with hardware acceleration enabled.';
-  document.querySelector('[data-overlay="menu"] .panel')?.append(notice);
-}
+startButton.addEventListener('click', startRace);
+pauseButton.addEventListener('click', () => {
+  if (document.body.dataset.screen === 'racing') {
+    pauseRace();
+  }
+});
+cameraButton.addEventListener('click', () => {
+  game?.toggleCamera();
+  cameraButton.setAttribute(
+    'aria-label',
+    game?.snapshot.camera === 'cockpit'
+      ? 'Switch to chase camera'
+      : 'Switch to cockpit camera',
+  );
+});
 
-startButton.addEventListener('click', startRun);
-pauseButton.addEventListener('click', pauseRun);
-steerLeft.addEventListener('click', () => game?.steer(-1));
-steerRight.addEventListener('click', () => game?.steer(1));
-
-for (const button of document.querySelectorAll<HTMLButtonElement>(
-  '[data-action]',
-)) {
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action]')) {
   button.addEventListener('click', () => {
     switch (button.dataset.action) {
       case 'resume':
-        resumeRun();
+        resumeRace();
         break;
       case 'restart':
-        startRun();
+        startRace();
         break;
       case 'menu':
         showMenu();
@@ -212,25 +241,91 @@ for (const button of document.querySelectorAll<HTMLButtonElement>(
   });
 }
 
+function holdSteer(button: HTMLButtonElement, direction: -1 | 1): void {
+  const press = () => {
+    pointerSteer = direction;
+    applySteer(game);
+  };
+  const release = () => {
+    if (pointerSteer === direction) {
+      pointerSteer = 0;
+      applySteer(game);
+    }
+  };
+  button.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    press();
+  });
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointerleave', release);
+  button.addEventListener('pointercancel', release);
+}
+
+holdSteer(steerLeft, -1);
+holdSteer(steerRight, 1);
+
+const setBrake = (active: boolean) => game?.setBrake(active);
+brakeButton.addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  setBrake(true);
+});
+for (const event of ['pointerup', 'pointerleave', 'pointercancel'] as const) {
+  brakeButton.addEventListener(event, () => setBrake(false));
+}
+
+const keys = new Set<string>();
 window.addEventListener('keydown', (event) => {
+  keys.add(event.key.toLowerCase());
+  if (['arrowleft', 'arrowright', ' ', 'arrowup', 'arrowdown'].includes(event.key.toLowerCase())) {
+    event.preventDefault();
+  }
   if (event.key === 'Escape' || event.key === 'p' || event.key === 'P') {
-    if (currentScreen() === 'playing') {
-      event.preventDefault();
-      pauseRun();
-    } else if (currentScreen() === 'paused') {
-      event.preventDefault();
-      resumeRun();
+    if (document.body.dataset.screen === 'racing') {
+      pauseRace();
+    } else if (document.body.dataset.screen === 'paused') {
+      resumeRace();
     }
   }
+  if (event.key === 'c' || event.key === 'C') {
+    game?.toggleCamera();
+    const camera: CameraMode | undefined = game?.snapshot.camera;
+    cameraButton.setAttribute(
+      'aria-label',
+      camera === 'cockpit' ? 'Switch to chase camera' : 'Switch to cockpit camera',
+    );
+  }
+  const keyboardSteer = (keys.has('arrowright') ? 1 : 0) - (keys.has('arrowleft') ? 1 : 0);
+  if (keyboardSteer !== 0) {
+    pointerSteer = keyboardSteer;
+    applySteer(game);
+  }
+  setBrake(keys.has(' ') || keys.has('arrowdown'));
+});
+window.addEventListener('keyup', (event) => {
+  keys.delete(event.key.toLowerCase());
+  const keyboardSteer = (keys.has('arrowright') ? 1 : 0) - (keys.has('arrowleft') ? 1 : 0);
+  if (keyboardSteer === 0) {
+    pointerSteer = 0;
+    applySteer(game);
+  }
+  setBrake(keys.has(' ') || keys.has('arrowdown'));
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') {
-    pauseRun();
+  if (document.visibilityState === 'hidden' && document.body.dataset.screen === 'racing') {
+    pauseRace();
   }
 });
 
-// ---------- Optional install prompt ----------
+window.addEventListener('orientationchange', () => {
+  rotatePrompt.setAttribute('aria-hidden', String(!isPortrait()));
+  if (isPortrait() && document.body.dataset.screen === 'racing') {
+    pauseRace();
+  }
+});
+rotatePrompt.setAttribute('aria-hidden', String(!isPortrait()));
+
+// ---------- Install prompt ----------
 
 let installPrompt: BeforeInstallPromptEvent | null = null;
 
@@ -254,13 +349,6 @@ window.addEventListener('appinstalled', () => {
   installPrompt = null;
   installButton.hidden = true;
 });
-
-const isStandalone =
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (navigator as Navigator & { standalone?: boolean }).standalone === true;
-if (isStandalone) {
-  installButton.hidden = true;
-}
 
 // ---------- Service worker ----------
 

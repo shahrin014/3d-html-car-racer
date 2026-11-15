@@ -1,482 +1,458 @@
 import * as THREE from 'three';
-import { createCar, disposeCarAssets, TRAFFIC_COLORS } from './Car';
-import { clampLaneIndex, overlaps, type Box2D } from './collision';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createCar, type Car } from './Car';
 import {
-  scoreFor,
-  spawnIntervalFor,
-  speedAt,
-} from './difficulty';
-import {
-  BASE_SPEED,
-  DESPAWN_Z,
-  INVULNERABLE_SECONDS,
-  LANE_COUNT,
-  LANE_X,
-  MAX_DT,
-  MAX_SPEED,
-  PLAYER_HALF_LENGTH,
-  PLAYER_HALF_WIDTH,
-  PLAYER_Z,
-  SPAWN_Z,
-  STARTING_HEARTS,
-  TRAFFIC_HALF_LENGTH,
-  TRAFFIC_HALF_WIDTH,
-  TRAFFIC_RELATIVE_SPEED,
+  COUNTDOWN_SECONDS,
+  LAPS,
+  TRACK_WIDTH,
 } from './constants';
-import { Input } from './Input';
-import { Road } from './Road';
-import { chooseLanes, trafficCountFor } from './spawn';
+import {
+  buildFrames,
+  generateCircuit,
+  trackLength,
+  type TrackFrame,
+} from './track';
+import { buildTrackMesh, type TrackMesh } from './trackMesh';
 
-export type GameState = 'idle' | 'running' | 'paused' | 'over';
+export type RaceState = 'menu' | 'countdown' | 'racing' | 'paused' | 'finished';
+export type CameraMode = 'chase' | 'cockpit';
 
-export interface RunResult {
-  score: number;
-  distance: number;
+export interface RaceSnapshot {
+  state: RaceState;
+  lap: number;
+  lapTime: number;
+  totalTime: number;
+  speed: number;
+  damage: number;
+  camera: CameraMode;
 }
 
 export interface GameCallbacks {
-  onScore: (score: number) => void;
-  onHearts: (hearts: number) => void;
-  onHit: () => void;
-  onGameOver: (result: RunResult) => void;
-  /**
-   * Reports the lane the player is heading to. Optional so the simulation
-   * keeps working without a HUD; the browser smoke tests read it.
-   */
-  onLane?: (lane: number) => void;
+  onSnapshot: (snapshot: RaceSnapshot) => void;
+  onFinish: (totalTime: number, damage: number) => void;
 }
 
-interface Car {
-  readonly group: THREE.Group;
-  readonly box: Box2D;
-  lane: number;
-  active: boolean;
+interface BoostZone {
+  from: number;
+  to: number;
 }
 
-const POOL_SIZE = 16;
-const POINTS_UPDATE_INTERVAL = 0.1;
+const clamp = THREE.MathUtils.clamp;
 
-/**
- * Vertical gradient used as the scene backdrop. The bottom matches the fog so
- * the road fades into the horizon instead of ending on a hard line.
- */
-function createSkyTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 2;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('2D canvas is not available');
-  }
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, '#02040a');
-  gradient.addColorStop(0.45, '#040c15');
-  gradient.addColorStop(0.78, '#081826');
-  gradient.addColorStop(1, '#0b2130');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-/**
- * Owns the Three.js scene, the simulation, and the run lifecycle.
- *
- * The class deliberately knows nothing about the DOM beyond the element it
- * renders into: the UI subscribes through {@link GameCallbacks}.
- */
+/** Track-constrained dynamics: speed integrates gravity, engine, and damage. */
 export class Game {
-  private currentState: GameState = 'idle';
   private readonly container: HTMLElement;
   private readonly callbacks: GameCallbacks;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly road = new Road();
-  private readonly trafficCars: Car[] = [];
-  private readonly trafficGroup = new THREE.Group();
-  private readonly player: THREE.Group;
-  private readonly input: Input;
+  private readonly car: Car;
+  private readonly trackMesh: TrackMesh;
+  private readonly frames: TrackFrame[];
+  private readonly length: number;
+  private readonly boosts: BoostZone[] = [];
+
+  private state: RaceState = 'menu';
+  private cameraMode: CameraMode = 'chase';
+  private s = 0;
+  private speed = 0;
+  private steerTarget = 0;
+  private lateral = 0;
+  private damage = 0;
+  private lap = 1;
+  private lapStart = 0;
+  private totalTime = 0;
+  private countdown = COUNTDOWN_SECONDS;
+  private brake = false;
+  private boostCooldown = 0;
+  private stallTime = 0;
+  private lastTime = 0;
+  private lastLapTopCheck = false;
   private readonly resizeObserver: ResizeObserver;
-  private readonly reducedMotionQuery: MediaQueryList;
+  private readonly reducedMotion: MediaQueryList;
 
-  private elapsed = 0;
-  private distance = 0;
-  private hearts = STARTING_HEARTS;
-  private lane = 1;
-  private targetX = 0;
-  private invulnerableUntil = 0;
-  private spawnCooldown = 0.85;
-  private scoreClock = 0;
-  private shake = 0;
-  private lastFrame = 0;
-
-  constructor(container: HTMLElement, callbacks: GameCallbacks) {
+  constructor(container: HTMLElement, callbacks: GameCallbacks, seed: string) {
     this.container = container;
     this.callbacks = callbacks;
-    this.reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
-    this.renderer.domElement.setAttribute('aria-label', '3D race track');
-    this.renderer.domElement.setAttribute('role', 'img');
+    this.renderer.toneMappingExposure = 1.05;
     this.container.appendChild(this.renderer.domElement);
+    this.renderer.domElement.setAttribute('aria-label', '3D race circuit');
+    this.renderer.domElement.setAttribute('role', 'img');
 
-    this.camera = new THREE.PerspectiveCamera(62, 1, 0.1, 240);
-    this.camera.position.set(0, 5.6, PLAYER_Z + 10.5);
-    this.camera.lookAt(0, 1.05, PLAYER_Z - 12);
+    this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 400);
+    this.scene.fog = new THREE.Fog(0x07101a, 60, 220);
+    this.scene.background = new THREE.Color(0x07101a);
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.45;
 
-    this.scene.background = createSkyTexture();
-    this.scene.fog = new THREE.Fog(0x0b2130, 55, 170);
+    this.clockLights();
+    this.addGround();
 
-    const hemisphere = new THREE.HemisphereLight(0x9fd6ff, 0x0a1018, 1.35);
-    this.scene.add(hemisphere);
+    const circuit = generateCircuit(seed, 1);
+    this.frames = buildFrames(circuit);
+    this.length = trackLength(this.frames);
 
-    const key = new THREE.DirectionalLight(0xffe3b3, 2.5);
-    key.position.set(7, 16, 8);
-    this.scene.add(key);
+    const pieces = this.splitPieces(circuit.pieces);
+    this.trackMesh = buildTrackMesh(pieces);
+    this.scene.add(this.trackMesh.group);
 
-    const rim = new THREE.DirectionalLight(0x22d3ee, 1.2);
-    rim.position.set(-6, 6, -14);
-    this.scene.add(rim);
-
-    const fill = new THREE.AmbientLight(0x27445c, 0.55);
-    this.scene.add(fill);
-
-    this.scene.add(this.road.group);
-    this.scene.add(this.trafficGroup);
-
-    this.player = createCar(0x22d3ee);
-    this.player.name = 'player-car';
-    this.player.position.set(0, 0, PLAYER_Z);
-    this.scene.add(this.player);
-
-    for (let index = 0; index < POOL_SIZE; index += 1) {
-      const group = createCar(TRAFFIC_COLORS[index % TRAFFIC_COLORS.length] ?? 0xffffff);
-      group.visible = false;
-      this.trafficGroup.add(group);
-      this.trafficCars.push({
-        group,
-        active: false,
-        lane: 0,
-        box: {
-          x: 0,
-          z: SPAWN_Z,
-          halfWidth: TRAFFIC_HALF_WIDTH,
-          halfLength: TRAFFIC_HALF_LENGTH,
-        },
-      });
+    let distance = 0;
+    for (const piece of circuit.pieces) {
+      if (piece.boost) {
+        this.boosts.push({ from: distance, to: distance + piece.length });
+      }
+      distance += piece.length;
     }
 
-    this.input = new Input(this.renderer.domElement, (direction) => {
-      this.steer(direction);
-    });
-    this.input.attach();
+    this.car = createCar();
+    this.scene.add(this.car.group);
+    this.placeCar(0, 0);
 
-    this.resizeObserver = new ResizeObserver(() => {
-      this.resize();
-    });
+    this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.resize();
-
-    this.render();
-  }
-
-  get currentLane(): number {
-    return this.lane;
-  }
-
-  /** Reset the scene and start a fresh run. */
-  startRun(): void {
-    this.resetSimulation();
-    this.seedTraffic();
-    this.currentState = 'running';
-    this.callbacks.onScore(0);
-    this.callbacks.onHearts(this.hearts);
-    this.callbacks.onLane?.(this.lane);
-    this.lastFrame = performance.now();
     this.renderer.setAnimationLoop(this.tick);
   }
 
-  /** Freeze the simulation. Rendering stops until resumed. */
+  get snapshot(): RaceSnapshot {
+    return {
+      state: this.state,
+      lap: this.lap,
+      lapTime: this.time - this.lapStart,
+      totalTime: this.totalTime,
+      speed: this.speed,
+      damage: this.damage,
+      camera: this.cameraMode,
+    };
+  }
+
+  private time = 0;
+
+  startRace(): void {
+    this.s = 0;
+    this.speed = 0;
+    this.lateral = 0;
+    this.steerTarget = 0;
+    this.damage = 0;
+    this.lap = 1;
+    this.lapStart = 0;
+    this.totalTime = 0;
+    this.time = 0;
+    this.countdown = COUNTDOWN_SECONDS;
+    this.stallTime = 0;
+    this.boostCooldown = 0;
+    this.state = 'countdown';
+    this.placeCar(0, 0);
+    this.report();
+  }
+
   pause(): void {
-    if (this.currentState !== 'running') {
-      return;
+    if (this.state === 'racing' || this.state === 'countdown') {
+      this.state = 'paused';
+      this.report();
     }
-    this.currentState = 'paused';
-    this.renderer.setAnimationLoop(null);
-    this.render();
   }
 
   resume(): void {
-    if (this.currentState !== 'paused') {
-      return;
+    if (this.state === 'paused') {
+      this.state = 'racing';
+      this.lastTime = performance.now();
+      this.report();
     }
-    this.currentState = 'running';
-    this.lastFrame = performance.now();
-    this.renderer.setAnimationLoop(this.tick);
   }
 
-  /** Return to the attract screen with an empty road. */
-  showIdle(): void {
-    this.currentState = 'idle';
-    this.renderer.setAnimationLoop(null);
-    this.resetSimulation();
-    this.render();
+  toMenu(): void {
+    this.state = 'menu';
+    this.s = 0;
+    this.speed = 0;
+    this.damage = 0;
+    this.placeCar(0, 0);
+    this.report();
   }
 
-  /** Change lane by one, clamped to the road. */
-  steer(direction: -1 | 1): void {
-    if (this.currentState !== 'running') {
-      return;
-    }
-    const nextLane = clampLaneIndex(this.lane + direction, LANE_COUNT);
-    if (nextLane === this.lane) {
-      return;
-    }
-    this.lane = nextLane;
-    this.targetX = LANE_X[nextLane] ?? 0;
-    this.callbacks.onLane?.(this.lane);
+  setSteer(value: number): void {
+    this.steerTarget = clamp(value, -1, 1);
+  }
+
+  setBrake(active: boolean): void {
+    this.brake = active;
+  }
+
+  toggleCamera(): void {
+    this.cameraMode = this.cameraMode === 'chase' ? 'cockpit' : 'chase';
+    this.report();
   }
 
   dispose(): void {
     this.renderer.setAnimationLoop(null);
-    this.input.detach();
     this.resizeObserver.disconnect();
-    this.road.dispose();
-    disposeCarAssets();
-    if (this.scene.background instanceof THREE.Texture) {
-      this.scene.background.dispose();
-    }
+    this.trackMesh.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
 
-  private readonly tick = (time: number): void => {
-    const dt = Math.min(
-      MAX_DT,
-      Math.max(0, (time - this.lastFrame) / 1000),
+  private addGround(): void {
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(400, 400),
+      new THREE.MeshStandardMaterial({ color: 0x0a1018, roughness: 1 }),
     );
-    this.lastFrame = time;
-    this.update(dt);
-    this.render();
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.02;
+    this.scene.add(ground);
+    const grid = new THREE.GridHelper(400, 100, 0x22334a, 0x141d29);
+    grid.position.y = 0.001;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.35;
+    this.scene.add(grid);
+  }
+
+  private clockLights(): void {
+    this.scene.add(new THREE.HemisphereLight(0x9fd6ff, 0x0a1018, 0.9));
+    const key = new THREE.DirectionalLight(0xffe3b3, 2.1);
+    key.position.set(18, 30, 14);
+    this.scene.add(key);
+    const rim = new THREE.DirectionalLight(0x22d3ee, 1.1);
+    rim.position.set(-16, 10, -20);
+    this.scene.add(rim);
+  }
+
+  private splitPieces(
+    pieces: ReturnType<typeof generateCircuit>['pieces'],
+  ): { frames: TrackFrame[]; boost?: boolean }[] {
+    const grouped: { frames: TrackFrame[]; boost?: boolean }[] = [];
+    let offset = 0;
+    for (const piece of pieces) {
+      const count = Math.max(8, Math.ceil(piece.length / 0.4));
+      const frames: TrackFrame[] = [];
+      for (let index = 0; index <= count; index += 1) {
+        const sample = piece.path(index / count);
+        const uprightRight = new THREE.Vector3()
+          .crossVectors(sample.up, sample.tangent)
+          .normalize();
+        const up = sample.up
+          .clone()
+          .multiplyScalar(Math.cos(sample.bank))
+          .addScaledVector(uprightRight, Math.sin(sample.bank))
+          .normalize();
+        const position = sample.position.clone().applyMatrix4(piece.matrix);
+        const tangent = sample.tangent
+          .clone()
+          .transformDirection(piece.matrix)
+          .normalize();
+        const upWorld = up.clone().transformDirection(piece.matrix).normalize();
+        frames.push({
+          position,
+          tangent,
+          up: upWorld,
+          right: new THREE.Vector3().crossVectors(upWorld, tangent).normalize(),
+          s: offset + (index / count) * piece.length,
+        });
+      }
+      grouped.push(piece.boost ? { frames, boost: true } : { frames });
+      offset += piece.length;
+    }
+    return grouped;
+  }
+
+  private readonly tick = (now: number): void => {
+    const delta = Math.min(0.1, Math.max(0, (now - this.lastTime) / 1000));
+    this.lastTime = now;
+    if (this.state === 'countdown') {
+      this.countdown -= delta;
+      if (this.countdown <= 0) {
+        this.state = 'racing';
+        this.countdown = 0;
+      }
+    } else if (this.state === 'racing') {
+      this.simulate(delta);
+    }
+    this.updateCarVisuals();
+    this.updateCamera(delta);
+    this.renderer.render(this.scene, this.camera);
+    this.report();
   };
 
-  private resetSimulation(): void {
-    this.elapsed = 0;
-    this.distance = 0;
-    this.hearts = STARTING_HEARTS;
-    this.lane = 1;
-    this.targetX = LANE_X[1] ?? 0;
-    this.invulnerableUntil = 0;
-    this.spawnCooldown = 0.85;
-    this.scoreClock = 0;
-    this.shake = 0;
-    this.player.position.x = this.targetX;
-    this.player.visible = true;
-    this.road.reset();
-    for (const car of this.trafficCars) {
-      car.active = false;
-      car.group.visible = false;
-    }
-    this.camera.position.x = 0;
-  }
+  private simulate(delta: number): void {
+    this.time += delta;
+    this.totalTime += delta;
 
-  private update(dt: number): void {
-    if (this.currentState !== 'running') {
-      return;
+    const frame = this.frameAt(this.s);
+    const damageScale = 1 - (this.damage / 100) * 0.45;
+    const engine = this.brake ? -26 : 9.5 * damageScale;
+    const maxSpeed = 24 * damageScale;
+    const gravity = -9.82 * frame.tangent.y;
+
+    this.speed += (engine + gravity) * delta;
+    this.speed -= this.speed * 0.22 * delta;
+    if (this.speed > maxSpeed) {
+      this.speed = maxSpeed;
+    }
+    if (this.speed < 0) {
+      this.speed = 0;
     }
 
-    this.elapsed += dt;
-    const speed = speedAt(this.elapsed);
-    this.distance += speed * dt;
-
-    this.road.update(dt, speed);
-    this.updateTraffic(dt, speed);
-
-    this.player.position.x = THREE.MathUtils.damp(
-      this.player.position.x,
-      this.targetX,
-      14,
-      dt,
+    // Lateral movement inside the rails.
+    const halfUsable = TRACK_WIDTH / 2 - 0.55;
+    const previousLateral = this.lateral;
+    this.lateral = clamp(
+      this.lateral + this.steerTarget * 3.4 * delta,
+      -halfUsable,
+      halfUsable,
     );
+    if (
+      Math.abs(this.lateral) >= halfUsable - 0.001 &&
+      Math.abs(this.steerTarget) > 0.5 &&
+      Math.abs(this.lateral - previousLateral) < 0.0001
+    ) {
+      this.damage = Math.min(100, this.damage + 9 * delta);
+      this.speed *= 0.985;
+    }
 
-    const invulnerable = this.elapsed < this.invulnerableUntil;
-    this.player.visible = !invulnerable || Math.floor(this.elapsed * 16) % 2 === 0;
-
-    if (!invulnerable) {
-      const hit = this.findCollision();
-      if (hit) {
-        this.removeTrafficCar(hit);
-        this.handleHit();
-        if (this.currentState !== 'running') {
-          return;
-        }
+    // Boost strips.
+    this.boostCooldown = Math.max(0, this.boostCooldown - delta);
+    if (this.boostCooldown === 0) {
+      const zone = this.boosts.find(
+        (candidate) => this.s >= candidate.from && this.s < candidate.to,
+      );
+      if (zone) {
+        this.speed = Math.min(maxSpeed + 6, this.speed + 7);
+        this.boostCooldown = 1.6;
       }
     }
 
-    this.updateCamera(dt);
-    this.scoreClock += dt;
-    if (this.scoreClock >= POINTS_UPDATE_INTERVAL) {
-      this.scoreClock = 0;
-      this.callbacks.onScore(scoreFor(this.distance));
+    // Losing contact at the top of a loop damages the car and scrubs speed.
+    const loopTop = frame.up.y < -0.7 && frame.position.y > 6;
+    if (loopTop && !this.lastLapTopCheck && this.speed < 9.5) {
+      this.damage = Math.min(100, this.damage + 22);
+      this.speed *= 0.55;
     }
-  }
+    this.lastLapTopCheck = loopTop;
 
-  private updateTraffic(dt: number, speed: number): void {
-    this.spawnCooldown -= dt;
-    if (this.spawnCooldown <= 0) {
-      this.spawnWave(speed);
-      // Small jitter keeps waves from feeling metronomic.
-      this.spawnCooldown = spawnIntervalFor(speed) * (0.9 + Math.random() * 0.2);
-    }
-
-    for (const car of this.trafficCars) {
-      if (!car.active) {
-        continue;
-      }
-      car.group.position.z += speed * TRAFFIC_RELATIVE_SPEED * dt;
-      car.box.z = car.group.position.z;
-      if (car.group.position.z > DESPAWN_Z) {
-        car.active = false;
-        car.group.visible = false;
+    this.s += this.speed * delta;
+    if (this.s >= this.length) {
+      this.s -= this.length;
+      this.lapStart = this.time;
+      this.lap += 1;
+      if (this.lap > LAPS) {
+        this.state = 'finished';
+        this.callbacks.onFinish(this.totalTime, this.damage);
+        return;
       }
     }
-  }
 
-  private spawnWave(speed: number): void {
-    const count = trafficCountFor(Math.random, speed, BASE_SPEED, MAX_SPEED);
-    const lanes = chooseLanes(Math.random, count, LANE_COUNT);
-    for (const lane of lanes) {
-      this.spawnTrafficCar(lane);
+    // Rescue when stuck.
+    if (this.speed < 1) {
+      this.stallTime += delta;
+      if (this.stallTime > 2.5) {
+        this.stallTime = 0;
+        this.totalTime += 3;
+        this.s = Math.max(0, this.s - 12);
+        this.lateral *= 0.5;
+        this.speed = 4;
+      }
+    } else {
+      this.stallTime = 0;
     }
   }
 
-  /**
-   * Put a few cars on the road immediately so the first seconds of a run are
-   * not empty. The starting lane stays clear for one beat.
-   */
-  private seedTraffic(): void {
-    this.spawnTrafficCar(0, -34);
-    this.spawnTrafficCar(2, -58);
-    this.spawnTrafficCar(0, -82);
+  private updateCarVisuals(): void {
+    const frame = this.frameAt(this.s);
+    this.placeCar(this.s, this.lateral, frame);
+    const spin = (this.s / 0.34) * Math.PI * 2;
+    for (const wheel of this.car.wheels) {
+      wheel.rotation.x = spin;
+    }
+    this.car.setSteer(this.steerTarget);
   }
 
-  private spawnTrafficCar(
-    lane: number,
-    z = SPAWN_Z - Math.random() * 8,
+  private placeCar(
+    distance: number,
+    lateral: number,
+    frame = this.frameAt(distance),
   ): void {
-    // Never stack a new car on top of one that just entered the same lane.
-    const blocked = this.trafficCars.some(
-      (car) =>
-        car.active &&
-        car.lane === lane &&
-        Math.abs(car.group.position.z - z) < 14,
+    const position = frame.position
+      .clone()
+      .addScaledVector(frame.right, lateral)
+      .addScaledVector(frame.up, 0.02);
+    this.car.group.position.copy(position);
+    const basis = new THREE.Matrix4().makeBasis(
+      frame.right,
+      frame.up,
+      frame.tangent,
     );
-    if (blocked) {
-      return;
+    const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
+    if (lateral !== 0) {
+      quaternion.multiply(
+        new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 1, 0),
+          this.steerTarget * 0.28,
+        ),
+      );
     }
+    this.car.group.quaternion.copy(quaternion);
+  }
 
-    const car = this.trafficCars.find((candidate) => !candidate.active);
-    if (!car) {
-      return;
+  private frameAt(distance: number): TrackFrame {
+    const frames = this.frames;
+    const first = frames[0];
+    if (!first) {
+      throw new Error('Track has no frames');
     }
-
-    const x = LANE_X[lane] ?? 0;
-    car.active = true;
-    car.lane = lane;
-    car.group.visible = true;
-    car.group.position.set(x, 0, z);
-    car.box.x = x;
-    car.box.z = car.group.position.z;
-  }
-
-  private findCollision(): Car | null {
-    const playerBox: Box2D = {
-      x: this.player.position.x,
-      z: PLAYER_Z,
-      halfWidth: PLAYER_HALF_WIDTH,
-      halfLength: PLAYER_HALF_LENGTH,
-    };
-    for (const car of this.trafficCars) {
-      if (car.active && overlaps(playerBox, car.box)) {
-        return car;
-      }
-    }
-    return null;
-  }
-
-  private removeTrafficCar(car: Car): void {
-    car.active = false;
-    car.group.visible = false;
-  }
-
-  private handleHit(): void {
-    this.hearts -= 1;
-    this.callbacks.onHearts(this.hearts);
-    this.callbacks.onHit();
-    this.shake = this.reducedMotionQuery.matches ? 0 : 0.45;
-
-    if (this.hearts <= 0) {
-      this.endRun();
-      return;
-    }
-    this.invulnerableUntil = this.elapsed + INVULNERABLE_SECONDS;
-  }
-
-  private endRun(): void {
-    this.currentState = 'over';
-    this.renderer.setAnimationLoop(null);
-    this.callbacks.onScore(scoreFor(this.distance));
-    this.render();
-    this.callbacks.onGameOver({
-      score: scoreFor(this.distance),
-      distance: this.distance,
-    });
-  }
-
-  private updateCamera(dt: number): void {
-    const shakeAmount = this.shake;
-    const shakeX =
-      shakeAmount > 0 ? Math.sin(this.elapsed * 74) * shakeAmount * 0.06 : 0;
-    // Follow the car laterally so the outer lanes never leave the frame.
-    const targetX = this.player.position.x * 0.92 + shakeX;
-    this.camera.position.x = THREE.MathUtils.damp(
-      this.camera.position.x,
-      targetX,
-      9,
-      dt,
+    const index = clamp(
+      Math.round((distance / Math.max(1, this.length)) * (frames.length - 1)),
+      0,
+      frames.length - 1,
     );
-    this.camera.position.y =
-      5.6 + (shakeAmount > 0 ? Math.sin(this.elapsed * 91) * 0.05 : 0);
-    this.camera.lookAt(
-      this.player.position.x * 0.82,
-      1.05,
-      PLAYER_Z - 13,
-    );
-    this.shake = Math.max(0, this.shake - dt * 1.6);
+    return frames[index] ?? first;
+  }
+
+  private updateCamera(delta: number): void {
+    const frame = this.frameAt(this.s);
+    const shake = this.reducedMotion.matches ? 0 : Math.min(0.06, this.speed / 400);
+    if (this.cameraMode === 'chase') {
+      const desired = frame.position
+        .clone()
+        .addScaledVector(frame.up, 4.2 + shake)
+        .addScaledVector(frame.tangent, -10);
+      this.camera.position.lerp(desired, clamp(delta * 8, 0, 1));
+      const target = frame.position
+        .clone()
+        .addScaledVector(frame.tangent, 14)
+        .addScaledVector(frame.up, 1.2);
+      this.camera.up.copy(frame.up);
+      this.camera.lookAt(target);
+    } else {
+      this.camera.position.copy(
+        frame.position
+          .clone()
+          .addScaledVector(frame.up, 0.78)
+          .addScaledVector(frame.tangent, 0.15),
+      );
+      const target = frame.position
+        .clone()
+        .addScaledVector(frame.tangent, 30)
+        .addScaledVector(frame.up, 0.4);
+      this.camera.up.copy(frame.up);
+      this.camera.lookAt(target);
+    }
+  }
+
+  private report(): void {
+    this.callbacks.onSnapshot(this.snapshot);
   }
 
   private resize(): void {
     const width = this.container.clientWidth || window.innerWidth;
     const height = this.container.clientHeight || window.innerHeight;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
-    const aspect = width / Math.max(1, height);
-    this.camera.aspect = aspect;
-    this.camera.fov = aspect < 0.65 ? 72 : 62;
+    this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
-    this.render();
-  }
-
-  private render(): void {
-    this.renderer.render(this.scene, this.camera);
   }
 }
