@@ -525,7 +525,7 @@ function wingGeometry() {
     curveSegments: 10,
   });
   geometry.rotateY(Math.PI / 2);
-  geometry.translate(-0.465, 0, -0.06);
+  geometry.translate(-0.465, 0, -0.05);
   return geometry;
 }
 
@@ -603,10 +603,10 @@ function sharedGeometry() {
   };
 
   shared = {
-    shell: buildLoft(shellSections, RING, Math.PI / 3.6),
+    shell: buildLoft(shellSections, RING, Math.PI / 5),
     rearCap: buildCap(first, first.z, RING, -1),
     noseCap: buildCap(last, last.z, RING, 1),
-    canopy: buildLoft(canopySections(44), RING, Math.PI / 3.6),
+    canopy: buildLoft(canopySections(44), RING, Math.PI / 5),
     wing: wingGeometry(),
     splitter: plateGeometry(0.46, 0.96, 1.22, 0.012),
     diffuserFin: new THREE.BoxGeometry(0.014, 0.15, 0.17),
@@ -789,7 +789,7 @@ export function createCar(color = PAINT) {
     group.add(upright);
 
     const plate = new THREE.Mesh(geo.endplate, materials.trim);
-    plate.position.set(side * 0.465, 0.78, -1.16);
+    plate.position.set(side * 0.465, 0.78, -1.13);
     group.add(plate);
 
     group.add(new THREE.Mesh(geo.mirrorStalk[side], materials.trim));
