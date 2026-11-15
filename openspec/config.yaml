@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  Neon Racer is a mobile-first, endless three-lane car racer built with
+  Three.js and shipped as an installable web app. See openspec/project.md for
+  purpose, stack, conventions, and scope. Current behavior specs live in
+  openspec/specs/: one for the game and one for deployment. GitHub Pages is
+  published from the `main` branch on every merge.
+
+  Numeric values in the specs (speed, scoring, lives, spawn timing) are
+  provisional defaults chosen for testability. Tune them by updating the game
+  spec in the same change that changes the code.
+
+rules:
+  proposal:
+    - State what is explicitly out of scope.
+    - List open decisions that must be resolved before delta specs are written.
+  specs:
+    - Every requirement must contain at least one testable scenario.
+    - Keep framework and rendering details out of behavior specs; record them in project.md or a change design.md.
+    - Express game tuning values as defaults that can change without changing the requirement's intent.
+    - Include mobile, reduced-motion, and offline behavior wherever the requirement touches them.
+  tasks:
+    - Write tasks as checkboxes with hierarchical numbering.
+    - State how each task is verified (unit test, browser check, or deployment check).

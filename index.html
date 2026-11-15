@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#050a12" />
+    <meta
+      name="description"
+      content="Neon Racer is a fast, mobile-first 3D endless car racer built with Three.js."
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Neon Racer" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <title>Neon Racer — 3D HTML Car Racer</title>
+  </head>
+  <body data-screen="menu">
+    <main id="app" class="stage"></main>
+    <div class="vignette" aria-hidden="true"></div>
+    <div id="hit-flash" class="hit-flash" aria-hidden="true"></div>
+
+    <header class="hud" aria-label="Run status">
+      <div class="hud__group">
+        <div class="stat">
+          <span class="stat__label">Score</span>
+          <span class="stat__value" id="score">00000</span>
+        </div>
+        <div class="stat stat--best">
+          <span class="stat__label">Best</span>
+          <span class="stat__value" id="best">00000</span>
+        </div>
+      </div>
+      <div class="hud__group hud__group--end">
+        <div class="hearts" id="hearts" role="img" aria-label="3 of 3 lives remaining">
+          <span class="heart" aria-hidden="true">&#9829;</span>
+          <span class="heart" aria-hidden="true">&#9829;</span>
+          <span class="heart" aria-hidden="true">&#9829;</span>
+        </div>
+        <button
+          type="button"
+          class="icon-button"
+          id="pause"
+          aria-label="Pause run"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="7" y="5" width="3.5" height="14" rx="1.2" />
+            <rect x="13.5" y="5" width="3.5" height="14" rx="1.2" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="controls" aria-label="Steering controls">
+      <button
+        type="button"
+        class="control"
+        id="steer-left"
+        aria-label="Steer left"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M15 5 8 12l7 7" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="control"
+        id="steer-right"
+        aria-label="Steer right"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="m9 5 7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+
+    <section
+      class="overlay"
+      data-overlay="menu"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="menu-title"
+    >
+      <div class="panel">
+        <p class="eyebrow">Three.js &middot; Endless run</p>
+        <h1 class="title" id="menu-title">NEON<br /><span>RACER</span></h1>
+        <p class="lede">
+          Swipe, tap, or use the arrows to switch lanes. Dodge traffic and keep
+          the run alive.
+        </p>
+        <p class="menu-best">
+          Personal best <strong id="menu-best">00000</strong>
+        </p>
+        <button type="button" class="button button--primary" id="start">
+          Start run
+        </button>
+        <button type="button" class="button button--ghost" id="install" hidden>
+          Install app
+        </button>
+        <p class="hint">
+          <kbd>&larr;</kbd><kbd>&rarr;</kbd> or swipe &middot; 3 lives per run
+        </p>
+      </div>
+    </section>
+
+    <section
+      class="overlay overlay--soft"
+      data-overlay="paused"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="paused-title"
+    >
+      <div class="panel">
+        <p class="eyebrow">Engine idle</p>
+        <h2 class="title title--small" id="paused-title">Paused</h2>
+        <p class="lede">Take a breath. Your run is waiting.</p>
+        <div class="button-row">
+          <button
+            type="button"
+            class="button button--primary"
+            data-action="resume"
+          >
+            Resume
+          </button>
+          <button
+            type="button"
+            class="button button--ghost"
+            data-action="restart"
+          >
+            Restart
+          </button>
+          <button type="button" class="button button--quiet" data-action="menu">
+            Main menu
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section
+      class="overlay"
+      data-overlay="over"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="over-title"
+    >
+      <div class="panel">
+        <p class="eyebrow" id="over-eyebrow">Run complete</p>
+        <h2 class="title title--small" id="over-title">Wrecked</h2>
+        <p class="badge" id="new-best" hidden>New personal best</p>
+        <dl class="results">
+          <div class="result">
+            <dt>Score</dt>
+            <dd id="final-score">00000</dd>
+          </div>
+          <div class="result">
+            <dt>Distance</dt>
+            <dd id="final-distance">0 m</dd>
+          </div>
+        </dl>
+        <div class="button-row">
+          <button
+            type="button"
+            class="button button--primary"
+            data-action="restart"
+          >
+            Race again
+          </button>
+          <button type="button" class="button button--quiet" data-action="menu">
+            Main menu
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <noscript>
+      <p class="noscript">
+        Neon Racer needs JavaScript and WebGL. Please enable JavaScript to play.
+      </p>
+    </noscript>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
