@@ -191,6 +191,12 @@ const PIECES = {
     title: 'Hypercar · side elevation',
     meta: 'profile check · wheelbase 1.4 m · roof 0.78 m · wedge nose',
   },
+  'car-ref': {
+    kind: 'car',
+    view: 'ref',
+    title: 'Hypercar · reference angle',
+    meta: 'framed to match docs/reference/mach-speeder-hero.jpg for comparison',
+  },
   cockpit: {
     kind: 'cockpit',
     title: 'Cockpit view · driver eye',
@@ -626,11 +632,10 @@ if (piece.kind === 'car') {
   const shadow = createContactShadow(3.4, 2.2);
   shadow.position.set(0, 0.012, 6);
   assetGroup.add(shadow);
-  // The elevation reads the car's profile; the track surface would hide the
-  // lower body behind its own edge, so drop it for this view only.
-  if (piece.view === 'side') {
+  // Both comparison views read the body on its own: the track surface would
+  // hide the lower body behind its own edge and clutter the silhouette.
+  if (piece.view === 'side' || piece.view === 'ref') {
     track.visible = false;
-    shadow.visible = false;
   }
   if (piece.view === 'side') {
     // Pure elevation: catches rake, ride height, and arch clearance, which a
@@ -639,6 +644,13 @@ if (piece.kind === 'car') {
     camera.updateProjectionMatrix();
     camera.position.set(14, 1.15, 6.2);
     camera.lookAt(0, 0.42, 6);
+  } else if (piece.view === 'ref') {
+    // Framed to match docs/reference/mach-speeder-hero.jpg: front three-quarter,
+    // about 22 degrees above the horizon, close enough to fill the frame.
+    camera.fov = 28;
+    camera.updateProjectionMatrix();
+    camera.position.set(2.65, 1.95, 8.9);
+    camera.lookAt(0, 0.4, 6.08);
   } else {
     camera.fov = 28;
     camera.updateProjectionMatrix();

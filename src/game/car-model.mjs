@@ -67,23 +67,23 @@ const STATIONS = [
   { z: -1.225, halfWidth: 0.4, floor: 0.3, shoulder: 0.4, fenderX: 0.26, fender: 0.46, centre: 0.44 },
   { z: -1.16, halfWidth: 0.44, floor: 0.26, shoulder: 0.44, fenderX: 0.3, fender: 0.51, centre: 0.48 },
   { z: -1.05, halfWidth: 0.47, floor: 0.2, shoulder: 0.49, fenderX: 0.34, fender: 0.57, centre: 0.52 },
-  { z: -0.92, halfWidth: 0.49, floor: 0.14, shoulder: 0.53, fenderX: 0.37, fender: 0.6, centre: 0.54 },
-  { z: -0.8, halfWidth: 0.5, floor: 0.11, shoulder: 0.56, fenderX: 0.39, fender: 0.63, centre: 0.55 },
+  { z: -0.92, halfWidth: 0.49, floor: 0.14, shoulder: 0.53, fenderX: 0.37, fender: 0.6, centre: 0.53 },
+  { z: -0.8, halfWidth: 0.5, floor: 0.11, shoulder: 0.56, fenderX: 0.39, fender: 0.63, centre: 0.535 },
   { z: -0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.58, fenderX: 0.41, fender: 0.64, centre: 0.55 },
-  { z: -0.58, halfWidth: 0.5, floor: 0.1, shoulder: 0.57, fenderX: 0.41, fender: 0.62, centre: 0.54 },
+  { z: -0.58, halfWidth: 0.5, floor: 0.1, shoulder: 0.57, fenderX: 0.41, fender: 0.62, centre: 0.525 },
   { z: -0.45, halfWidth: 0.5, floor: 0.1, shoulder: 0.55, fenderX: 0.42, fender: 0.59, centre: 0.53 },
   { z: -0.3, halfWidth: 0.5, floor: 0.1, shoulder: 0.53, fenderX: 0.44, fender: 0.56, centre: 0.51 },
   { z: -0.1, halfWidth: 0.5, floor: 0.1, shoulder: 0.51, fenderX: 0.46, fender: 0.53, centre: 0.5 },
   { z: 0.1, halfWidth: 0.5, floor: 0.1, shoulder: 0.5, fenderX: 0.47, fender: 0.52, centre: 0.49 },
   { z: 0.3, halfWidth: 0.5, floor: 0.1, shoulder: 0.51, fenderX: 0.47, fender: 0.54, centre: 0.48 },
-  { z: 0.46, halfWidth: 0.5, floor: 0.1, shoulder: 0.53, fenderX: 0.46, fender: 0.57, centre: 0.47 },
-  { z: 0.6, halfWidth: 0.5, floor: 0.1, shoulder: 0.55, fenderX: 0.44, fender: 0.6, centre: 0.45 },
-  { z: 0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.54, fenderX: 0.42, fender: 0.59, centre: 0.43 },
-  { z: 0.82, halfWidth: 0.49, floor: 0.1, shoulder: 0.51, fenderX: 0.4, fender: 0.55, centre: 0.4 },
-  { z: 0.95, halfWidth: 0.47, floor: 0.11, shoulder: 0.47, fenderX: 0.36, fender: 0.49, centre: 0.37 },
-  { z: 1.06, halfWidth: 0.43, floor: 0.1, shoulder: 0.38, fenderX: 0.31, fender: 0.42, centre: 0.32 },
-  { z: 1.15, halfWidth: 0.38, floor: 0.11, shoulder: 0.32, fenderX: 0.26, fender: 0.34, centre: 0.27 },
-  { z: 1.225, halfWidth: 0.3, floor: 0.13, shoulder: 0.27, fenderX: 0.2, fender: 0.28, centre: 0.25 },
+  { z: 0.46, halfWidth: 0.5, floor: 0.1, shoulder: 0.53, fenderX: 0.4, fender: 0.57, centre: 0.45 },
+  { z: 0.6, halfWidth: 0.5, floor: 0.1, shoulder: 0.55, fenderX: 0.36, fender: 0.61, centre: 0.41 },
+  { z: 0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.54, fenderX: 0.35, fender: 0.6, centre: 0.39 },
+  { z: 0.82, halfWidth: 0.49, floor: 0.1, shoulder: 0.51, fenderX: 0.34, fender: 0.57, centre: 0.36 },
+  { z: 0.95, halfWidth: 0.47, floor: 0.11, shoulder: 0.47, fenderX: 0.31, fender: 0.52, centre: 0.33 },
+  { z: 1.06, halfWidth: 0.43, floor: 0.1, shoulder: 0.38, fenderX: 0.28, fender: 0.45, centre: 0.29 },
+  { z: 1.15, halfWidth: 0.38, floor: 0.11, shoulder: 0.32, fenderX: 0.25, fender: 0.37, centre: 0.24 },
+  { z: 1.225, halfWidth: 0.3, floor: 0.13, shoulder: 0.27, fenderX: 0.2, fender: 0.3, centre: 0.22 },
 ];
 
 const zMin = STATIONS[0].z;
@@ -394,16 +394,17 @@ function sidePanelGeometry({ z0, z1, y0, y1, side, back = 0, front = 0, offset =
 // ---------------------------------------------------------------------------
 
 const CANOPY = [
-  { z: 0.44, halfWidth: 0.05, base: 0.42, top: 0.44 },
-  { z: 0.36, halfWidth: 0.18, base: 0.42, top: 0.52 },
-  { z: 0.24, halfWidth: 0.27, base: 0.43, top: 0.61 },
-  { z: 0.1, halfWidth: 0.32, base: 0.44, top: 0.67 },
-  { z: -0.04, halfWidth: 0.34, base: 0.45, top: 0.7 },
-  { z: -0.18, halfWidth: 0.34, base: 0.45, top: 0.71 },
-  { z: -0.34, halfWidth: 0.32, base: 0.45, top: 0.69 },
-  { z: -0.5, halfWidth: 0.27, base: 0.44, top: 0.63 },
-  { z: -0.64, halfWidth: 0.19, base: 0.43, top: 0.56 },
-  { z: -0.74, halfWidth: 0.07, base: 0.43, top: 0.47 },
+  { z: 0.5, halfWidth: 0.05, base: 0.41, top: 0.44 },
+  { z: 0.42, halfWidth: 0.18, base: 0.41, top: 0.53 },
+  { z: 0.3, halfWidth: 0.27, base: 0.42, top: 0.62 },
+  { z: 0.16, halfWidth: 0.32, base: 0.43, top: 0.68 },
+  { z: 0.0, halfWidth: 0.34, base: 0.44, top: 0.71 },
+  { z: -0.16, halfWidth: 0.34, base: 0.44, top: 0.71 },
+  { z: -0.34, halfWidth: 0.31, base: 0.44, top: 0.69 },
+  { z: -0.52, halfWidth: 0.26, base: 0.43, top: 0.64 },
+  { z: -0.68, halfWidth: 0.18, base: 0.43, top: 0.58 },
+  { z: -0.8, halfWidth: 0.1, base: 0.43, top: 0.53 },
+  { z: -0.88, halfWidth: 0.04, base: 0.43, top: 0.49 },
 ];
 
 function canopySections(steps) {
@@ -515,17 +516,17 @@ function tyreGeometry(radius, width) {
 /** Rear wing: a deep extruded airfoil spanning the width of the car. */
 function wingGeometry() {
   const shape = new THREE.Shape();
-  shape.moveTo(-0.14, 0.005);
-  shape.quadraticCurveTo(-0.09, 0.055, 0.07, 0.035);
-  shape.quadraticCurveTo(0.12, 0.019, 0.14, 0);
-  shape.quadraticCurveTo(0, -0.025, -0.14, 0.005);
+  shape.moveTo(-0.15, 0.005);
+  shape.quadraticCurveTo(-0.1, 0.06, 0.075, 0.038);
+  shape.quadraticCurveTo(0.13, 0.02, 0.15, 0);
+  shape.quadraticCurveTo(0, -0.027, -0.15, 0.005);
   const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.93,
+    depth: 0.96,
     bevelEnabled: false,
     curveSegments: 10,
   });
   geometry.rotateY(Math.PI / 2);
-  geometry.translate(-0.465, 0, -0.05);
+  geometry.translate(-0.48, 0, -0.05);
   return geometry;
 }
 
@@ -611,16 +612,15 @@ function sharedGeometry() {
     splitter: plateGeometry(0.46, 0.96, 1.22, 0.012),
     diffuserFin: new THREE.BoxGeometry(0.014, 0.15, 0.17),
     upright: new THREE.BoxGeometry(0.028, 0.36, 0.075),
-    endplate: new THREE.BoxGeometry(0.016, 0.15, 0.3),
+    endplate: new THREE.BoxGeometry(0.016, 0.18, 0.3),
     intake: new THREE.BoxGeometry(0.52, 0.1, 0.16),
+    noseVent: new THREE.BoxGeometry(0.17, 0.085, 0.07),
     mouth: new THREE.BoxGeometry(0.44, 0.085, 0.1),
     lampBar: new THREE.PlaneGeometry(0.64, 0.075),
     mirrorPod: new THREE.SphereGeometry(0.045, 14, 10),
     mirrorStalk: { [-1]: mirrorStalkGeometry(-1), 1: mirrorStalkGeometry(1) },
     fin: finGeometry(),
-    spokes: new THREE.BoxGeometry(0.028, 0.44, 0.042),
-    rimLip: new THREE.RingGeometry(0.19, 0.24, 26),
-    hub: new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16),
+    rimLip: new THREE.RingGeometry(0.185, 0.25, 30),
     tyre: keyed((radius, width) => tyreGeometry(radius, width)),
     castShadow: true,
     barrel: keyed(
@@ -633,6 +633,15 @@ function sharedGeometry() {
     brake: keyed(
       (radius) => new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, 0.02, 20),
     ),
+    aeroDisc: keyed(
+      (radius) => new THREE.CylinderGeometry(radius * 0.64, radius * 0.64, 0.02, 32),
+    ),
+    aeroRing: keyed(
+      (radius) => new THREE.TorusGeometry(radius * 0.46, 0.016, 8, 36),
+    ),
+    aeroHub: keyed(
+      (radius) => new THREE.CylinderGeometry(radius * 0.2, radius * 0.2, 0.034, 22),
+    ),
     patches: {
       hood: patchGeometry({
         z0: 0.52, z1: 1.14, x0: -0.1, x1: 0.1,
@@ -644,10 +653,10 @@ function sharedGeometry() {
       sillRight: sidePanelGeometry({ z0: -0.36, z1: 0.36, y0: 0.13, y1: 0.21, side: 1 }),
       sillLeft: sidePanelGeometry({ z0: -0.36, z1: 0.36, y0: 0.13, y1: 0.21, side: -1 }),
       intakeRight: sidePanelGeometry({
-        z0: -0.3, z1: -0.02, y0: 0.33, y1: 0.53, side: 1, back: -0.08, front: -0.14, stepsZ: 8,
+        z0: -0.34, z1: 0.02, y0: 0.3, y1: 0.55, side: 1, back: -0.1, front: -0.2, stepsZ: 10,
       }),
       intakeLeft: sidePanelGeometry({
-        z0: -0.3, z1: -0.02, y0: 0.33, y1: 0.53, side: -1, back: -0.08, front: -0.14, stepsZ: 8,
+        z0: -0.34, z1: 0.02, y0: 0.3, y1: 0.55, side: -1, back: -0.1, front: -0.2, stepsZ: 10,
       }),
       lampRight: patchGeometry({
         z0: 0.94, z1: 1.04, x0: 0.28, x1: 0.38, back: -0.1, front: -0.08,
@@ -682,22 +691,26 @@ function buildWheel(radius, width, face) {
   disc.position.x = face * width * 0.3;
   wheel.add(disc);
 
-  for (let index = 0; index < 10; index += 1) {
-    const spoke = new THREE.Mesh(geo.spokes, materials.gold);
-    spoke.position.x = face * width * 0.4;
-    spoke.rotation.x = (index / 10) * Math.PI;
-    wheel.add(spoke);
-  }
+  // Aero disc face: this casting runs solid discs, not spokes.
+  const aero = new THREE.Mesh(geo.aeroDisc[radius], materials.gold);
+  aero.rotation.z = Math.PI / 2;
+  aero.position.x = face * width * 0.36;
+  wheel.add(aero);
+
+  const groove = new THREE.Mesh(geo.aeroRing[radius], materials.trim);
+  groove.rotation.y = face > 0 ? Math.PI / 2 : -Math.PI / 2;
+  groove.position.x = face * width * 0.41;
+  wheel.add(groove);
+
+  const centre = new THREE.Mesh(geo.aeroHub[radius], materials.trim);
+  centre.rotation.z = Math.PI / 2;
+  centre.position.x = face * width * 0.43;
+  wheel.add(centre);
 
   const lip = new THREE.Mesh(geo.rimLip, materials.gold);
   lip.rotation.y = face > 0 ? Math.PI / 2 : -Math.PI / 2;
-  lip.position.x = face * width * 0.44;
+  lip.position.x = face * width * 0.4;
   wheel.add(lip);
-
-  const hub = new THREE.Mesh(geo.hub, materials.chrome);
-  hub.rotation.z = Math.PI / 2;
-  hub.position.x = face * width * 0.46;
-  wheel.add(hub);
 
   return wheel;
 }
@@ -759,6 +772,14 @@ export function createCar(color = PAINT) {
   mouth.position.set(0, 0.21, 1.17);
   group.add(mouth);
 
+  // Twin intake tunnels either side of the central nose tongue: the reference
+  // reads as a wide-mouth predator because the face is two holes, not one.
+  for (const side of [-1, 1]) {
+    const vent = new THREE.Mesh(geo.noseVent, materials.trim);
+    vent.position.set(side * 0.15, 0.2, 1.2);
+    group.add(vent);
+  }
+
   const splitter = new THREE.Mesh(geo.splitter, materials.trim);
   splitter.position.y = 0.11;
   group.add(splitter);
@@ -778,18 +799,18 @@ export function createCar(color = PAINT) {
 
   // Swan-neck wing on two uprights with endplates, just above the roof line.
   const wing = new THREE.Mesh(geo.wing, materials.trim);
-  wing.position.set(0, 0.78, -1.1);
+  wing.position.set(0, 0.83, -1.02);
   wing.rotation.x = -0.12;
   group.add(wing);
 
   for (const side of [-1, 1]) {
     const upright = new THREE.Mesh(geo.upright, materials.trim);
-    upright.position.set(side * 0.2, 0.64, -1.06);
+    upright.position.set(side * 0.21, 0.67, -1.06);
     upright.rotation.x = -0.2;
     group.add(upright);
 
     const plate = new THREE.Mesh(geo.endplate, materials.trim);
-    plate.position.set(side * 0.465, 0.78, -1.13);
+    plate.position.set(side * 0.48, 0.83, -1.07);
     group.add(plate);
 
     group.add(new THREE.Mesh(geo.mirrorStalk[side], materials.trim));

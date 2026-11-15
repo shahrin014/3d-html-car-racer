@@ -27,6 +27,7 @@ const PIECES = [
   { id: 'boost-12', folder: 'track' },
   { id: 'car', folder: 'car', name: 'car-hero' },
   { id: 'car-side', folder: 'car', name: 'car-side' },
+  { id: 'car-ref', folder: 'car', name: 'car-ref' },
   { id: 'cockpit', folder: 'cockpit', name: 'cockpit-view' },
 ];
 
