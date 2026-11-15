@@ -23,14 +23,16 @@ function authoredPieces(circuit: Circuit): string {
       (piece) =>
         piece.kind === 'loop' ||
         piece.kind === 'turn' ||
-        piece.kind === 'hill',
+        piece.kind === 'hill' ||
+        piece.kind === 'shift',
     )
     .map((piece) => `${piece.kind}:${piece.length.toFixed(6)}`)
+    .sort()
     .join('|');
 }
 
 function firstBankedTurn(circuit: Circuit): Piece {
-  const turn = circuit.pieces.filter((piece) => piece.kind === 'turn')[1];
+  const turn = circuit.pieces.find((piece) => piece.kind === 'turn');
   if (!turn) {
     throw new Error('circuit has no banked turn');
   }
@@ -70,24 +72,28 @@ describe('track randomization', () => {
     }
   });
 
-  it('changes only the seeded straight lengths, not authored geometry', () => {
+  it('keeps authored geometry fixed while the seeded combination varies', () => {
     const first = generateCircuit('alpha', 1);
     const second = generateCircuit('charlie', 1);
 
     expect(authoredPieces(second)).toBe(authoredPieces(first));
-    expect(second.pieces.map((piece) => piece.kind)).toEqual(
-      first.pieces.map((piece) => piece.kind),
-    );
+    expect(combination(second)).not.toBe(combination(first));
 
-    const changed = first.pieces.filter(
-      (piece, index) => piece.length !== second.pieces[index]?.length,
-    );
-    expect(changed.length).toBeGreaterThan(0);
-    expect(
-      changed.every(
-        (piece) => piece.kind === 'straight' || piece.kind === 'boost',
-      ),
-    ).toBe(true);
+    const allowed = new Set([
+      'straight',
+      'turn',
+      'loop',
+      'hill',
+      'boost',
+      'shift',
+    ]);
+    for (const piece of [...first.pieces, ...second.pieces]) {
+      expect(allowed.has(piece.kind)).toBe(true);
+      expect(piece.length).toBeGreaterThan(0);
+      if (piece.kind === 'straight' || piece.kind === 'boost') {
+        expect(piece.length).toBeGreaterThanOrEqual(8);
+      }
+    }
   });
 
   it('keeps every randomized circuit closed and feature-complete', () => {

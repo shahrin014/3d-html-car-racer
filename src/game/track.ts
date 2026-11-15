@@ -3,6 +3,7 @@ import {
   DESIGN_SPEED,
   LOOP_OFFSET,
   LOOP_RADIUS,
+  LOOP_RETURN_LENGTH,
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
@@ -130,7 +131,7 @@ export function hillPath(length = 18, height = 2): TrackPath {
 }
 
 export interface Piece {
-  kind: 'straight' | 'turn' | 'loop' | 'hill' | 'boost';
+  kind: 'straight' | 'turn' | 'loop' | 'hill' | 'boost' | 'shift';
   path: TrackPath;
   length: number;
   /** Matrix that places the piece's local frame in the circuit. */
@@ -161,17 +162,34 @@ function seededRandom(seed: string): () => number {
   };
 }
 
+/** Straight lengths the seeded assembly may choose from, in metres. */
+const STRAIGHT_CATALOG = [8, 12, 16] as const;
+const HILL_LENGTH = 20;
+const HILL_HEIGHT = 1.6;
+const MIN_CLOSING_STRAIGHT = 8;
+
+/** One assembled side of the stadium, measured along its local +Z axis. */
+interface SideModule {
+  kind: 'straight' | 'loop' | 'hill';
+  /** Forward distance contributed by the module. */
+  length: number;
+}
+
 /**
- * Build the piece list. The circuit is a stadium: two straights joined by two
- * 180° banked turns, with a loop spliced into the first straight and a crest
- * into the second. Every piece starts at its own origin heading +Z, so the
- * placement matrix is the accumulated frame.
+ * Build the piece list. The circuit is a stadium: two sides joined by two 180°
+ * banked turns. The seed picks the turn direction, which side carries the loop
+ * and the hill, the straight lengths, and the order of those modules. Every
+ * piece starts at its own origin heading +Z, so the placement matrix is the
+ * accumulated frame.
+ *
+ * Closure is guaranteed by construction: both sides are assembled to the same
+ * forward length, the loop's sideways exit is cancelled by a shift piece, and
+ * the two equal turns return the heading and lateral offset to the start.
  */
 export function generateCircuit(seed: string, level: number): Circuit {
   const random = seededRandom(`${seed}:${level}`);
   const radius = [18, 14, 10][Math.min(2, Math.floor((level - 1) / 2))] ?? 14;
   const loopRadius = Math.max(5.5, LOOP_RADIUS - (level - 1) * 0.25);
-  const straight = 34 + Math.round(random() * 8);
   const pieces: Piece[] = [];
 
   // Raise the whole circuit so the low edge of a banked turn never reaches
@@ -213,18 +231,100 @@ export function generateCircuit(seed: string, level: number): Circuit {
     pieces.push({ kind, path, length, matrix });
   };
 
-  // Side A displacement: 18 m + shift 14 m + 6 m + straight. The loop adds
-  // length but no displacement, so side B must match that displacement for the
-  // circuit to close: hill + short straight.
-  addStraight(18);
-  addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
-  addPiece('turn', shiftPath(LOOP_OFFSET, 14), 14);
-  addStraight(6);
-  addStraight(straight, true);
-  addPiece('turn', turnPath(radius, 180, true), Math.PI * radius);
-  addPiece('hill', hillPath(20, 1.6), 20);
-  addStraight(straight + 18, true);
-  addPiece('turn', turnPath(radius, 180, true), Math.PI * radius);
+  const pick = <T,>(values: readonly T[]): T => {
+    const value = values[Math.floor(random() * values.length)];
+    if (value === undefined) {
+      throw new Error('empty track catalog');
+    }
+    return value;
+  };
+
+  const buildSide = (
+    withLoop: boolean,
+    withHill: boolean,
+    extraStraights: number,
+  ): SideModule[] => {
+    // Start on a straight so the grid and finish gate always sit on flat track.
+    const modules: SideModule[] = [
+      { kind: 'straight', length: pick(STRAIGHT_CATALOG) },
+    ];
+    if (withLoop) {
+      modules.push({ kind: 'loop', length: LOOP_RETURN_LENGTH });
+    }
+    if (withHill) {
+      modules.push({ kind: 'hill', length: HILL_LENGTH });
+    }
+    for (let index = 0; index < extraStraights; index += 1) {
+      modules.push({ kind: 'straight', length: pick(STRAIGHT_CATALOG) });
+    }
+
+    // Keep the leading straight fixed, shuffle the rest of the combination.
+    for (let index = modules.length - 1; index > 1; index -= 1) {
+      const swap = 1 + Math.floor(random() * index);
+      const current = modules[index];
+      const other = modules[swap];
+      if (current && other) {
+        modules[index] = other;
+        modules[swap] = current;
+      }
+    }
+    return modules;
+  };
+
+  const clockwise = random() < 0.5;
+  const loopSide = random() < 0.5 ? 0 : 1;
+  // Put the hill on the other side so the two halves stay comparable in length.
+  const hillSide = loopSide === 0 ? 1 : 0;
+  const extraStraights = 1 + Math.floor(random() * 2);
+  const sides: [SideModule[], SideModule[]] = [
+    buildSide(loopSide === 0, hillSide === 0, extraStraights),
+    buildSide(loopSide === 1, hillSide === 1, extraStraights),
+  ];
+
+  const sideLength = (modules: SideModule[]): number =>
+    modules.reduce((total, module) => total + module.length, 0);
+  const fixedLengths: [number, number] = [
+    sideLength(sides[0]),
+    sideLength(sides[1]),
+  ];
+  // Give both sides the same forward length; the closing straights absorb the
+  // difference, so the circuit still meets itself at the seam.
+  const targetLength =
+    Math.max(...fixedLengths) +
+    MIN_CLOSING_STRAIGHT +
+    Math.round(random() * MIN_CLOSING_STRAIGHT);
+  const closingStraights: [number, number] = [
+    targetLength - fixedLengths[0],
+    targetLength - fixedLengths[1],
+  ];
+
+  const addSide = (modules: SideModule[], closingStraight: number): void => {
+    for (const module of modules) {
+      if (module.kind === 'straight') {
+        addStraight(module.length);
+      } else if (module.kind === 'hill') {
+        addPiece(
+          'hill',
+          hillPath(module.length, HILL_HEIGHT),
+          module.length,
+        );
+      } else {
+        addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
+        addPiece(
+          'shift',
+          shiftPath(LOOP_OFFSET, module.length),
+          module.length,
+        );
+      }
+    }
+    // The closing straight on each side carries a boost strip.
+    addStraight(closingStraight, true);
+  };
+
+  addSide(sides[0], closingStraights[0]);
+  addPiece('turn', turnPath(radius, 180, clockwise), Math.PI * radius);
+  addSide(sides[1], closingStraights[1]);
+  addPiece('turn', turnPath(radius, 180, clockwise), Math.PI * radius);
 
   return {
     seed,
