@@ -16,7 +16,7 @@ src/game/
     frames.ts        pure: sequence -> sampled centreline frames
     validate.ts      pure: closure, clearance, and feature checks
     TrackMesh.ts     orange planks, rails, supports, boosts, gate
-  Car.ts             die-cast car model from shared primitives
+  Car.ts             die-cast car wrapper (shared lofted model in car-model.mjs)
   cockpit.ts         generated dashboard texture (canvas)
   Input.ts           tilt, touch, buttons, and keyboard
   damage.ts          pure: impact -> damage -> performance multiplier

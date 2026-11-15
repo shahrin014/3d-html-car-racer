@@ -8,7 +8,7 @@ Regenerate the whole catalog with:
 
 ```bash
 npm run assets                 # all assets
-npm run assets -- car cockpit  # only the named ones
+npm run assets -- car car-side cockpit  # only the named ones
 ```
 
 Rendering is deterministic: `tools/preview/` rebuilds each asset from the same
@@ -33,11 +33,19 @@ rails, and start and end unbanked so any two pieces join cleanly.
 
 ![car](car/car-hero.png)
 
-Die-cast hypercar, 2.45 × 1.0 × 0.72 m, 1.4 m wheelbase. The shell is lofted from
-longitudinal cross-sections (not stacked boxes), with a lofted canopy, curved
-intake and stripe patches sampled from the same surface, an airfoil rear wing on
-tube struts, and lathed wheels with gold multi-spoke faces. Candy red paint,
-black aero, and gold rims are shared with the game.
+![car side](car/car-side.png)
+
+Die-cast hypercar, 2.45 × 1.0 × 0.78 m, 1.4 m wheelbase, roof 0.71 m. The shell
+is lofted from longitudinal cross-sections, and each section carries a full
+profile - floor, arch line, shoulder, fender crown, centreline - so the body
+wraps the wheels instead of leaving them exposed. Wheel arches are circles
+concentric with each tyre plus a 30 mm gap, which is what keeps the bodywork
+out of the wheels. Details are sampled from that same surface: a lofted black
+canopy, a tapered hood blade, side intakes, sills, a wide-mouth nose, diffuser
+fins, a tail light bar, and a swan-neck rear wing on uprights with endplates.
+Wheels are lathed tyres with gold multi-spoke faces. Candy red paint, black
+aero, and gold rims come from `src/game/car-model.mjs`, which the game and this
+render both use, so the catalog image is always the car you drive.
 
 ## Cockpit
 
