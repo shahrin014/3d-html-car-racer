@@ -22,6 +22,7 @@ const PIECES = [
   { id: 'turn-90-r14', folder: 'track' },
   { id: 'turn-180-r10', folder: 'track' },
   { id: 'loop-r7', folder: 'track' },
+  { id: 'loop-r7-plan', folder: 'track' },
   { id: 'hill-crest-2.5', folder: 'track' },
   { id: 'boost-12', folder: 'track' },
   { id: 'car', folder: 'car', name: 'car-hero' },

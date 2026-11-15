@@ -25,12 +25,8 @@ const TRACK = {
   railHeight: 0.35,
   /** Metres per plastic seam in the surface texture. */
   seam: 1.5,
-  /** Ring lift above the approach and ramp run into it, in metres. */
-  loopLift: 0.8,
-  loopRamp: 3.4,
-  get loopAdvance() {
-    return this.loopRamp * 2;
-  },
+  /** Lateral distance between the loop entrance and exit, in metres. */
+  loopOffset: 4,
 };
 
 const DESIGN_SPEED = 12;
@@ -74,71 +70,36 @@ function turnPath({ radius, angleDeg, clockwise }) {
 }
 
 /**
- * Vertical loop with an entrance ramp and an exit ramp.
+ * Vertical loop with a sideways drift.
  *
- * A circle that touches the ground cannot be entered: its descending side
- * passes back through the approach at the same height. Real loops lift the ring
- * and feed it with ramps, so the descending side clears the entry track. The
- * piece therefore runs: ground → ramp up → 360° ring (bottom 0.8 m up) → ramp
- * down → ground, with the exit 6.8 m ahead of the entrance.
+ * The ring is a helix: it turns 360 degrees while drifting laterally, so the
+ * exit track sits beside the entrance instead of on top of it. A planar ring
+ * would drop its exit back onto the approach and make the loop impossible to
+ * enter. Entry and exit still head straight along +Z, so the piece joins any
+ * straight; the cost is a lateral shift equal to TRACK.loopOffset, which the
+ * circuit assembly consumes after the loop.
  */
-function loopPath(radius, lift = TRACK.loopLift, ramp = TRACK.loopRamp) {
-  const ringLength = Math.PI * 2 * radius;
-  const rampFraction = ramp / (ramp * 2 + ringLength);
-  const rampUp = (u) => {
-    const smooth = u * u * (3 - 2 * u);
-    const slope = (lift * 6 * u * (1 - u)) / ramp;
-    const tangent = new THREE.Vector3(0, slope, 1).normalize();
-    const right = new THREE.Vector3(1, 0, 0);
-    return {
-      position: new THREE.Vector3(0, lift * smooth, ramp * u),
-      tangent,
-      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
-      bank: 0,
-    };
-  };
-
+function loopPath(radius, offset = TRACK.loopOffset) {
   return (t) => {
-    if (t < rampFraction) {
-      return rampUp(t / rampFraction);
-    }
-    if (t < 1 - rampFraction) {
-      const u = (t - rampFraction) / (1 - 2 * rampFraction);
-      const theta = Math.PI * 2 * u;
-      const position = new THREE.Vector3(
-        0,
-        lift + radius * (1 - Math.cos(theta)),
-        ramp + radius * Math.sin(theta),
-      );
-      const center = new THREE.Vector3(0, lift + radius, ramp);
-      return {
-        position,
-        tangent: new THREE.Vector3(
-          0,
-          Math.sin(theta),
-          Math.cos(theta),
-        ).normalize(),
-        up: center.clone().sub(position).normalize(),
-        bank: 0,
-      };
-    }
-    const u = (t - (1 - rampFraction)) / rampFraction;
-    const upRamp = rampUp(1 - u);
+    const theta = Math.PI * 2 * t;
+    // The ring turns once while drifting sideways, so the exit lane runs
+    // beside the entry lane instead of on top of it.
+    const drift = t * t * (3 - 2 * t);
+    const driftRate = 6 * t * (1 - t);
+    const position = new THREE.Vector3(
+      offset * drift,
+      radius * (1 - Math.cos(theta)),
+      radius * Math.sin(theta),
+    );
     const tangent = new THREE.Vector3(
-      0,
-      -upRamp.tangent.y,
-      upRamp.tangent.z,
+      offset * driftRate,
+      radius * Math.PI * 2 * Math.sin(theta),
+      radius * Math.PI * 2 * Math.cos(theta),
     ).normalize();
     return {
-      position: new THREE.Vector3(
-        upRamp.position.x,
-        upRamp.position.y,
-        ramp + ramp * u,
-      ),
+      position,
       tangent,
-      up: new THREE.Vector3()
-        .crossVectors(tangent, new THREE.Vector3(1, 0, 0))
-        .normalize(),
+      up: new THREE.Vector3(0, Math.cos(theta), -Math.sin(theta)).normalize(),
       bank: 0,
     };
   };
@@ -190,15 +151,19 @@ const PIECES = {
   },
   'loop-r7': {
     title: 'Vertical loop · R7',
-    meta: `360° · entrance and exit ${TRACK.loopAdvance} m apart`,
-    length: Math.PI * 2 * 7 + TRACK.loopAdvance,
+    meta: `360° · exit offset ${TRACK.loopOffset} m to the side`,
+    length: Math.PI * 2 * 7,
     path: loopPath(7),
-    view: new THREE.Vector3(1, 0.32, 0.16),
+    view: new THREE.Vector3(0.55, 0.5, 1.0),
     showLeadIn: true,
-    railFade: {
-      positions: [TRACK.loopRamp, TRACK.loopRamp + Math.PI * 2 * 7],
-      halfWidth: 2.4,
-    },
+  },
+  'loop-r7-plan': {
+    title: 'Vertical loop · plan view',
+    meta: `Entrance lane and exit lane offset by ${TRACK.loopOffset} m`,
+    length: Math.PI * 2 * 7,
+    path: loopPath(7),
+    view: new THREE.Vector3(0.02, 1, 0.02),
+    showLeadIn: true,
   },
   'hill-crest-2.5': {
     title: 'Hill · crest 2.5 m',
@@ -608,6 +573,12 @@ function fitCamera(target, view, pad = 1.04) {
   const bounds = new THREE.Box3().setFromObject(target);
   const center = bounds.getCenter(new THREE.Vector3());
   const direction = view.clone().normalize();
+  // A straight-down view is degenerate with the default up vector.
+  if (Math.abs(direction.y) > 0.92) {
+    camera.up.set(0, 0, -1);
+  } else {
+    camera.up.set(0, 1, 0);
+  }
   const corners = [];
   for (const x of [bounds.min.x, bounds.max.x]) {
     for (const y of [bounds.min.y, bounds.max.y]) {
@@ -694,10 +665,7 @@ if (piece.kind === 'car') {
   camera.lookAt(0, 0.6, 60);
   scene.fog = new THREE.Fog(0x070a10, 25, 95);
 } else {
-  const track = buildTrack(piece.path, piece.length, {
-    boost: piece.boost,
-    railFade: piece.railFade,
-  });
+  const track = buildTrack(piece.path, piece.length, { boost: piece.boost });
   assetGroup.add(track);
   if (piece.showLeadIn) {
     // Show the loop in context: track leading in and out proves the
@@ -705,7 +673,7 @@ if (piece.kind === 'car') {
     const leadIn = buildTrack(straightPath(7), 7);
     leadIn.position.z = -7;
     const leadOut = buildTrack(straightPath(7), 7);
-    leadOut.position.z = TRACK.loopAdvance;
+    leadOut.position.set(TRACK.loopOffset, 0, 0);
     assetGroup.add(leadIn, leadOut);
   }
   fitCamera(assetGroup, piece.view ?? new THREE.Vector3(1, 0.72, 1), 1.12);
