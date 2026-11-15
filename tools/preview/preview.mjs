@@ -223,23 +223,23 @@ const camera = new THREE.PerspectiveCamera(
   500,
 );
 
-scene.add(new THREE.HemisphereLight(0x9fd6ff, 0x0a1018, 0.65));
+scene.add(new THREE.HemisphereLight(0x9fd6ff, 0x0a1018, 0.3));
 
-const key = new THREE.DirectionalLight(0xffe3b3, 1.6);
+const key = new THREE.DirectionalLight(0xffe3b3, 0.5);
 key.position.set(14, 22, 12);
 scene.add(key);
 
-const rim = new THREE.DirectionalLight(0x22d3ee, 0.45);
+const rim = new THREE.DirectionalLight(0x22d3ee, 0.3);
 rim.position.set(-12, 9, -14);
 scene.add(rim);
 
-scene.add(new THREE.AmbientLight(0x27445c, 0.35));
+scene.add(new THREE.AmbientLight(0x27445c, 0.25));
 
 // A studio environment gives chrome, paint, and rims something to reflect.
 const pmrem = new THREE.PMREMGenerator(renderer);
 const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = environment;
-scene.environmentIntensity = 0.55;
+scene.environmentIntensity = 0.3;
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(200, 200),

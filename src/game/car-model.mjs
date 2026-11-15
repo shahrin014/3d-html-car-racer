@@ -429,10 +429,11 @@ function canopySections(steps) {
 const materials = {
   paint: new THREE.MeshPhysicalMaterial({
     color: PAINT,
-    metalness: 0.08,
-    roughness: 0.42,
-    clearcoat: 0,
-    envMapIntensity: 0,
+    metalness: 0.05,
+    roughness: 0.55,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.3,
+    envMapIntensity: 0.35,
   }),
   trim: new THREE.MeshStandardMaterial({
     color: 0x090b0f,
