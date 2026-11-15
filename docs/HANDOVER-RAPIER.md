@@ -37,7 +37,7 @@ the track-constrained movement with a real Rapier rigid-body car.
 2. **Budget**: the build gate currently allows 250 kB gzip total.
    - Change to two tiers: app shell ≤250 kB, physics chunk ≤1.3 MB gzip.
    - Files: `build/bundle-budget.ts`, `build/check-bundle-size.ts`.
-   - Record the decision in `openspec/changes/orange-loop-circuit-racer/`.
+   - Record the decision in `openspec/specs/game/spec.md`.
 3. **Tune**: engine force, steer torque, downforce, linear/angular damping,
    1/240 s step for loop contact, rescue when stuck or off-track, boost impulses.
 4. **Verify, then merge**:

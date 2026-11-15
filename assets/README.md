@@ -61,8 +61,8 @@ exterior shell is hidden to keep the view clear.
 1. Add a path function and an entry in `PIECES` in `tools/preview/preview.mjs`.
 2. Add the piece to `PIECES` in `tools/render-assets.mjs`.
 3. Run `npm run assets`.
-4. Copy the render into this table and update `openspec/changes/` for the new
-   geometry.
+4. Copy the render into this table and update `openspec/specs/game/spec.md` for
+   the new geometry.
 
 ## Track models
 
