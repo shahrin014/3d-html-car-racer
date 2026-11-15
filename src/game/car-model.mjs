@@ -58,26 +58,26 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // ---------------------------------------------------------------------------
 
 const STATIONS = [
-  { z: -1.225, halfWidth: 0.4, floor: 0.3, shoulder: 0.44, fenderX: 0.26, fender: 0.5, centre: 0.48 },
-  { z: -1.16, halfWidth: 0.44, floor: 0.26, shoulder: 0.48, fenderX: 0.3, fender: 0.55, centre: 0.52 },
-  { z: -1.05, halfWidth: 0.47, floor: 0.2, shoulder: 0.53, fenderX: 0.34, fender: 0.6, centre: 0.55 },
-  { z: -0.92, halfWidth: 0.49, floor: 0.14, shoulder: 0.57, fenderX: 0.37, fender: 0.63, centre: 0.56 },
-  { z: -0.8, halfWidth: 0.5, floor: 0.11, shoulder: 0.6, fenderX: 0.39, fender: 0.64, centre: 0.57 },
-  { z: -0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.62, fenderX: 0.41, fender: 0.645, centre: 0.57 },
-  { z: -0.58, halfWidth: 0.5, floor: 0.1, shoulder: 0.61, fenderX: 0.41, fender: 0.63, centre: 0.56 },
-  { z: -0.45, halfWidth: 0.5, floor: 0.1, shoulder: 0.59, fenderX: 0.42, fender: 0.61, centre: 0.55 },
-  { z: -0.3, halfWidth: 0.5, floor: 0.1, shoulder: 0.57, fenderX: 0.44, fender: 0.58, centre: 0.53 },
-  { z: -0.1, halfWidth: 0.5, floor: 0.1, shoulder: 0.55, fenderX: 0.46, fender: 0.56, centre: 0.52 },
-  { z: 0.1, halfWidth: 0.5, floor: 0.1, shoulder: 0.54, fenderX: 0.47, fender: 0.55, centre: 0.51 },
-  { z: 0.3, halfWidth: 0.5, floor: 0.1, shoulder: 0.55, fenderX: 0.47, fender: 0.57, centre: 0.5 },
-  { z: 0.46, halfWidth: 0.5, floor: 0.1, shoulder: 0.57, fenderX: 0.46, fender: 0.6, centre: 0.49 },
-  { z: 0.6, halfWidth: 0.5, floor: 0.1, shoulder: 0.59, fenderX: 0.44, fender: 0.62, centre: 0.47 },
-  { z: 0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.58, fenderX: 0.42, fender: 0.61, centre: 0.45 },
-  { z: 0.82, halfWidth: 0.49, floor: 0.1, shoulder: 0.56, fenderX: 0.4, fender: 0.58, centre: 0.43 },
-  { z: 0.95, halfWidth: 0.47, floor: 0.11, shoulder: 0.52, fenderX: 0.36, fender: 0.53, centre: 0.4 },
-  { z: 1.06, halfWidth: 0.43, floor: 0.12, shoulder: 0.43, fenderX: 0.31, fender: 0.45, centre: 0.34 },
-  { z: 1.15, halfWidth: 0.38, floor: 0.13, shoulder: 0.36, fenderX: 0.26, fender: 0.36, centre: 0.29 },
-  { z: 1.225, halfWidth: 0.3, floor: 0.15, shoulder: 0.29, fenderX: 0.2, fender: 0.29, centre: 0.26 },
+  { z: -1.225, halfWidth: 0.4, floor: 0.3, shoulder: 0.4, fenderX: 0.26, fender: 0.46, centre: 0.44 },
+  { z: -1.16, halfWidth: 0.44, floor: 0.26, shoulder: 0.44, fenderX: 0.3, fender: 0.51, centre: 0.48 },
+  { z: -1.05, halfWidth: 0.47, floor: 0.2, shoulder: 0.49, fenderX: 0.34, fender: 0.57, centre: 0.52 },
+  { z: -0.92, halfWidth: 0.49, floor: 0.14, shoulder: 0.53, fenderX: 0.37, fender: 0.6, centre: 0.54 },
+  { z: -0.8, halfWidth: 0.5, floor: 0.11, shoulder: 0.56, fenderX: 0.39, fender: 0.63, centre: 0.55 },
+  { z: -0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.58, fenderX: 0.41, fender: 0.64, centre: 0.55 },
+  { z: -0.58, halfWidth: 0.5, floor: 0.1, shoulder: 0.57, fenderX: 0.41, fender: 0.62, centre: 0.54 },
+  { z: -0.45, halfWidth: 0.5, floor: 0.1, shoulder: 0.55, fenderX: 0.42, fender: 0.59, centre: 0.53 },
+  { z: -0.3, halfWidth: 0.5, floor: 0.1, shoulder: 0.53, fenderX: 0.44, fender: 0.56, centre: 0.51 },
+  { z: -0.1, halfWidth: 0.5, floor: 0.1, shoulder: 0.51, fenderX: 0.46, fender: 0.53, centre: 0.5 },
+  { z: 0.1, halfWidth: 0.5, floor: 0.1, shoulder: 0.5, fenderX: 0.47, fender: 0.52, centre: 0.49 },
+  { z: 0.3, halfWidth: 0.5, floor: 0.1, shoulder: 0.51, fenderX: 0.47, fender: 0.54, centre: 0.48 },
+  { z: 0.46, halfWidth: 0.5, floor: 0.1, shoulder: 0.53, fenderX: 0.46, fender: 0.57, centre: 0.47 },
+  { z: 0.6, halfWidth: 0.5, floor: 0.1, shoulder: 0.55, fenderX: 0.44, fender: 0.6, centre: 0.45 },
+  { z: 0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.54, fenderX: 0.42, fender: 0.59, centre: 0.43 },
+  { z: 0.82, halfWidth: 0.49, floor: 0.1, shoulder: 0.51, fenderX: 0.4, fender: 0.55, centre: 0.4 },
+  { z: 0.95, halfWidth: 0.47, floor: 0.11, shoulder: 0.47, fenderX: 0.36, fender: 0.49, centre: 0.37 },
+  { z: 1.06, halfWidth: 0.43, floor: 0.12, shoulder: 0.4, fenderX: 0.31, fender: 0.42, centre: 0.32 },
+  { z: 1.15, halfWidth: 0.38, floor: 0.13, shoulder: 0.34, fenderX: 0.26, fender: 0.34, centre: 0.27 },
+  { z: 1.225, halfWidth: 0.3, floor: 0.15, shoulder: 0.28, fenderX: 0.2, fender: 0.28, centre: 0.25 },
 ];
 
 const zMin = STATIONS[0].z;
@@ -380,16 +380,16 @@ function sidePanelGeometry({ z0, z1, y0, y1, side, back = 0, front = 0, offset =
 // ---------------------------------------------------------------------------
 
 const CANOPY = [
-  { z: 0.46, halfWidth: 0.05, base: 0.44, top: 0.46 },
-  { z: 0.38, halfWidth: 0.18, base: 0.44, top: 0.56 },
-  { z: 0.26, halfWidth: 0.27, base: 0.45, top: 0.66 },
-  { z: 0.12, halfWidth: 0.32, base: 0.46, top: 0.74 },
-  { z: -0.02, halfWidth: 0.34, base: 0.47, top: 0.775 },
-  { z: -0.16, halfWidth: 0.34, base: 0.47, top: 0.78 },
-  { z: -0.32, halfWidth: 0.32, base: 0.47, top: 0.76 },
-  { z: -0.48, halfWidth: 0.27, base: 0.46, top: 0.7 },
-  { z: -0.62, halfWidth: 0.19, base: 0.45, top: 0.62 },
-  { z: -0.72, halfWidth: 0.07, base: 0.45, top: 0.5 },
+  { z: 0.44, halfWidth: 0.05, base: 0.42, top: 0.44 },
+  { z: 0.36, halfWidth: 0.18, base: 0.42, top: 0.52 },
+  { z: 0.24, halfWidth: 0.27, base: 0.43, top: 0.61 },
+  { z: 0.1, halfWidth: 0.32, base: 0.44, top: 0.67 },
+  { z: -0.04, halfWidth: 0.34, base: 0.45, top: 0.7 },
+  { z: -0.18, halfWidth: 0.34, base: 0.45, top: 0.71 },
+  { z: -0.34, halfWidth: 0.32, base: 0.45, top: 0.69 },
+  { z: -0.5, halfWidth: 0.27, base: 0.44, top: 0.63 },
+  { z: -0.64, halfWidth: 0.19, base: 0.43, top: 0.56 },
+  { z: -0.74, halfWidth: 0.07, base: 0.43, top: 0.47 },
 ];
 
 function canopySections(steps) {
@@ -552,9 +552,9 @@ function finGeometry() {
 function mirrorStalkGeometry(side) {
   return new THREE.TubeGeometry(
     new THREE.CatmullRomCurve3([
-      new THREE.Vector3(side * 0.3, 0.54, 0.3),
-      new THREE.Vector3(side * 0.37, 0.59, 0.33),
-      new THREE.Vector3(side * 0.42, 0.62, 0.35),
+      new THREE.Vector3(side * 0.3, 0.5, 0.3),
+      new THREE.Vector3(side * 0.37, 0.53, 0.33),
+      new THREE.Vector3(side * 0.42, 0.55, 0.35),
     ]),
     6,
     0.011,
@@ -750,33 +750,33 @@ export function createCar(color = PAINT) {
   tail.rotation.y = Math.PI;
   group.add(tail);
 
-  // Swan-neck wing on two uprights with endplates.
+  // Swan-neck wing on two uprights with endplates, just above the roof line.
   const wing = new THREE.Mesh(geo.wing, materials.trim);
-  wing.position.set(0, 0.85, -1.08);
+  wing.position.set(0, 0.78, -1.1);
   wing.rotation.x = -0.12;
   group.add(wing);
 
   for (const side of [-1, 1]) {
     const upright = new THREE.Mesh(geo.upright, materials.trim);
-    upright.position.set(side * 0.2, 0.7, -1.05);
+    upright.position.set(side * 0.2, 0.64, -1.06);
     upright.rotation.x = -0.2;
     group.add(upright);
 
     const plate = new THREE.Mesh(geo.endplate, materials.trim);
-    plate.position.set(side * 0.465, 0.85, -1.08);
+    plate.position.set(side * 0.465, 0.78, -1.1);
     group.add(plate);
 
     group.add(new THREE.Mesh(geo.mirrorStalk[side], materials.trim));
 
     const pod = new THREE.Mesh(geo.mirrorPod, materials.trim);
     pod.scale.set(0.75, 0.5, 1.15);
-    pod.position.set(side * 0.44, 0.64, 0.36);
+    pod.position.set(side * 0.44, 0.57, 0.36);
     group.add(pod);
   }
 
   // Shark fin behind the canopy.
   const fin = new THREE.Mesh(geo.fin, materials.trim);
-  fin.position.set(0, 0.55, -0.74);
+  fin.position.set(0, 0.5, -0.76);
   group.add(fin);
 
   const wheels = [];
