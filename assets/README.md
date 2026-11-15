@@ -63,3 +63,17 @@ exterior shell is hidden to keep the view clear.
 3. Run `npm run assets`.
 4. Copy the render into this table and update `openspec/changes/` for the new
    geometry.
+
+## Track models
+
+Each track piece is also exported as a self-contained binary glTF (`.glb`) with
+embedded textures:
+
+```bash
+npm run assets:glb
+```
+
+The files live next to the previews in `assets/track/` and use the same
+parametric definitions, so models and images cannot drift apart. The car and
+cockpit are not exported yet; they will follow the same format once the car
+model is final.

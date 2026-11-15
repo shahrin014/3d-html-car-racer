@@ -611,3 +611,31 @@ corrupt value SHALL be treated as absent. Storage failure SHALL NOT prevent play
 - **WHEN** the game loads
 - **THEN** the best time is shown as absent
 - **AND** the game is playable
+
+### Requirement: Every track asset ships as binary glTF
+
+Every track piece SHALL be exported as a binary glTF (`.glb`) file under
+`assets/track/`, with the same geometry and embedded materials as its rendered
+preview. Export SHALL be reproducible from the catalog definitions with a single
+command. Every file SHALL be a valid glTF 2.0 binary and SHALL be committed
+alongside its preview.
+
+#### Scenario: Track pieces have models
+
+- **GIVEN** the track catalog
+- **THEN** every track piece has a matching `.glb` file under `assets/track/`
+- **AND** each file begins with the glTF binary magic
+
+#### Scenario: Export is reproducible
+
+- **GIVEN** the catalog definitions
+- **WHEN** `npm run assets:glb` runs
+- **THEN** every track piece is regenerated
+- **AND** the model geometry and materials match the rendered preview
+
+#### Scenario: Models open without external files
+
+- **GIVEN** an exported track model
+- **WHEN** it is opened in a glTF viewer
+- **THEN** its textures are embedded in the file
+- **AND** no sidecar files are required

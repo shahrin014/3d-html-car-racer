@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import {
   createCar,
   createCockpitDashboard,
@@ -705,6 +706,29 @@ const sceneBounds = new THREE.Box3().setFromObject(assetGroup);
 const groundY = Math.min(-0.02, sceneBounds.min.y - 0.25);
 ground.position.y = groundY;
 grid.position.y = groundY + 0.002;
+
+/**
+ * Export the asset (not the studio floor) as a binary glTF and return base64.
+ * Used by tools/export-glb.mjs.
+ */
+window.__exportGlb = () =>
+  new Promise((resolve, reject) => {
+    new GLTFExporter().parse(
+      assetGroup,
+      (result) => {
+        const bytes = new Uint8Array(result);
+        let binary = '';
+        for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+          binary += String.fromCharCode(
+            ...bytes.subarray(offset, offset + 0x8000),
+          );
+        }
+        resolve(btoa(binary));
+      },
+      reject,
+      { binary: true, onlyVisible: true },
+    );
+  });
 
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight, false);

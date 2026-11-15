@@ -59,6 +59,13 @@ runtime API calls.
 - **Frame clamping.** A single frame advances the simulation by at most 50 ms
   so returning from a stall cannot teleport the player through traffic.
 
+### Asset formats
+
+- Catalog assets live under `assets/`: PNG previews plus binary glTF (`.glb`)
+  models for every 3D asset. New 3D assets are GLB with embedded textures.
+- The game itself still builds geometry procedurally and downloads no models;
+  GLB files are the design and interchange format, not runtime dependencies.
+
 ### Testing Strategy
 
 - Every scenario in `openspec/specs/game/spec.md` should map to at least one
