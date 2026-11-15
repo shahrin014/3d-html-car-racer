@@ -25,8 +25,12 @@ const TRACK = {
   railHeight: 0.35,
   /** Metres per plastic seam in the surface texture. */
   seam: 1.5,
-  /** Forward distance the loop gains from entrance to exit. */
-  loopAdvance: 4,
+  /** Ring lift above the approach and ramp run into it, in metres. */
+  loopLift: 0.8,
+  loopRamp: 3.4,
+  get loopAdvance() {
+    return this.loopRamp * 2;
+  },
 };
 
 const DESIGN_SPEED = 12;
@@ -70,24 +74,71 @@ function turnPath({ radius, angleDeg, clockwise }) {
 }
 
 /**
- * Vertical loop with a forward advance. A pure circle starts and ends at the
- * same point, which looks like a closed ring with no way in or out. Advancing
- * the exit four metres gives a visible entrance and exit while keeping entry
- * and exit headings identical, so the piece still joins any straight.
+ * Vertical loop with an entrance ramp and an exit ramp.
+ *
+ * A circle that touches the ground cannot be entered: its descending side
+ * passes back through the approach at the same height. Real loops lift the ring
+ * and feed it with ramps, so the descending side clears the entry track. The
+ * piece therefore runs: ground → ramp up → 360° ring (bottom 0.8 m up) → ramp
+ * down → ground, with the exit 6.8 m ahead of the entrance.
  */
-function loopPath(radius, advance = TRACK.loopAdvance) {
-  return (t) => {
-    const theta = Math.PI * 2 * t;
-    const position = new THREE.Vector3(
-      0,
-      radius * (1 - Math.cos(theta)),
-      radius * Math.sin(theta) + advance * t,
-    );
-    const center = new THREE.Vector3(0, radius, advance * t);
+function loopPath(radius, lift = TRACK.loopLift, ramp = TRACK.loopRamp) {
+  const ringLength = Math.PI * 2 * radius;
+  const rampFraction = ramp / (ramp * 2 + ringLength);
+  const rampUp = (u) => {
+    const smooth = u * u * (3 - 2 * u);
+    const slope = (lift * 6 * u * (1 - u)) / ramp;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
     return {
-      position,
-      tangent: new THREE.Vector3(0, Math.sin(theta), Math.cos(theta)).normalize(),
-      up: center.clone().sub(position).normalize(),
+      position: new THREE.Vector3(0, lift * smooth, ramp * u),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+
+  return (t) => {
+    if (t < rampFraction) {
+      return rampUp(t / rampFraction);
+    }
+    if (t < 1 - rampFraction) {
+      const u = (t - rampFraction) / (1 - 2 * rampFraction);
+      const theta = Math.PI * 2 * u;
+      const position = new THREE.Vector3(
+        0,
+        lift + radius * (1 - Math.cos(theta)),
+        ramp + radius * Math.sin(theta),
+      );
+      const center = new THREE.Vector3(0, lift + radius, ramp);
+      return {
+        position,
+        tangent: new THREE.Vector3(
+          0,
+          Math.sin(theta),
+          Math.cos(theta),
+        ).normalize(),
+        up: center.clone().sub(position).normalize(),
+        bank: 0,
+      };
+    }
+    const u = (t - (1 - rampFraction)) / rampFraction;
+    const upRamp = rampUp(1 - u);
+    const tangent = new THREE.Vector3(
+      0,
+      -upRamp.tangent.y,
+      upRamp.tangent.z,
+    ).normalize();
+    return {
+      position: new THREE.Vector3(
+        upRamp.position.x,
+        upRamp.position.y,
+        ramp + ramp * u,
+      ),
+      tangent,
+      up: new THREE.Vector3()
+        .crossVectors(tangent, new THREE.Vector3(1, 0, 0))
+        .normalize(),
       bank: 0,
     };
   };
@@ -142,8 +193,12 @@ const PIECES = {
     meta: `360° · entrance and exit ${TRACK.loopAdvance} m apart`,
     length: Math.PI * 2 * 7 + TRACK.loopAdvance,
     path: loopPath(7),
-    view: new THREE.Vector3(0.9, 0.55, 0.7),
+    view: new THREE.Vector3(1, 0.32, 0.16),
     showLeadIn: true,
+    railFade: {
+      positions: [TRACK.loopRamp, TRACK.loopRamp + Math.PI * 2 * 7],
+      halfWidth: 2.4,
+    },
   },
   'hill-crest-2.5': {
     title: 'Hill · crest 2.5 m',
@@ -209,7 +264,7 @@ const key = new THREE.DirectionalLight(0xffe3b3, 1.6);
 key.position.set(14, 22, 12);
 scene.add(key);
 
-const rim = new THREE.DirectionalLight(0x22d3ee, 1.2);
+const rim = new THREE.DirectionalLight(0x22d3ee, 0.45);
 rim.position.set(-12, 9, -14);
 scene.add(rim);
 
@@ -397,8 +452,21 @@ function addCap(group, frame, material) {
   group.add(mesh);
 }
 
-function buildTrack(path, length, { boost = false } = {}) {
+function buildTrack(path, length, { boost = false, railFade } = {}) {
   const group = new THREE.Group();
+  const railScale = (s) => {
+    if (!railFade) {
+      return 1;
+    }
+    const distance = Math.min(
+      ...railFade.positions.map((position) => Math.abs(s - position)),
+    );
+    if (distance >= railFade.halfWidth) {
+      return 1;
+    }
+    const t = distance / railFade.halfWidth;
+    return t * t * (3 - 2 * t);
+  };
   const frames = framesFor(path, length);
   const surfaceMaterial = new THREE.MeshStandardMaterial({
     map: createTrackTexture({ boost }),
@@ -454,7 +522,9 @@ function buildTrack(path, length, { boost = false } = {}) {
         side * (TRACK.railWidth / 2),
       );
     const lift = (point, frame) =>
-      point.clone().addScaledVector(frame.up, TRACK.railHeight);
+      point
+        .clone()
+        .addScaledVector(frame.up, TRACK.railHeight * railScale(frame.s));
 
     addStrip(
       group,
@@ -597,7 +667,8 @@ if (piece.kind === 'car') {
       roughness: 0.2,
     }),
   );
-  hood.position.set(0, 0.3, 1.1);
+  hood.position.set(0, 0.34, 0.85);
+  hood.scale.set(1, 1, 0.78);
   hood.rotation.x = 0.04;
   assetGroup.add(hood);
 
@@ -623,7 +694,10 @@ if (piece.kind === 'car') {
   camera.lookAt(0, 0.6, 60);
   scene.fog = new THREE.Fog(0x070a10, 25, 95);
 } else {
-  const track = buildTrack(piece.path, piece.length, { boost: piece.boost });
+  const track = buildTrack(piece.path, piece.length, {
+    boost: piece.boost,
+    railFade: piece.railFade,
+  });
   assetGroup.add(track);
   if (piece.showLeadIn) {
     // Show the loop in context: track leading in and out proves the

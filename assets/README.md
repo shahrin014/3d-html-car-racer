@@ -22,7 +22,7 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Bend | ![bend](track/turn-45-r18.png) | 45°, R18 | Bank ~39° at 12 m/s |
 | Turn | ![turn](track/turn-90-r14.png) | 90°, R14 | Bank ~45° at 12 m/s |
 | Hairpin | ![hairpin](track/turn-180-r10.png) | 180°, R10 | Bank clamped at 45° |
-| Loop | ![loop](track/loop-r7.png) | R7 vertical, 360° | Entry frame equals exit frame |
+| Loop | ![loop](track/loop-r7.png) | R7 vertical, 360° | Ring lifted 0.8 m on 3.4 m entry and exit ramps; ends 6.8 m apart |
 | Hill | ![hill](track/hill-crest-2.5.png) | 16 m, crest 2.5 m | Zero slope at both ends |
 | Boost straight | ![boost](track/boost-12.png) | 12 m + armed strip | Chevrons face the driving direction |
 
@@ -33,10 +33,11 @@ rails, and start and end unbanked so any two pieces join cleanly.
 
 ![car](car/car-hero.png)
 
-Die-cast proportions: 2.2 × 1.0 × 0.7 m, 1.34 m wheelbase, oversized rear
-wheels, exposed chrome engine and intake stacks, hood scoop, rear spoiler, side
-exhausts, and a generated flame livery. Paint, chrome, tyre, and rim materials
-are shared with the game.
+Die-cast hypercar, 2.45 × 1.0 × 0.72 m, 1.4 m wheelbase. The shell is lofted from
+longitudinal cross-sections (not stacked boxes), with a lofted canopy, curved
+intake and stripe patches sampled from the same surface, an airfoil rear wing on
+tube struts, and lathed wheels with gold multi-spoke faces. Candy red paint,
+black aero, and gold rims are shared with the game.
 
 ## Cockpit
 

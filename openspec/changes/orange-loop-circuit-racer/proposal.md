@@ -21,8 +21,9 @@ longer describe the game.
   as one continuous mesh with guide rails. Seams are drawn in the texture, not
   cut into the surface. There are no lanes and no traffic.
 - **Track features.** Every circuit contains at least one vertical loop, at least
-  two banked turns, and at least one boost strip, scaled by level. The loop
-  advances 4 m from entrance to exit, so it reads as a loop rather than a ring.
+  two banked turns, and at least one boost strip, scaled by level. The loop ring
+  is lifted onto entry and exit ramps so its descending side clears the
+  approach, instead of a ring that blocks its own entrance.
 - **Die-cast hypercar.** A low, wide candy-red car with a black canopy, black
   aero, gold multi-spoke wheels, and a swan-neck rear wing. Our own design and
   name; no third-party branding or trade dress.

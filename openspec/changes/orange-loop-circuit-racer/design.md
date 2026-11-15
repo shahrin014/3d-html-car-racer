@@ -74,11 +74,13 @@ Hills and loops are self-contained pieces that return to ground level, so
 assembly stays two-dimensional and closure is unaffected. A hill rises and falls
 within its own length with zero slope at both ends.
 
-The loop is a 360° vertical arc that advances 4 m along the track. A pure circle
-would start and end at the same point, which reads as a closed ring with no way
-in or out; the advance gives the loop a visible entrance and exit while keeping
-the entry and exit headings identical, so it still joins any straight. The
-driver climbs in at the front, inverts over the top, and lands 4 m further on.
+The loop is a 360° vertical ring lifted 0.8 m above the approach, fed by two
+3.4 m ramps: one climbs from the entry straight to the ring's base, the other
+descends to the exit straight 6.8 m ahead. A ring that touched the ground cannot
+be entered, because its descending side would pass back through the approach at
+the same height; lifting the ring and fading the guide rails where the ramps
+merge keeps the entrance clear. Entry and exit meet the straight at zero slope,
+so the piece joins any straight.
 
 ## Track construction
 

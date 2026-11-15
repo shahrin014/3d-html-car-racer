@@ -15,8 +15,8 @@ export const CAR = {
   width: 1,
   height: 0.78,
   wheelbase: 1.4,
-  rearWheelRadius: 0.32,
-  frontWheelRadius: 0.29,
+  rearWheelRadius: 0.34,
+  frontWheelRadius: 0.31,
 };
 
 const PAINT = 0xa30f1d;
@@ -32,8 +32,8 @@ const materials = {
   }),
   trim: new THREE.MeshPhysicalMaterial({
     color: 0x090b0f,
-    metalness: 0.4,
-    roughness: 0.42,
+    metalness: 0.35,
+    roughness: 0.6,
     clearcoat: 0.6,
     side: THREE.DoubleSide,
   }),
@@ -83,16 +83,17 @@ const materials = {
 // ---------------------------------------------------------------------------
 
 const STATIONS = [
-  { z: -1.26, halfWidth: 0.3, top: 0.44, floor: 0.18 },
-  { z: -1.14, halfWidth: 0.44, top: 0.52, floor: 0.13 },
-  { z: -0.92, halfWidth: 0.5, top: 0.58, floor: 0.1 },
-  { z: -0.58, halfWidth: 0.49, top: 0.6, floor: 0.1 },
-  { z: -0.2, halfWidth: 0.44, top: 0.59, floor: 0.1 },
-  { z: 0.16, halfWidth: 0.43, top: 0.53, floor: 0.1 },
-  { z: 0.56, halfWidth: 0.42, top: 0.45, floor: 0.1 },
-  { z: 0.92, halfWidth: 0.35, top: 0.37, floor: 0.1 },
-  { z: 1.14, halfWidth: 0.26, top: 0.31, floor: 0.11 },
-  { z: 1.3, halfWidth: 0.12, top: 0.24, floor: 0.14 },
+  { z: -1.26, halfWidth: 0.32, top: 0.42, floor: 0.18 },
+  { z: -1.12, halfWidth: 0.46, top: 0.5, floor: 0.12 },
+  { z: -0.9, halfWidth: 0.54, top: 0.56, floor: 0.1 },
+  { z: -0.68, halfWidth: 0.55, top: 0.58, floor: 0.1 },
+  { z: -0.45, halfWidth: 0.5, top: 0.58, floor: 0.1 },
+  { z: -0.15, halfWidth: 0.46, top: 0.57, floor: 0.1 },
+  { z: 0.2, halfWidth: 0.45, top: 0.52, floor: 0.1 },
+  { z: 0.6, halfWidth: 0.48, top: 0.45, floor: 0.1 },
+  { z: 0.82, halfWidth: 0.47, top: 0.4, floor: 0.1 },
+  { z: 1.02, halfWidth: 0.39, top: 0.35, floor: 0.11 },
+  { z: 1.2, halfWidth: 0.3, top: 0.3, floor: 0.13 },
 ];
 
 const zMin = STATIONS[0].z;
@@ -340,15 +341,6 @@ function addWheel(car, { radius, width, x, z }) {
     wheel.rotation.y = Math.PI;
   }
   car.add(wheel);
-
-  // Black arch trim hugging the top of the tyre.
-  const arch = new THREE.Mesh(
-    new THREE.TorusGeometry(radius + 0.015, 0.028, 8, 22, Math.PI),
-    materials.trim,
-  );
-  arch.rotation.y = Math.PI / 2;
-  arch.position.set(x, radius, z);
-  car.add(arch);
 }
 
 // ---------------------------------------------------------------------------
@@ -381,12 +373,12 @@ function createBody() {
 function createCanopy() {
   // A stretched dome lofted from small rings at both ends.
   const stations = [
-    { z: -0.62, halfWidth: 0.06, base: 0.5, top: 0.52 },
-    { z: -0.4, halfWidth: 0.26, base: 0.5, top: 0.7 },
-    { z: -0.14, halfWidth: 0.31, base: 0.5, top: 0.75 },
-    { z: 0.1, halfWidth: 0.29, base: 0.5, top: 0.7 },
-    { z: 0.32, halfWidth: 0.2, base: 0.5, top: 0.58 },
-    { z: 0.46, halfWidth: 0.05, base: 0.5, top: 0.5 },
+    { z: -0.52, halfWidth: 0.06, base: 0.5, top: 0.52 },
+    { z: -0.3, halfWidth: 0.26, base: 0.5, top: 0.66 },
+    { z: -0.04, halfWidth: 0.31, base: 0.5, top: 0.7 },
+    { z: 0.2, halfWidth: 0.29, base: 0.5, top: 0.65 },
+    { z: 0.42, halfWidth: 0.2, base: 0.5, top: 0.58 },
+    { z: 0.56, halfWidth: 0.05, base: 0.5, top: 0.5 },
   ];
   const sections = [];
   for (let index = 0; index <= 30; index += 1) {
@@ -424,7 +416,7 @@ function createWing() {
   geometry.rotateY(Math.PI / 2);
   geometry.translate(-0.49, 0, 0);
   const wing = new THREE.Mesh(geometry, materials.trim);
-  wing.position.set(0, 0.76, -1.06);
+  wing.position.set(0, 0.8, -1.12);
   wing.rotation.x = -0.1;
   group.add(wing);
 
@@ -443,14 +435,13 @@ function createWing() {
       materials.trim,
     );
     plate.rotation.y = Math.PI / 2;
-    plate.position.set(side * 0.49, 0.76, -1.08);
+    plate.position.set(side * 0.49, 0.8, -1.14);
     group.add(plate);
 
-    const strutCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(side * 0.3, 0.58, -0.9),
-      new THREE.Vector3(side * 0.3, 0.66, -0.98),
-      new THREE.Vector3(side * 0.3, 0.74, -1.02),
-    ]);
+    const strutCurve = new THREE.LineCurve3(
+      new THREE.Vector3(side * 0.3, 0.55, -0.95),
+      new THREE.Vector3(side * 0.3, 0.79, -1.1),
+    );
     const strut = new THREE.Mesh(
       new THREE.TubeGeometry(strutCurve, 12, 0.022, 8, false),
       materials.trim,
@@ -495,10 +486,10 @@ export function createCar() {
   // Hood stripe and nose blackout.
   car.add(
     bodyPatch({
-      z0: 0.36,
-      z1: 1.24,
-      angle0: Math.PI * 0.36,
-      angle1: Math.PI * 0.64,
+      z0: 0.42,
+      z1: 1.02,
+      angle0: Math.PI * 0.43,
+      angle1: Math.PI * 0.57,
       material: materials.trim,
     }),
   );
@@ -594,9 +585,9 @@ export function createCar() {
     const stalk = new THREE.Mesh(
       new THREE.TubeGeometry(
         new THREE.CatmullRomCurve3([
-          new THREE.Vector3(side * 0.4, 0.55, 0.34),
-          new THREE.Vector3(side * 0.47, 0.57, 0.36),
-          new THREE.Vector3(side * 0.53, 0.58, 0.38),
+          new THREE.Vector3(side * 0.4, 0.54, 0.32),
+          new THREE.Vector3(side * 0.45, 0.56, 0.34),
+          new THREE.Vector3(side * 0.49, 0.57, 0.36),
         ]),
         8,
         0.014,
@@ -611,32 +602,32 @@ export function createCar() {
       materials.trim,
     );
     mirror.scale.set(1.1, 0.55, 0.7);
-    mirror.position.set(side * 0.56, 0.58, 0.38);
+    mirror.position.set(side * 0.5, 0.57, 0.36);
     car.add(mirror);
   }
 
   addWheel(car, {
     radius: CAR.rearWheelRadius,
     width: 0.3,
-    x: -0.49,
+    x: -0.45,
     z: -0.7,
   });
   addWheel(car, {
     radius: CAR.rearWheelRadius,
     width: 0.3,
-    x: 0.49,
+    x: 0.45,
     z: -0.7,
   });
   addWheel(car, {
     radius: CAR.frontWheelRadius,
     width: 0.24,
-    x: -0.49,
+    x: -0.44,
     z: 0.7,
   });
   addWheel(car, {
     radius: CAR.frontWheelRadius,
     width: 0.24,
-    x: 0.49,
+    x: 0.44,
     z: 0.7,
   });
 

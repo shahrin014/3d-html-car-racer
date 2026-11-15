@@ -400,9 +400,10 @@ SHALL have a distinct entrance and exit.
 
 - **GIVEN** a vertical loop
 - **WHEN** the loop is inspected
-- **THEN** the car enters at the front at ground level
-- **AND** exits at ground level a short distance ahead of the entrance
-- **AND** the entrance and exit headings match the straight it joins
+- **THEN** the car climbs a ramp from the entry straight into a raised ring
+- **AND** the ring's descending side clears the entry track
+- **AND** the car leaves down a ramp 6.8 m ahead of the entrance
+- **AND** both ends meet the straight at zero slope
 
 ### Requirement: The car is simulated as a rigid body
 
