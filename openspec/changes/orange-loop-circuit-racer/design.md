@@ -5,149 +5,208 @@
 ```
 src/game/
   Game.ts            race lifecycle, camera rig, HUD callbacks
-  physics/           cannon-es world, vehicle assembly, fixed-step loop
+  physics/
+    adapter.ts       engine-neutral world, body, and joint API
+    cannon.ts        cannon-es backend
+    rapier.ts        Rapier backend (only if the spike requires it)
+    vehicle.ts       chassis, wheels, motor, steering assist
   track/
-    generate.ts      pure: seed -> circuit description
-    layout.ts        pure: pieces -> sampled centreline frames
-    validate.ts      pure: closure, clearance, radius and loop checks
-    TrackMesh.ts     orange planks, rails, supports, boost strips
+    catalog.ts       fixed, tested segment definitions
+    assemble.ts      pure: seed + level -> segment sequence
+    frames.ts        pure: sequence -> sampled centreline frames
+    validate.ts      pure: closure, clearance, and feature checks
+    TrackMesh.ts     orange planks, rails, supports, boosts, gate
   Car.ts             die-cast car model from shared primitives
-  Input.ts           tilt, touch, and keyboard steering
+  cockpit.ts         generated dashboard texture (canvas)
+  Input.ts           tilt, touch, buttons, and keyboard
   damage.ts          pure: impact -> damage -> performance multiplier
-  timing.ts          pure: lap and checkpoint bookkeeping
+  timing.ts          pure: lap, checkpoint, and level bookkeeping
+  levels.ts          pure: level -> piece pool, counts, penalties
   constants.ts       tuning values
 ```
 
-Simulation stays free of DOM access. `TrackMesh` and the renderer own Three.js
-objects; `generate`, `layout`, `validate`, `damage`, and `timing` are
-framework-free and unit tested.
+Simulation never reads the DOM. `catalog`, `assemble`, `frames`, `validate`,
+`damage`, `timing`, and `levels` are framework-free and unit tested. The physics
+adapter is the only module that knows which engine is active.
 
-## Circuit generation
+## Track model: fixed catalog, randomized combination
 
-1. **Plan view.** Place 8–12 control points on a ring whose radius varies within
-   ±25%. Join them with a closed Catmull-Rom spline, then resample by arc length
-   at 0.5 m. Reject layouts whose minimum turn radius is below 7 m, that
-   self-intersect in plan view, or whose total length falls outside 320–480 m;
-   retry with the next deterministic seed offset.
-2. **Elevation.** Add a closed, smooth profile of two sine harmonics (0.8–2.5 m
-   amplitude) so slope is continuous at the start line.
-3. **Banking.** Bank angle follows `atan(v² / (r · g))` at the 14 m/s design
-   speed, clamped to 15–45°, then smoothed along the track. Turns shorter than a
-   car length stay flat.
-4. **Features.**
-   - Pick a low-curvature straight of at least 60 m and splice a vertical loop
-     into it. A loop is a 360° arc in the tangent/up plane; its exit frame equals
-     its entry frame, so closure is preserved.
-   - Pick two banked turns (the two highest-curvature sections) and mark them.
-   - Place two boost strips: one on the exit of a banked turn, one on a straight.
-     Never inside a loop and never within 15 m of the start line.
-5. **Validation.** Assert closed position and tangent at the seam, minimum
-   lateral clearance between non-adjacent sections, at least one loop, two banks,
-   two boosts, and constant width. The generator retries with a new offset when a
-   validation rule fails.
+### Segment catalog
 
-The seed is a string; the generator hashes it to a 32-bit integer and uses a
-deterministic PRNG. The same seed always produces the same circuit in every
-browser and in tests.
+Pieces are authored once and validated once. Each piece is defined by its local
+entry frame, exit frame, length, and metadata:
+
+| Piece | Variants | Notes |
+| --- | --- | --- |
+| Straight | 8, 12, 16 m | Flat, unbanked |
+| Turn | radius 10, 14, 18 m × ±45°, ±90°, ±180° | Bank fixed per radius |
+| Loop | radius 6, 7, 8 m | Vertical 360°, entry frame equals exit frame |
+| Hill | crest or dip, 1.5 or 2.5 m | Starts and ends at ground level, zero slope |
+| Boost straight | 12 m | Straight with an armed strip |
+
+Every piece starts and ends at zero bank and zero slope, so joins are always
+continuous. Bank is applied inside the turn and blended back to zero at its ends.
+Turn banks follow `atan(v² / (r · g))` at the 12 m/s design speed, clamped to
+20–45°.
+
+### Assembly
+
+Assembly is a seeded depth-first search over a 2D grid:
+
+1. Start at the origin heading north on a 2 m cell grid.
+2. Pick a piece from the level's pool using the seeded PRNG. Reject the choice if
+   any occupied cell would be reused (no self-intersection) or the clearance to a
+   non-adjacent section would drop below one car width.
+3. Append the piece, updating position and heading by its fixed exit frame.
+4. Accept when the turtle returns to the origin and the starting heading after at
+   least the level's minimum piece count, with one loop, two banked turns, and
+   the level's boost count.
+5. Otherwise backtrack. Search is bounded (piece count and node budget); on
+   exhaustion the seed is advanced deterministically and assembly restarts.
+
+Because turns are ±45°/±90°/±180°, closure is a discrete condition, and because
+piece geometry never changes, a circuit that assembles is known to be playable.
+Levels control the piece pool and the counts; the seed controls the order.
+
+### Elevation and loops
+
+Hills and loops are self-contained pieces that return to their entry height, so
+assembly stays two-dimensional and closure is unaffected. The loop piece is a
+360° vertical arc in the tangent/up plane; its exit frame equals its entry frame,
+so it can be spliced into any straight slot.
 
 ## Track construction
 
-The centreline is sampled into 1.5 m "planks". Each plank is a convex box
-(3.0 m wide, 0.12 m thick) oriented by the local frame, with two rail boxes
-0.35 m tall on the edges. Convex boxes keep physics cheap and stable, give the
-plastic-seam look, and behave correctly inside a loop. Support pillars drop from
-each plank to `y = 0` where the plank is above the ground and outside the loop.
-Plank, rail, support, and boost geometry share materials; no geometry is created
-during a race.
+The sampled centreline becomes 1.5 m planks: a convex box 3.0 m wide and 0.12 m
+thick, with rail boxes 0.35 m tall on both edges. Convex pieces keep contact
+cheap and stable, give the plastic-seam look, and work inside a loop. Support
+pillars connect raised track to the ground. Planks, rails, supports, boosts, and
+the gate share materials; no geometry is created during a race.
 
-Visual language: saturated orange surface with darker seams and a slight
-specular highlight, light-grey rails, dark supports, chevron boost strips, and a
-start/finish gate with a timing line.
+Visual language: saturated orange surface with darker seams, light-grey rails,
+dark supports, chevron boost strips, and a start/finish gate with a timing line.
 
-## Vehicle physics
+## Physics
 
-- Engine: `cannon-es` world, gravity 9.81, fixed step 1/120 s, at most four
-  substeps per rendered frame, with a 100 ms frame clamp.
-- Chassis: one rigid body (2.2 × 0.7 × 1.0 m, mass 1.2). Four wheel bodies with
-  hinge constraints; the rear pair carries motor torque, the front pair steers.
-  Tyre friction is high enough to hold a banked turn at design speed and low
-  enough to slide when the player overdrives it.
-- Assist: a weak lateral spring toward the steering target models the guide
-  rails and keeps the car steerable. It never adds energy along the tangent and
-  is disabled while airborne.
-- Loops: the loop radius (6.5–8 m) and the design speed guarantee
-  `v² ≥ g · r` at the top, and the shallow plank thickness keeps contact within
-  one substep at maximum speed. If tunnelling appears, substeps rise to 1/240 s
-  before any geometry is thickened.
-- Recovery: if the car is inverted, off the track, or below 1 m/s for 2.5 s, it
-  is placed at the last checkpoint facing forward with a 5 s time penalty and
-  its damage intact.
+### Adapter
 
-## Steering and controls
+`physics/adapter.ts` exposes world creation, fixed-step stepping, dynamic bodies,
+static colliders, revolute joints with motors, ray/contact queries, and transform
+readback. Gameplay calls only this API, so the backend can change without
+touching race code.
 
-- Tilt: `deviceorientation.gamma` (left/right roll) is zeroed at race start,
-  passed through a 3° dead zone, normalised over 25°, and smoothed at 10 Hz into
-  a steering value in [-1, 1]. iOS permission is requested from the Start
-  button; refusing falls back silently to buttons.
-- Fallbacks: on-screen left/right buttons (56×56 CSS px), `←`/`→` and `A`/`D`.
-  Every control has an accessible name and visible focus.
-- Throttle is automatic. A brake button (hold) sits under the left thumb; the
-  camera toggle and pause sit top-right, away from the tilt grip.
-- Landscape only: the manifest declares `orientation: landscape`. A portrait
-  viewport shows a rotate prompt and pauses the race; the sim does not advance
-  behind the prompt.
+### Backend decision
+
+`cannon-es` is the first backend: ~45 KB gzip, no WASM, instant boot. The
+acceptance test is a scripted car at maximum speed through the thinnest plank and
+a full loop at design speed. If either fails at 1/240 s substeps, the project
+switches to Rapier (~1.15 MB gzip WASM, lazy-loaded, with CCD) and raises the
+budget in the same change. The spike is a deliverable, not a research task.
+
+### Vehicle
+
+- Chassis: one dynamic body, 2.2 × 0.7 × 1.0 m, mass 1.2.
+- Wheels: four bodies with revolute joints; the rear pair carries motor torque,
+  the front pair steers. Tyre friction holds a 40° bank at design speed.
+- Assist: tilt sets a target lateral offset; a weak lateral spring and a yaw
+  damper model the guide rails, add no forward energy, and switch off while
+  airborne.
+- Fixed step: 1/120 s normally, up to four substeps per rendered frame, 1/240 s
+  if the spike requires it. Frame delta clamps at 100 ms.
+- Loop margin: loop radii and design speed satisfy `v² ≥ g·r` at the top with at
+  least 20% headroom.
+
+## Steering
+
+Tilt reads `deviceorientation.gamma`, zeroed at race start, passed through a 3°
+dead zone, normalised over 25°, and smoothed at 10 Hz into a target lateral
+offset. iOS permission is requested from the Start button; refusal is silent and
+leaves buttons and keyboard in charge. Buttons are 56×56 CSS px with accessible
+names; arrows and `A`/`D` mirror them. Throttle is automatic; a hold-to-brake
+control sits under the left thumb.
+
+A `STEERING_MODE` tuning constant keeps the raw-torque variant available for
+comparison without a code rewrite.
 
 ## Cameras
 
-- Chase: 6 m behind and 2.2 m above the car, looking 8 m ahead, using the car's
-  up vector so the horizon rolls through loops and banks. Position is damped;
-  roll is slerped.
-- Cockpit: driver's eye 0.55 m above the chassis centre, 0.1 m forward, with a
-  narrower FOV and no body between the camera and the track.
-- Both cameras suppress shake and roll jitter under reduced motion. The choice
-  persists for the session and is exposed as a labelled toggle.
+- Chase: 6 m behind, 2.2 m above, looking 8 m ahead, using the car's up vector so
+  the horizon rolls through loops and banks. Position damped, roll slerped.
+- Cockpit: driver's eye 0.55 m above the chassis centre, 0.1 m forward, narrower
+  FOV. A generated canvas texture supplies the dashboard, gauges, and a wheel
+  hint; geometry is a single curved plane plus a wheel arc.
+- Both suppress shake and roll jitter under reduced motion. The choice persists
+  for the session.
 
-## Damage model
+## Damage and rescue
 
-Impacts above 4 N·s raise damage by `min(20, impulse² / 25)`. Damage scales
-engine force and top speed down to 55% at 100%, adds spark particles above 60,
-and rattles the camera. There is no failure state; a destroyed car can still
-finish.
+Impacts above 4 N·s raise damage by `min(20, impulse² / 25)`, multiplied by the
+level's damage factor. Damage scales engine force and top speed down to 55% at
+100%, adds sparks above 60, and rattles the camera. There is no failure state.
+
+If the car is off the track, inverted, or below 1 m/s for 2.5 s, it is placed at
+the last checkpoint facing forward with a level-scaled time penalty (3 s + 1 s
+per two levels) and its damage intact.
+
+## Level ladder
+
+| Level | Pieces | Turn radii | Loops | Hills | Boosts | Damage factor | Rescue penalty |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 8–10 | 18, 14 | 1 | 0 | 3 | 1.0 | 3 s |
+| 2 | 10–12 | 18, 14 | 1 | 1 | 3 | 1.1 | 3 s |
+| 3 | 12–14 | 18, 14, 10 | 1 | 1 | 2 | 1.2 | 4 s |
+| 4 | 14–16 | 14, 10 | 2 | 2 | 2 | 1.3 | 4 s |
+| 5 | 16–18 | 14, 10 | 2 | 2 | 1 | 1.4 | 5 s |
+| 6+ | +2 per level | 10, 14 | 2 | 2–3 | 1 | +0.1 per level, cap 1.8 | +0.5 s per level, cap 8 s |
+
+Circuits grow by two pieces per level after the fifth, capped at 24 pieces.
+Levels unlock sequentially. The best total per level and seed is stored; the menu
+shows the unlocked level, the next target, and the best time for the current
+level.
+
+There are no opponents. The clock, the circuit, and the damage model are the
+difficulty; a rival ghost is explicitly out of scope for v1.
 
 ## Timing and persistence
 
-The start/finish line is a checkpoint; checkpoints are placed every eighth of the
-lap. Progress is tracked by the nearest centreline sample with hysteresis so a
-wobble at a checkpoint cannot double-count. A race records lap times, the best
-lap, and the total. The best total for the current seed is stored in
-`localStorage` under `neon-racer.best-time.<seed>`; failures to read or write are
-ignored.
+Checkpoints sit at each eighth of the lap and at the start/finish line. Progress
+uses the nearest centreline sample with hysteresis so a wobble cannot double-count
+a checkpoint. A race records lap times, the best lap, and the total.
+
+`localStorage` keys:
+
+- `neon-racer.unlocked-level` — highest unlocked level (default 1).
+- `neon-racer.best-time.<seed>.<level>` — best total for that circuit and level.
+
+Reads and writes are best-effort; corrupt values are ignored.
 
 ## Performance
 
-Budget: 250 KB gzip JavaScript, 60 fps on a mid-range phone. Physics runs at 120
-Hz with four substeps at worst; static track bodies use a static-static-free
-broadphase (SAP) and never move. Geometry is merged per material where possible,
-pixel ratio is capped at 2, and no allocation happens in the frame loop.
+- Shell: stays inside the current 250 KB gzip budget with `cannon-es`.
+- Physics asset: if Rapier is adopted, it loads as a separate cached module after
+  the menu renders, under a declared 1.3 MB gzip budget, and the build enforces
+  both numbers.
+- Physics: static track bodies never move; SAP broadphase; four substeps maximum.
+- Rendering: merged geometry per material, pixel ratio capped at 2, no per-frame
+  allocation.
 
 ## Risks and mitigations
 
 | Risk | Mitigation |
 | --- | --- |
-| Rigid-body loops lose contact or tunnel | Radius and speed design margins, 1/240 substeps fallback, convex planks, Playwright screenshot review plus a physics trace test |
-| Phone tilt varies wildly between devices | Dead zone, normalisation, smoothing, calibration on start, and full button/keyboard fallback |
-| Physics engine breaks the transfer budget | `cannon-es` only; budget gate fails the build; no WASM |
-| Generated circuits are unfair or self-intersect | Seed-independent validation plus retries; unit tests across many seeds |
-| Cockpit camera clips geometry | Dedicated near plane and camera offset inside the chassis; screenshot check in both cameras |
-| iOS sensor permission denied | Buttons remain primary; no blocking prompt after the start gesture |
+| `cannon-es` tunnels or loses loop contact | Spike test at max speed and through a loop; 1/240 s substeps; thick convex planks; Rapier fallback with CCD and a raised budget |
+| Rapier payload hurts first load | Lazy-load after the menu, cache in the PWA, declare and enforce the asset budget, show a loading state on first Start |
+| Assembly search fails to close | Bounded DFS with deterministic seed advance; unit tests over many seeds and levels; catalog designed with closure-friendly angles |
+| Tilt varies between devices | Dead zone, normalisation, smoothing, per-race calibration, full fallback controls |
+| Level ladder becomes unfair | Fixed catalog per level, automated assembly validation, and a playtest pass at levels 1, 3, and 5 |
+| Cockpit clipping | Dedicated near plane, camera inside the chassis, screenshot checks through loops and banks |
 
 ## Migration
 
-- `collision.ts`, `spawn.ts`, and `difficulty.ts` are deleted with their tests.
-- `lane clamp`, speed-ramp, and traffic tests are replaced by track, damage, and
-  timing tests.
-- The e2e suite moves to an 844×390 landscape viewport; tilt is emulated by
-  dispatching `deviceorientation` events, with button steering as the asserted
-  fallback.
-- The HUD in `index.html` is replaced; `frame`, `hearts`, `best score`, and the
-  install prompt structure change with it.
+- Delete `collision.ts`, `spawn.ts`, and `difficulty.ts` plus their tests.
+- Replace lane and traffic tests with catalog, assembly, level, damage, timing,
+  and physics-spike tests.
+- Move the e2e suite to 844×390 landscape; inject `deviceorientation` events for
+  tilt and assert button/keyboard fallbacks.
+- Replace the HUD and menu structure in `index.html`; the service worker asset
+  list and manifest orientation change with it.

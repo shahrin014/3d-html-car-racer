@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Track piece preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #070a10;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #e8eef8;
+        overflow: hidden;
+      }
+      #stage {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      .caption {
+        position: absolute;
+        left: 28px;
+        bottom: 24px;
+        padding: 14px 18px;
+        border-radius: 14px;
+        background: rgba(6, 12, 22, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(6px);
+      }
+      .caption__title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: #ffb066;
+      }
+      .caption__meta {
+        margin: 4px 0 0;
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #8fa3bb;
+      }
+      .watermark {
+        position: absolute;
+        right: 26px;
+        top: 22px;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #5d6f86;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/addons/": "/node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="caption">
+      <p class="caption__title" id="title">Piece</p>
+      <p class="caption__meta" id="meta"></p>
+    </div>
+    <div class="watermark">Orange-loop circuit racer &middot; piece catalog</div>
+    <script type="module" src="./preview.mjs"></script>
+  </body>
+</html>
