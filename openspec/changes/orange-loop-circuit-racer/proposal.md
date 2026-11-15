@@ -91,9 +91,10 @@ longer describe the game.
 
 Plan: implement the adapter and the loop/no-tunnelling acceptance test against
 `cannon-es` first. If the car tunnels at maximum speed or cannot hold a loop with
-1/240 s substeps, switch to Rapier and raise the program budget to 1.3 MB gzip,
-loading the engine as a separate cached asset after the menu renders. The adapter
-keeps that switch to one module.
+1/240 s substeps, switch to Rapier and raise the program budget to 1.75 MB gzip,
+loading the engine as a separate cached asset after the menu renders. The
+measured compat bundle is ~1.57 MB gzip, so the declared physics budget is
+1.75 MB. The adapter keeps that switch to one module.
 
 ## Success Criteria
 

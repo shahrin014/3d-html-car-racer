@@ -154,9 +154,10 @@ behavior specs.
   Nothing is lost except the current run.
 - **Honest feedback.** Score, lives, and pause state are always visible and
   must not rely on color alone.
-- **Performance budget.** Initial JavaScript transfer should stay under
-  250 KB gzip; the target is 60 fps on a mid-range phone at a device pixel
-  ratio capped at 2.
+- **Performance budget.** The initial app-shell JavaScript transfer stays under
+  250 KB gzip. The rigid-body engine is a lazy-loaded chunk with its own 1.75 MB
+  gzip budget. The target is 60 fps on a mid-range phone at a device pixel ratio
+  capped at 2.
 - **Accessible defaults.** Respect reduced motion, keep visible focus, label
   every control, and keep the game playable in landscape even though portrait
   is preferred.

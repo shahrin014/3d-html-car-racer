@@ -1,17 +1,21 @@
 /**
- * Enforces the initial JavaScript transfer budget against the built output.
+ * Enforces both JavaScript transfer budgets against the built output.
  *
  * Run after `vite build`: `node build/check-bundle-size.ts` (Node 26 strips the
- * types). Exits non-zero when the gzipped JavaScript exceeds the budget.
+ * types). Exits non-zero when the app shell or the physics chunk exceeds its
+ * budget.
  */
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
+  APP_GZIP_BUDGET_BYTES,
+  bundleTotals,
   formatKilobytes,
+  formatMegabytes,
+  isPhysicsAsset,
   isWithinBudget,
-  JS_GZIP_BUDGET_BYTES,
-  totalGzipBytes,
+  PHYSICS_GZIP_BUDGET_BYTES,
   type BundleFile,
 } from './bundle-budget.ts';
 
@@ -40,26 +44,42 @@ async function measureJavaScript(dir: string): Promise<BundleFile[]> {
 }
 
 const files = await measureJavaScript(assetsDir);
-const total = totalGzipBytes(files);
+const totals = bundleTotals(files);
 
 for (const file of files) {
+  const tier = isPhysicsAsset(file.path) ? 'physics' : 'app shell';
   console.log(
-    `  ${file.path}  ${formatKilobytes(file.rawBytes)} raw  ${formatKilobytes(
+    `  [${tier}] ${file.path}  ${formatKilobytes(file.rawBytes)} raw  ${formatKilobytes(
       file.gzipBytes,
     )} gzip`,
   );
 }
 
-const summary = `Initial JavaScript: ${formatKilobytes(
-  total,
-)} gzip of ${formatKilobytes(JS_GZIP_BUDGET_BYTES)} budget`;
+const appOk = isWithinBudget(totals.appGzipBytes, APP_GZIP_BUDGET_BYTES);
+const physicsOk = isWithinBudget(
+  totals.physicsGzipBytes,
+  PHYSICS_GZIP_BUDGET_BYTES,
+);
 
-if (!isWithinBudget(total)) {
-  console.error(`✗ ${summary}`);
+const appSummary = `App shell JavaScript: ${formatKilobytes(
+  totals.appGzipBytes,
+)} gzip of ${formatKilobytes(APP_GZIP_BUDGET_BYTES)} budget`;
+const physicsSummary = `Physics chunk: ${formatMegabytes(
+  totals.physicsGzipBytes,
+)} gzip of ${formatMegabytes(PHYSICS_GZIP_BUDGET_BYTES)} budget`;
+
+if (!appOk) {
+  console.error(`✗ ${appSummary}`);
+}
+if (!physicsOk) {
+  console.error(`✗ ${physicsSummary}`);
+}
+if (!appOk || !physicsOk) {
   console.error(
-    'The initial JavaScript budget is exceeded. Shrink the bundle or raise the budget in build/bundle-budget.ts and openspec/ together.',
+    'A JavaScript budget is exceeded. Shrink the bundle or raise the budget in build/bundle-budget.ts and openspec/ together.',
   );
   process.exit(1);
 }
 
-console.log(`✓ ${summary}`);
+console.log(`✓ ${appSummary}`);
+console.log(`✓ ${physicsSummary}`);

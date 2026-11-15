@@ -129,8 +129,8 @@ touching race code.
 `cannon-es` is the first backend: ~45 KB gzip, no WASM, instant boot. The
 acceptance test is a scripted car at maximum speed through the thinnest plank and
 a full loop at design speed. If either fails at 1/240 s substeps, the project
-switches to Rapier (~1.15 MB gzip WASM, lazy-loaded, with CCD) and raises the
-budget in the same change. The spike is a deliverable, not a research task.
+switches to Rapier (measured ~1.57 MB gzip with the compat WASM bundle, lazy-loaded,
+with CCD) and raises the budget in the same change. The spike is a deliverable, not a research task.
 
 ### Vehicle
 
@@ -216,7 +216,7 @@ Reads and writes are best-effort; corrupt values are ignored.
 
 - Shell: stays inside the current 250 KB gzip budget with `cannon-es`.
 - Physics asset: if Rapier is adopted, it loads as a separate cached module after
-  the menu renders, under a declared 1.3 MB gzip budget, and the build enforces
+  the menu renders, under a declared 1.75 MB gzip budget, and the build enforces
   both numbers.
 - Physics: static track bodies never move; SAP broadphase; four substeps maximum.
 - Rendering: merged geometry per material, pixel ratio capped at 2, no per-frame

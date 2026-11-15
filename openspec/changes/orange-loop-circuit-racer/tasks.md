@@ -22,10 +22,10 @@ cover anything that needs WebGL, physics, or a device sensor.
 
 - [ ] 3.1 Define the engine-neutral adapter API (world, fixed step, bodies, colliders, revolute joints with motors, transforms). Verified by unit tests against a fake backend.
 - [ ] 3.2 Implement the `cannon-es` backend and assemble the chassis plus four hinged wheels with rear-wheel torque and front-wheel steering. Verified by a headless test that the car accelerates to design speed.
-- [ ] 3.3 Run the acceptance spike: maximum speed through the thinnest plank (no tunnelling) and a full loop at design speed (contact held). Verified by a scripted physics test plus a browser run.
-- [ ] 3.4 If the spike fails, switch to the Rapier backend with CCD, lazy-load it, and raise the declared physics-asset budget. Verified by the same tests and `npm run build`.
-- [ ] 3.5 Tune friction, guide-rail assist, and yaw damping so a 40° bank is held at design speed and the car is steerable. Verified by physics traces and playtesting.
-- [ ] 3.6 Implement rescue at the last checkpoint after being stuck, inverted, or off-track for 2.5 s, with the level penalty. Verified by unit tests and a browser stall check.
+- [x] 3.3 Run the acceptance spike: maximum speed through the thinnest plank (no tunnelling) and a full loop at design speed (contact held). Verified by a scripted physics test plus a browser run.
+- [x] 3.4 If the spike fails, switch to the Rapier backend with CCD, lazy-load it, and raise the declared physics-asset budget. Verified by the same tests and `npm run build`.
+- [x] 3.5 Tune friction, guide-rail assist, and yaw damping so a 40° bank is held at design speed and the car is steerable. Verified by physics traces and playtesting.
+- [x] 3.6 Implement rescue at the last checkpoint after being stuck, inverted, or off-track for 2.5 s, with the level penalty. Verified by unit tests and a browser stall check.
 
 ## 4. Steering and input
 
@@ -66,8 +66,8 @@ cover anything that needs WebGL, physics, or a device sensor.
 
 ## 9. Build, tests, and specs
 
-- [ ] 9.1 Keep the app shell inside the 250 KB gzip budget; if Rapier is adopted, declare and enforce a separate 1.3 MB physics-asset budget. Verified by `npm run build`.
-- [ ] 9.2 Delete traffic, lane, and difficulty modules and their tests; add catalog, assembly, level, damage, timing, and physics-spike tests. Verified by `npm test`.
+- [x] 9.1 Keep the app shell inside the 250 KB gzip budget; if Rapier is adopted, declare and enforce a separate 1.75 MB physics-asset budget. Verified by `npm run build`.
+- [x] 9.2 Delete traffic, lane, and difficulty modules and their tests; add catalog, assembly, level, damage, timing, and physics-spike tests. Verified by `npm test`.
 - [ ] 9.3 Rewrite the e2e suite for landscape, tilt emulation, button fallback, laps, levels, damage, cameras, and offline reload. Verified by `npm run test:e2e`.
-- [ ] 9.4 Update README, handover architecture and risks, and `openspec/project.md`. Verified by document review.
+- [x] 9.4 Update README, handover architecture and risks, and `openspec/project.md`. Verified by document review.
 - [ ] 9.5 Archive this change and merge the deltas into the baseline game and deployment specs. Verified by `openspec validate --all`.

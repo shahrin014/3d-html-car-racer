@@ -43,8 +43,11 @@ function expectNoIssues(issues: PageIssues): void {
 
 async function startRace(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start race' }).click();
+  // The first race may spend a few seconds fetching and compiling the lazy
+  // Rapier chunk. The countdown is wall-clock based, so it catches up as soon
+  // as that work returns to the main thread.
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'racing', {
-    timeout: 10_000,
+    timeout: 20_000,
   });
 }
 

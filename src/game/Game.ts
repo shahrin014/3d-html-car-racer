@@ -3,10 +3,22 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCar, WHEEL_RADIUS, type Car } from './Car';
 import { cockpitPose } from './cockpitCamera';
 import {
+  BOOST_COOLDOWN,
+  BOOST_IMPULSE,
   COUNTDOWN_SECONDS,
+  DAMAGE_IMPULSE_FLOOR,
+  FIXED_STEP,
   LAPS,
+  MAX_DAMAGE,
+  MAX_FRAME_DELTA,
+  MAX_SUBSTEPS,
+  PHYSICS_RIDE_HEIGHT,
+  RESCUE_PENALTY_SECONDS,
+  RESCUE_SPEED_THRESHOLD,
+  RESCUE_STALL_SECONDS,
   TRACK_WIDTH,
 } from './constants';
+import { createPhysics, type PhysicsHandle } from './physics';
 import {
   buildFrames,
   generateCircuit,
@@ -63,12 +75,19 @@ export class Game {
   private lap = 1;
   private lapStart = 0;
   private totalTime = 0;
-  private countdown = COUNTDOWN_SECONDS;
+  private countdownEndsAt = 0;
   private brake = false;
   private boostCooldown = 0;
   private stallTime = 0;
   private lastTime = 0;
   private lastLapTopCheck = false;
+  private physics: PhysicsHandle | null = null;
+  private pendingPhysics: PhysicsHandle | null = null;
+  private physicsLoad: Promise<void> | null = null;
+  private physicsFailed = false;
+  private physicsAccumulator = 0;
+  private lastFrameIndex = 0;
+  private wheelSpin = 0;
   private readonly resizeObserver: ResizeObserver;
   private readonly reducedMotion: MediaQueryList;
   /** Reused scratch pose so the cockpit rig allocates nothing per frame. */
@@ -77,6 +96,9 @@ export class Game {
     target: new THREE.Vector3(),
     up: new THREE.Vector3(),
   };
+  private readonly carUp = new THREE.Vector3();
+  private readonly chaseDesired = new THREE.Vector3();
+  private readonly chaseTarget = new THREE.Vector3();
 
   constructor(container: HTMLElement, callbacks: GameCallbacks, seed: string) {
     this.container = container;
@@ -152,11 +174,23 @@ export class Game {
     this.lapStart = 0;
     this.totalTime = 0;
     this.time = 0;
-    this.countdown = COUNTDOWN_SECONDS;
+    this.countdownEndsAt = performance.now() + COUNTDOWN_SECONDS * 1000;
     this.stallTime = 0;
     this.boostCooldown = 0;
+    this.physicsAccumulator = 0;
+    this.lastFrameIndex = 0;
+    this.wheelSpin = 0;
+    if (this.pendingPhysics) {
+      this.physics = this.pendingPhysics;
+      this.pendingPhysics = null;
+    }
+    const first = this.frames[0];
+    if (this.physics && first) {
+      this.physics.reset(first);
+    }
     this.state = 'countdown';
     this.placeCar(0, 0);
+    void this.loadPhysics();
     this.report();
   }
 
@@ -180,6 +214,10 @@ export class Game {
     this.s = 0;
     this.speed = 0;
     this.damage = 0;
+    const first = this.frames[0];
+    if (this.physics && first) {
+      this.physics.reset(first);
+    }
     this.placeCar(0, 0);
     this.report();
   }
@@ -200,9 +238,48 @@ export class Game {
   dispose(): void {
     this.renderer.setAnimationLoop(null);
     this.resizeObserver.disconnect();
+    this.physics?.dispose();
+    this.pendingPhysics?.dispose();
     this.trackMesh.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
+  }
+
+  /**
+   * Load Rapier on the first Start, during the countdown. The menu and the
+   * countdown never wait for the WASM payload; if it is not ready in time the
+   * first race runs on the track-constrained fallback and the next race uses
+   * the rigid body.
+   */
+  private loadPhysics(): Promise<void> {
+    if (this.physics || this.physicsFailed) {
+      return Promise.resolve();
+    }
+    if (this.physicsLoad) {
+      return this.physicsLoad;
+    }
+    this.physicsLoad = createPhysics(this.frames)
+      .then((handle) => {
+        const first = this.frames[0];
+        if (this.state === 'racing' || this.state === 'paused') {
+          this.pendingPhysics = handle;
+          return;
+        }
+        this.physics = handle;
+        if (first) {
+          handle.reset(first);
+        }
+        this.physicsAccumulator = 0;
+        this.lastFrameIndex = 0;
+      })
+      .catch((error: unknown) => {
+        this.physicsFailed = true;
+        console.warn(
+          'Rapier could not start; using the track-constrained model.',
+          error,
+        );
+      });
+    return this.physicsLoad;
   }
 
   private addGround(): void {
@@ -269,24 +346,32 @@ export class Game {
   }
 
   private readonly tick = (now: number): void => {
-    const delta = Math.min(0.1, Math.max(0, (now - this.lastTime) / 1000));
+    const delta = Math.min(MAX_FRAME_DELTA, Math.max(0, (now - this.lastTime) / 1000));
     this.lastTime = now;
     if (this.state === 'countdown') {
-      this.countdown -= delta;
-      if (this.countdown <= 0) {
+      // Wall-clock, not accumulated ticks: loading Rapier can block the main
+      // thread for a moment, and the countdown must not restart after it.
+      if (now >= this.countdownEndsAt) {
         this.state = 'racing';
-        this.countdown = 0;
       }
     } else if (this.state === 'racing') {
       this.simulate(delta);
     }
-    this.updateCarVisuals();
+    this.updateCarVisuals(delta);
     this.updateCamera(delta);
     this.renderer.render(this.scene, this.camera);
     this.report();
   };
 
   private simulate(delta: number): void {
+    if (this.physics) {
+      this.simulatePhysics(delta);
+      return;
+    }
+    this.simulateArcade(delta);
+  }
+
+  private simulateArcade(delta: number): void {
     this.time += delta;
     this.totalTime += delta;
 
@@ -369,12 +454,111 @@ export class Game {
     }
   }
 
-  private updateCarVisuals(): void {
-    const frame = this.frameAt(this.s);
-    this.placeCar(this.s, this.lateral, frame);
-    const spin = (this.s / WHEEL_RADIUS) * Math.PI * 2;
+  private simulatePhysics(delta: number): void {
+    const physics = this.physics;
+    if (!physics) {
+      return;
+    }
+    this.time += delta;
+    this.totalTime += delta;
+
+    const damageScale = 1 - (this.damage / 100) * 0.45;
+    const input = {
+      throttle: damageScale,
+      brake: this.brake,
+      steer: this.steerTarget,
+    };
+
+    // A fixed step keeps the solver and the loop contact stable regardless of
+    // display refresh. A stalled tab may advance by at most MAX_SUBSTEPS.
+    this.physicsAccumulator += delta;
+    this.physicsAccumulator = Math.min(
+      this.physicsAccumulator,
+      FIXED_STEP * MAX_SUBSTEPS,
+    );
+    let steps = 0;
+    while (this.physicsAccumulator >= FIXED_STEP && steps < MAX_SUBSTEPS) {
+      physics.step(FIXED_STEP, input, this.frameAt(this.s));
+      this.physicsAccumulator -= FIXED_STEP;
+      steps += 1;
+    }
+
+    const state = physics.read();
+    this.speed = state.speed;
+
+    const index = this.nearestTrackIndex(state.position);
+    const frame = this.frames[index] ?? this.frameAt(this.s);
+    this.s = frame.s;
+
+    const impact = physics.takeImpact();
+    if (impact > DAMAGE_IMPULSE_FLOOR) {
+      this.damage = Math.min(
+        MAX_DAMAGE,
+        this.damage + Math.min(20, (impact * impact) / 25),
+      );
+    }
+
+    const count = this.frames.length;
+    if (
+      this.lastFrameIndex > count * 0.75 &&
+      index < count * 0.25 &&
+      this.speed > 1
+    ) {
+      this.lapStart = this.time;
+      this.lap += 1;
+      if (this.lap > LAPS) {
+        this.state = 'finished';
+        this.callbacks.onFinish(this.totalTime, this.damage);
+        return;
+      }
+    }
+    this.lastFrameIndex = index;
+
+    this.boostCooldown = Math.max(0, this.boostCooldown - delta);
+    if (this.boostCooldown === 0) {
+      const zone = this.boosts.find(
+        (candidate) => this.s >= candidate.from && this.s < candidate.to,
+      );
+      if (zone) {
+        physics.boost(BOOST_IMPULSE);
+        this.boostCooldown = BOOST_COOLDOWN;
+      }
+    }
+
+    this.carUp.set(0, 1, 0).applyQuaternion(state.quaternion);
+    const offTrack = state.position.distanceTo(frame.position) > TRACK_WIDTH;
+    const inverted = this.carUp.dot(frame.up) < 0.2;
+    if (this.speed < RESCUE_SPEED_THRESHOLD || offTrack || inverted) {
+      this.stallTime += delta;
+      if (this.stallTime > RESCUE_STALL_SECONDS) {
+        this.stallTime = 0;
+        this.totalTime += RESCUE_PENALTY_SECONDS;
+        physics.reset(frame);
+        this.s = frame.s;
+        this.lastFrameIndex = index;
+        this.physicsAccumulator = 0;
+      }
+    } else {
+      this.stallTime = 0;
+    }
+  }
+
+  private updateCarVisuals(delta: number): void {
+    if (this.physics) {
+      const state = this.physics.read();
+      this.carUp.set(0, 1, 0).applyQuaternion(state.quaternion);
+      this.car.group.position
+        .copy(state.position)
+        .addScaledVector(this.carUp, -PHYSICS_RIDE_HEIGHT);
+      this.car.group.quaternion.copy(state.quaternion);
+      this.wheelSpin += (this.speed * delta) / WHEEL_RADIUS;
+    } else {
+      const frame = this.frameAt(this.s);
+      this.placeCar(this.s, this.lateral, frame);
+      this.wheelSpin += (this.speed * delta) / WHEEL_RADIUS;
+    }
     for (const wheel of this.car.wheels) {
-      wheel.rotation.x = spin;
+      wheel.rotation.x = this.wheelSpin;
     }
     this.car.setSteer(this.steerTarget);
   }
@@ -406,6 +590,38 @@ export class Game {
     this.car.group.quaternion.copy(quaternion);
   }
 
+  /**
+   * Nearest frame around the last known progress. The circuit's last frame
+   * touches the start line, so a global nearest search can jump a whole lap at
+   * the grid; this search only wraps once the car is already near the end.
+   */
+  private nearestTrackIndex(position: THREE.Vector3): number {
+    const count = this.frames.length;
+    if (count === 0) {
+      return 0;
+    }
+    let best = this.lastFrameIndex;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    const window = 60;
+    for (let offset = -2; offset <= window; offset += 1) {
+      const candidate = this.lastFrameIndex + offset;
+      if (candidate < 0) {
+        continue;
+      }
+      const index = candidate >= count ? candidate - count : candidate;
+      const frame = this.frames[index];
+      if (!frame) {
+        continue;
+      }
+      const distance = frame.position.distanceToSquared(position);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    }
+    return best;
+  }
+
   private frameAt(distance: number): TrackFrame {
     const frames = this.frames;
     const first = frames[0];
@@ -421,20 +637,22 @@ export class Game {
   }
 
   private updateCamera(delta: number): void {
-    const frame = this.frameAt(this.s);
     const shake = this.reducedMotion.matches ? 0 : Math.min(0.06, this.speed / 400);
+    const position = this.car.group.position;
+    const orientation = this.car.group.quaternion;
     if (this.cameraMode === 'chase') {
-      const desired = frame.position
-        .clone()
-        .addScaledVector(frame.up, 4.2 + shake)
-        .addScaledVector(frame.tangent, -10);
-      this.camera.position.lerp(desired, clamp(delta * 8, 0, 1));
-      const target = frame.position
-        .clone()
-        .addScaledVector(frame.tangent, 14)
-        .addScaledVector(frame.up, 1.2);
-      this.camera.up.copy(frame.up);
-      this.camera.lookAt(target);
+      this.chaseDesired
+        .set(0, 2.3 + shake, -6.5)
+        .applyQuaternion(orientation)
+        .add(position);
+      this.camera.position.lerp(this.chaseDesired, clamp(delta * 8, 0, 1));
+      this.chaseTarget
+        .set(0, 1.0, 10)
+        .applyQuaternion(orientation)
+        .add(position);
+      this.carUp.set(0, 1, 0).applyQuaternion(orientation);
+      this.camera.up.copy(this.carUp);
+      this.camera.lookAt(this.chaseTarget);
     } else {
       // The driver's eye rides the body, not the racing line. Reading the rig
       // off the car is what keeps the view across the track when the car

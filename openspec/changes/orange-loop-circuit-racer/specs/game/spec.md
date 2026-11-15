@@ -155,21 +155,30 @@ standalone.
 
 ### Requirement: Mobile performance budget
 
-Initial JavaScript transfer SHALL remain within the configured budget, and the
-production build SHALL fail when the budget is exceeded. Physics SHALL run at a
-fixed timestep with a bounded number of substeps per frame, and a full race SHALL
-keep memory and active body counts bounded. The game SHALL target 60 frames per
-second on a mid-range phone.
+Initial app-shell JavaScript SHALL remain within a 250 kB gzip budget, and the
+lazy-loaded physics chunk SHALL remain within a declared 1.75 MB gzip budget. The
+production build SHALL fail when either budget is exceeded. Physics SHALL run at
+a fixed timestep with a bounded number of substeps per frame, and a full race
+SHALL keep memory and active body counts bounded. The game SHALL target 60
+frames per second on a mid-range phone.
 
-#### Scenario: Transfer budget
+#### Scenario: Shell transfer budget
 
 - **GIVEN** the production build is produced
-- **WHEN** the JavaScript bundle is compressed for transfer
+- **WHEN** the app-shell JavaScript is compressed for transfer
 - **THEN** it is at most 250 kB gzip
+- **AND** the physics chunk is excluded from that total
+
+#### Scenario: Physics asset budget
+
+- **GIVEN** the production build is produced
+- **WHEN** the lazy physics chunk is compressed for transfer
+- **THEN** it is at most 1.75 MB gzip
+- **AND** it loads after the menu renders, not before first paint
 
 #### Scenario: Budget breach fails the build
 
-- **GIVEN** a change pushes the gzipped JavaScript past the budget
+- **GIVEN** a change pushes the app shell or the physics chunk past its budget
 - **WHEN** the production build runs
 - **THEN** the build fails before any artifact is produced
 - **AND** the output names the measured size and the budget

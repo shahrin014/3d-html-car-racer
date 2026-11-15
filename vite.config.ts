@@ -8,12 +8,20 @@ export default defineConfig({
   build: {
     target: 'es2020',
     sourcemap: true,
-    // Three.js dominates the single chunk (~556 kB raw). The warning measures
-    // uncompressed bytes and cannot be satisfied without shipping more requests
-    // for the same payload, so the enforced limit is the gzip budget checked in
-    // build/check-bundle-size.ts (250 kB gzip, per openspec/project.md). This
-    // number is a headroom alarm above today's bundle, not a target.
-    chunkSizeWarningLimit: 600,
+    // Three.js dominates the shell chunk and the Rapier compat bundle carries
+    // its WASM inline, so uncompressed sizes are always large. The enforced
+    // limits are the gzip budgets checked in build/check-bundle-size.ts
+    // (250 kB app shell + 1.75 MB physics chunk). This number only silences
+    // the raw-size warning above today's intentional physics payload.
+    chunkSizeWarningLimit: 4500,
+    rollupOptions: {
+      output: {
+        // A stable name lets the budget gate distinguish the lazy Rapier
+        // payload from the app shell.
+        manualChunks: (id) =>
+          id.includes('@dimforge/rapier3d-compat') ? 'physics' : undefined,
+      },
+    },
   },
   plugins: [serviceWorkerCacheVersion()],
   server: {

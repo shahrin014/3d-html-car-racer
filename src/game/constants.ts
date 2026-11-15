@@ -28,6 +28,13 @@ export const CAR_LENGTH = 2.45;
 export const CAR_WIDTH = 1;
 export const CAR_HEIGHT = 0.78;
 
+/**
+ * Half the chassis collider height. The visual model's origin sits on the
+ * track surface, so the render group is lowered by this much from the rigid
+ * body's centre.
+ */
+export const CHASSIS_HALF_HEIGHT = 0.3;
+
 /** Engine force along the direction of travel, newtons. */
 export const ENGINE_FORCE = 34;
 /** Braking force while the brake control is held. */
@@ -37,6 +44,29 @@ export const STEER_FORCE = 26;
 /** How hard the body is rotated onto the track surface. */
 export const ALIGNMENT_STRENGTH = 12;
 export const ALIGNMENT_DAMPING = 2.6;
+
+/** Rigid-body vehicle tuning. Forces are newtons, torques newton-metres. */
+export const PHYSICS_ENGINE_FORCE = 32;
+export const PHYSICS_WHEEL_RADIUS = 0.3;
+export const PHYSICS_WHEEL_MOUNT_Y = -0.17;
+/** Height of the body centre above the track when the wheels rest on it. */
+export const PHYSICS_RIDE_HEIGHT = PHYSICS_WHEEL_RADIUS - PHYSICS_WHEEL_MOUNT_Y;
+export const PHYSICS_BRAKE_FORCE = 24;
+/** Quadratic drag: force = coefficient * speed^2 opposing motion. */
+export const PHYSICS_DRAG = 0.05;
+/** Yaw torque applied directly by the steering control. */
+export const PHYSICS_STEER_TORQUE = 2.6;
+/** Guide assist that pulls the body onto the track surface and its tangent. */
+export const PHYSICS_STICK_STRENGTH = 80;
+export const PHYSICS_STICK_DAMPING = 8;
+export const PHYSICS_HEADING_ASSIST = 14;
+/** Torque that rolls and pitches the body onto the track surface. */
+export const PHYSICS_UP_ALIGNMENT = 20;
+/** Weak lateral spring and damper that model the rails as a guide. */
+export const PHYSICS_LATERAL_STRENGTH = 40;
+export const PHYSICS_LATERAL_DAMPING = 8;
+/** Contact force above this is treated as a crash. */
+export const IMPACT_THRESHOLD = 40;
 
 /** Speed ceiling at zero damage. */
 export const MAX_SPEED = 24;

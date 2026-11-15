@@ -1,8 +1,9 @@
 # Neon Racer
 
-A mobile-first, endless three-lane car racer built with Three.js. Swipe or tap
-to dodge traffic, chase a personal best, and install it as an offline-capable
-web app.
+A mobile-first circuit racer inspired by orange plastic track sets. Three laps
+against the clock on a generated circuit with banked turns, a vertical loop,
+hills, and boost straights. The car is a candy-red die-cast hypercar driven by a
+Rapier rigid-body simulation behind a small adapter.
 
 **Play:** https://shahrin014.github.io/3d-html-car-racer/
 
@@ -10,15 +11,16 @@ web app.
 
 | Input | Action |
 | --- | --- |
-| Swipe left/right | Change lane |
-| Tap left/right half of the track | Change lane |
-| On-screen chevrons | Change lane |
-| `←` / `→` or `A` / `D` | Change lane |
+| Tilt the phone | Steer (permission requested from Start) |
+| On-screen arrows | Steer |
+| `←` / `→` or `A` / `D` | Steer |
+| Hold brake button / `Space` / `↓` | Brake |
+| Camera button / `C` | Toggle chase and cockpit views |
 | `Esc` / `P` | Pause or resume |
 
-Each run starts with three hearts. Hitting traffic costs one heart and grants a
-short burst of invulnerability. The speed climbs until the run ends; score is
-ten points per metre travelled.
+Throttle is automatic. The HUD shows level, lap, lap time, total time, speed,
+and damage. Damage reduces acceleration and top speed but never ends the race.
+Being stuck or off the track triggers a timed rescue at the last checkpoint.
 
 ## Local development
 
@@ -27,7 +29,7 @@ Requires Node.js 26 LTS (see `.nvmrc`).
 ```bash
 npm ci
 npm run dev        # http://localhost:5173
-npm test           # pure-logic unit tests
+npm test           # pure-logic and physics trace tests
 npm run test:e2e   # browser smoke tests (builds, then serves dist/)
 npm run check      # typecheck + tests + production build
 npm run preview    # serve the production build on :4173
@@ -48,9 +50,10 @@ Publishing is continuous from `main`:
 | Live URL | https://shahrin014.github.io/3d-html-car-racer/ |
 
 Every pull request runs type checking, unit tests, the production build (which
-enforces the 250 KB gzip JavaScript budget), and the Playwright smoke suite.
-Every push to `main` runs the same gate; if it passes, the `dist/` artifact is
-deployed to GitHub Pages. Nothing is committed to a `gh-pages` branch.
+enforces a 250 kB gzip app-shell budget and a separate 1.75 MB gzip budget for
+the lazy physics chunk), and the Playwright smoke suite. Every push to `main`
+runs the same gate; if it passes, the `dist/` artifact is deployed to GitHub
+Pages. Nothing is committed to a `gh-pages` branch.
 
 ### One-time setup
 
@@ -65,7 +68,7 @@ deployed to GitHub Pages. Nothing is committed to a `gh-pages` branch.
 
 - The base URL and every asset (script, CSS, manifest, icons, favicon) return 200.
 - The menu loads; a run starts; steering, pause, collision, and restart work.
-- The best score survives a reload.
+- Best times survive a reload.
 - The app installs or opens standalone.
 - After one online load, an offline reload still starts the game.
 - The console has no uncaught errors.
@@ -81,22 +84,22 @@ cannot leave players on stale assets.
 ## Project structure
 
 ```
-src/
-  main.ts            screen state, HUD wiring, install prompt, service worker
-  style.css          mobile layout, safe areas, overlays, reduced motion
-  game/
-    Game.ts          scene, run lifecycle, collisions, camera, loop
-    Car.ts           low-poly car built from shared primitives
-    Road.ts          scrolling road, lane markings, roadside posts
-    Input.ts         swipe, tap, and keyboard steering
-    collision.ts     pure overlap and lane-clamp helpers
-    difficulty.ts    pure speed, score, and spawn-interval helpers
-    spawn.ts         pure wave composition helpers
-    constants.ts     all tuning values
+index.html           HUD, menu, pause and finish overlays
+src/main.ts          screen state, HUD wiring, tilt, install prompt, service worker
+src/style.css        landscape layout, safe areas, overlays, reduced motion
+src/game/
+  Game.ts            race lifecycle, cameras, physics driving, HUD callbacks
+  physics.ts         Rapier adapter: track colliders, wheeled rigid body, guide assist
+  track.ts           circuit generation and sampled track frames
+  trackMesh.ts       orange swept track mesh, rails, boosts and gate
+  Car.ts             player car wrapper around the shared die-cast model
+  car-model.mjs      parametric car geometry shared with the asset catalog
+  cockpitCamera.ts   driver's-eye camera pose
+  constants.ts       all tuning values
 public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator
-assets/              rendered catalog: track pieces, car, cockpit
-build/               bundle budget, service worker cache stamping
+assets/              rendered catalog: track pieces, car, cockpit, GLB models
+build/               bundle budgets, service worker cache stamping
 tools/               asset preview renderer (three.js in headless Chromium)
 e2e/                 Playwright browser smoke tests
 openspec/            behavior and deployment specs
