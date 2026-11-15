@@ -163,7 +163,10 @@ comparison without a code rewrite.
   the horizon rolls through loops and banks. Position damped, roll slerped.
 - Cockpit: driver's eye 0.55 m above the chassis centre, 0.1 m forward, narrower
   FOV. A generated canvas texture supplies the dashboard, gauges, and a wheel
-  hint; geometry is a single curved plane plus a wheel arc.
+  hint; geometry is a single curved plane plus a wheel arc. The rig is derived
+  from the car's pose rather than the centreline, so steering across the track
+  and yawing into a turn carry the view with the body, while the body basis
+  still rolls it through banks and loops.
 - Both suppress shake and roll jitter under reduced motion. The choice persists
   for the session.
 
