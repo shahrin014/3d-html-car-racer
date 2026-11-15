@@ -19,7 +19,11 @@ of the requirements.
 | Laps per race | 3 |
 | Race states | 5 (menu, countdown, racing, paused, finished) |
 | Countdown | 3 s |
-| Track width | 3 world units (three car widths) |
+| Track scale | 1.5× the base catalogue |
+| Track width | 4.5 world units (about four and a half car widths) |
+| Guide rail height | 0.9 world units (at least one car height) |
+| Turn radius | 12–27 m across the level ladder |
+| Straight lengths | 12–30 m across the level ladder |
 | Design speed | 12 m/s |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
@@ -27,7 +31,7 @@ of the requirements.
 | Maximum substeps per frame | 4 |
 | Maximum frame delta | 0.1 s |
 | Turn bank | 20–45° |
-| Loop radius | 7 m at level 1, shrinking to 5.5 m |
+| Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
 | Damage per impulse | 18 |
@@ -423,20 +427,26 @@ rule SHALL be rejected and regenerated from the next deterministic seed offset.
 - **THEN** it is rejected
 - **AND** generation continues with a different deterministic offset
 
-### Requirement: The track is a narrow orange surface with guide rails
+### Requirement: The track is an orange surface with tall guide rails
 
-The track SHALL be one continuous surface about three car widths wide with guide
-rails on both edges. It SHALL read as orange plastic with visible segment seams,
-and the rails, supports, boost strips, and start/finish gate SHALL be visually
-distinct. Supports SHALL connect raised track to the ground, including under
-loops. The surface SHALL NOT contain gaps, cracks, or steps, and vertical loops
-SHALL have a distinct entrance and exit.
+The track SHALL be one continuous orange surface at least four car widths wide,
+with guide rails on both edges at least one car height tall. Seams, rails,
+supports, boost strips, and the start/finish gate SHALL be visually distinct.
+Supports SHALL connect raised track to the ground. The surface SHALL have no
+gaps, cracks, or steps, and loops SHALL have distinct entrances and exits.
 
 #### Scenario: Track width
 
 - **GIVEN** the built track
 - **WHEN** the clear width between rails is measured
-- **THEN** it is about three car widths
+- **THEN** it is at least four car widths
+
+#### Scenario: Rail height
+
+- **GIVEN** the built track
+- **WHEN** the guide rail height is measured
+- **THEN** it is at least one car height
+- **AND** the car cannot ride over a rail at design speed
 
 #### Scenario: Supported geometry
 

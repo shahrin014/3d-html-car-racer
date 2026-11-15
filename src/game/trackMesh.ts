@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   RAIL_HEIGHT,
+  RAIL_SCALE,
   RAIL_WIDTH,
   SEAM_LENGTH,
   TRACK_THICKNESS,
@@ -181,7 +182,11 @@ export function buildTrackMesh(
     color: 0x232a36,
     roughness: 0.9,
   });
-  const columnGeometry = new THREE.BoxGeometry(0.3, 1, 0.3);
+  const columnGeometry = new THREE.BoxGeometry(
+    0.3 * RAIL_SCALE,
+    1,
+    0.3 * RAIL_SCALE,
+  );
   for (const piece of pieces) {
     piece.frames.forEach((frame, index) => {
       if (index % 12 !== 0 || frame.position.y < 0.8 || frame.up.y < 0.3) {

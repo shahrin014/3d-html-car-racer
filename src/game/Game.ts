@@ -556,12 +556,12 @@ export class Game {
     const orientation = this.car.group.quaternion;
     if (this.cameraMode === 'chase') {
       this.chaseDesired
-        .set(0, 2.3 + shake, -6.5)
+        .set(0, 2.8 + shake, -8)
         .applyQuaternion(orientation)
         .add(position);
       this.camera.position.lerp(this.chaseDesired, clamp(delta * 8, 0, 1));
       this.chaseTarget
-        .set(0, 1.0, 10)
+        .set(0, 1.2, 14)
         .applyQuaternion(orientation)
         .add(position);
       this.carUp.set(0, 1, 0).applyQuaternion(orientation);
