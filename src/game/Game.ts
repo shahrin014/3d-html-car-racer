@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCar, WHEEL_RADIUS, type Car } from './Car';
+import { cockpitPose } from './cockpitCamera';
 import {
   COUNTDOWN_SECONDS,
   LAPS,
@@ -70,6 +71,12 @@ export class Game {
   private lastLapTopCheck = false;
   private readonly resizeObserver: ResizeObserver;
   private readonly reducedMotion: MediaQueryList;
+  /** Reused scratch pose so the cockpit rig allocates nothing per frame. */
+  private readonly cockpitPose = {
+    position: new THREE.Vector3(),
+    target: new THREE.Vector3(),
+    up: new THREE.Vector3(),
+  };
 
   constructor(container: HTMLElement, callbacks: GameCallbacks, seed: string) {
     this.container = container;
@@ -429,18 +436,17 @@ export class Game {
       this.camera.up.copy(frame.up);
       this.camera.lookAt(target);
     } else {
-      this.camera.position.copy(
-        frame.position
-          .clone()
-          .addScaledVector(frame.up, 0.78)
-          .addScaledVector(frame.tangent, 0.15),
+      // The driver's eye rides the body, not the racing line. Reading the rig
+      // off the car is what keeps the view across the track when the car
+      // steers off centre, and lets its yaw swing the view into the turn.
+      const pose = cockpitPose(
+        this.car.group.position,
+        this.car.group.quaternion,
+        this.cockpitPose,
       );
-      const target = frame.position
-        .clone()
-        .addScaledVector(frame.tangent, 30)
-        .addScaledVector(frame.up, 0.4);
-      this.camera.up.copy(frame.up);
-      this.camera.lookAt(target);
+      this.camera.position.copy(pose.position);
+      this.camera.up.copy(pose.up);
+      this.camera.lookAt(pose.target);
     }
   }
 
