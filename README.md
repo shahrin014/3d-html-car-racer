@@ -22,7 +22,7 @@ ten points per metre travelled.
 
 ## Local development
 
-Requires Node.js 22 (see `.nvmrc`).
+Requires Node.js 26 LTS (see `.nvmrc`).
 
 ```bash
 npm ci
