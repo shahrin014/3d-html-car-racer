@@ -185,6 +185,12 @@ const PIECES = {
     title: 'Hypercar · die-cast',
     meta: '2.45 × 1.0 × 0.78 m · candy red · gold aero wheels · swan-neck wing',
   },
+  'car-side': {
+    kind: 'car',
+    view: 'side',
+    title: 'Hypercar · side elevation',
+    meta: 'profile check · wheelbase 1.4 m · roof 0.78 m · wedge nose',
+  },
   cockpit: {
     kind: 'cockpit',
     title: 'Cockpit view · driver eye',
@@ -620,10 +626,25 @@ if (piece.kind === 'car') {
   const shadow = createContactShadow(3.4, 2.2);
   shadow.position.set(0, 0.012, 6);
   assetGroup.add(shadow);
-  camera.fov = 28;
-  camera.updateProjectionMatrix();
-  camera.position.set(4.2, 2.5, 10.6);
-  camera.lookAt(0, 0.45, 6.2);
+  // The elevation reads the car's profile; the track surface would hide the
+  // lower body behind its own edge, so drop it for this view only.
+  if (piece.view === 'side') {
+    track.visible = false;
+    shadow.visible = false;
+  }
+  if (piece.view === 'side') {
+    // Pure elevation: catches rake, ride height, and arch clearance, which a
+    // three-quarter view always hides. Car sits at z = 6 and is 0.78 tall.
+    camera.fov = 24;
+    camera.updateProjectionMatrix();
+    camera.position.set(14, 1.15, 6.2);
+    camera.lookAt(0, 0.42, 6);
+  } else {
+    camera.fov = 28;
+    camera.updateProjectionMatrix();
+    camera.position.set(4.2, 2.5, 10.6);
+    camera.lookAt(0, 0.45, 6.2);
+  }
 } else if (piece.kind === 'cockpit') {
   const track = buildTrack(straightPath(90), 90);
   assetGroup.add(track);

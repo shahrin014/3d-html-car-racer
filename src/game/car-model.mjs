@@ -21,23 +21,29 @@ export const CAR = {
   width: 1,
   height: 0.78,
   wheelbase: 1.4,
-  rearWheelRadius: 0.26,
-  frontWheelRadius: 0.24,
-  rearTyreWidth: 0.17,
-  frontTyreWidth: 0.16,
+  rearWheelRadius: 0.3,
+  frontWheelRadius: 0.28,
+  rearTyreWidth: 0.19,
+  frontTyreWidth: 0.18,
   rearAxle: -0.7,
   frontAxle: 0.7,
 };
 
 const PAINT = 0xa30f1d;
 
-/** Gap between the tyre silhouette and the lip of its wheel arch. */
-const ARCH_GAP = 0.045;
-/** Body material kept above the arch line, so the fender lip never vanishes. */
-const ARCH_LIP = 0.035;
-/** |x| band over which the floor blends up into the arch. */
-const ARCH_INNER = 0.235;
-const ARCH_OUTER = 0.31;
+/**
+ * Gap between the tyre silhouette and the lip of its wheel arch. The arch line
+ * is never allowed below the tyre, so this gap and the fender skin above it
+ * are what decide how tall the fenders have to be.
+ */
+const ARCH_GAP = 0.03;
+/**
+ * Where the arch step blends back into the flat floor, as a fraction of the
+ * half width. Inboard of this the underside stays low; the tyre's inner edge
+ * sits outboard of it, so the step is hidden behind the tyre.
+ */
+const ARCH_INNER_FRACTION = 0.6;
+const ARCH_OUTER_FRACTION = 0.68;
 
 const smoothstep = (t) => {
   const k = Math.min(1, Math.max(0, t));
@@ -75,9 +81,9 @@ const STATIONS = [
   { z: 0.7, halfWidth: 0.5, floor: 0.1, shoulder: 0.54, fenderX: 0.42, fender: 0.59, centre: 0.43 },
   { z: 0.82, halfWidth: 0.49, floor: 0.1, shoulder: 0.51, fenderX: 0.4, fender: 0.55, centre: 0.4 },
   { z: 0.95, halfWidth: 0.47, floor: 0.11, shoulder: 0.47, fenderX: 0.36, fender: 0.49, centre: 0.37 },
-  { z: 1.06, halfWidth: 0.43, floor: 0.12, shoulder: 0.4, fenderX: 0.31, fender: 0.42, centre: 0.32 },
-  { z: 1.15, halfWidth: 0.38, floor: 0.13, shoulder: 0.34, fenderX: 0.26, fender: 0.34, centre: 0.27 },
-  { z: 1.225, halfWidth: 0.3, floor: 0.15, shoulder: 0.28, fenderX: 0.2, fender: 0.28, centre: 0.25 },
+  { z: 1.06, halfWidth: 0.43, floor: 0.1, shoulder: 0.38, fenderX: 0.31, fender: 0.42, centre: 0.32 },
+  { z: 1.15, halfWidth: 0.38, floor: 0.11, shoulder: 0.32, fenderX: 0.26, fender: 0.34, centre: 0.27 },
+  { z: 1.225, halfWidth: 0.3, floor: 0.13, shoulder: 0.27, fenderX: 0.2, fender: 0.28, centre: 0.25 },
 ];
 
 const zMin = STATIONS[0].z;
@@ -137,8 +143,12 @@ const AXLES = [
   { z: CAR.frontAxle, radius: CAR.frontWheelRadius },
 ];
 
-/** Underside height over a wheel: a circle concentric with the tyre. */
-function archAt(z, floor, shoulder) {
+/**
+ * Underside height over a wheel: a circle concentric with the tyre, cleared by
+ * ARCH_GAP. This must never clamp below the tyre or the bodywork passes
+ * straight through the wheel.
+ */
+function archAt(z, floor) {
   let arch = floor;
   for (const axle of AXLES) {
     const reach = axle.radius + ARCH_GAP;
@@ -147,7 +157,7 @@ function archAt(z, floor, shoulder) {
       arch = Math.max(arch, axle.radius + Math.sqrt(reach * reach - dz * dz));
     }
   }
-  return Math.min(arch, shoulder - ARCH_LIP);
+  return arch;
 }
 
 function sectionAt(z) {
@@ -155,17 +165,20 @@ function sectionAt(z) {
   const floor = floorSpline(z);
   const shoulder = shoulderSpline(z);
   const centre = centreSpline(z);
+  const arch = archAt(z, floor);
+  // The arch line has to clear the tyre; the fender crown has to clear the
+  // arch line. Lifting both keeps a real lip of bodywork over every wheel.
   const fenderX = Math.min(Math.max(fenderXSpline(z), 0.02), halfWidth - 0.02);
-  const fender = Math.max(fenderSpline(z), centre, shoulder);
+  const fender = Math.max(fenderSpline(z), centre, shoulder, arch + 0.055);
   return {
     z,
     halfWidth,
     floor,
-    shoulder,
+    shoulder: Math.max(shoulder, arch + 0.03),
     centre,
     fenderX,
     fender,
-    arch: archAt(z, floor, shoulder),
+    arch,
   };
 }
 
@@ -184,8 +197,9 @@ function topAt(section, ax) {
  * then flat at the arch line out to the side wall.
  */
 function bottomAt(section, ax) {
-  const outer = Math.min(ARCH_OUTER, section.halfWidth - 0.02);
-  const inner = Math.min(ARCH_INNER, outer - 0.01);
+  const w = section.halfWidth;
+  const outer = w * ARCH_OUTER_FRACTION;
+  const inner = w * ARCH_INNER_FRACTION;
   if (ax <= inner || outer - inner < 1e-6) {
     return section.floor;
   }
@@ -498,20 +512,20 @@ function tyreGeometry(radius, width) {
   return geometry;
 }
 
-/** Rear wing: an extruded airfoil spanning the width of the car. */
+/** Rear wing: a deep extruded airfoil spanning the width of the car. */
 function wingGeometry() {
   const shape = new THREE.Shape();
-  shape.moveTo(-0.13, 0.004);
-  shape.quadraticCurveTo(-0.08, 0.045, 0.06, 0.028);
-  shape.quadraticCurveTo(0.11, 0.015, 0.13, 0);
-  shape.quadraticCurveTo(0, -0.02, -0.13, 0.004);
+  shape.moveTo(-0.2, 0.006);
+  shape.quadraticCurveTo(-0.13, 0.07, 0.1, 0.045);
+  shape.quadraticCurveTo(0.17, 0.024, 0.2, 0);
+  shape.quadraticCurveTo(0, -0.032, -0.2, 0.006);
   const geometry = new THREE.ExtrudeGeometry(shape, {
     depth: 0.93,
     bevelEnabled: false,
-    curveSegments: 8,
+    curveSegments: 10,
   });
   geometry.rotateY(Math.PI / 2);
-  geometry.translate(-0.465, 0, 0);
+  geometry.translate(-0.465, 0, -0.06);
   return geometry;
 }
 
@@ -597,16 +611,16 @@ function sharedGeometry() {
     splitter: plateGeometry(0.46, 1.0, 1.225, 0.012),
     diffuserFin: new THREE.BoxGeometry(0.014, 0.15, 0.17),
     upright: new THREE.BoxGeometry(0.028, 0.36, 0.075),
-    endplate: new THREE.BoxGeometry(0.016, 0.13, 0.26),
+    endplate: new THREE.BoxGeometry(0.016, 0.17, 0.42),
     intake: new THREE.BoxGeometry(0.52, 0.1, 0.16),
     mouth: new THREE.BoxGeometry(0.44, 0.085, 0.1),
     lampBar: new THREE.PlaneGeometry(0.64, 0.075),
     mirrorPod: new THREE.SphereGeometry(0.045, 14, 10),
     mirrorStalk: { [-1]: mirrorStalkGeometry(-1), 1: mirrorStalkGeometry(1) },
     fin: finGeometry(),
-    spokes: new THREE.BoxGeometry(0.026, 0.35, 0.038),
-    rimLip: new THREE.RingGeometry(0.155, 0.19, 26),
-    hub: new THREE.CylinderGeometry(0.036, 0.036, 0.03, 16),
+    spokes: new THREE.BoxGeometry(0.028, 0.4, 0.042),
+    rimLip: new THREE.RingGeometry(0.178, 0.22, 26),
+    hub: new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16),
     tyre: keyed((radius, width) => tyreGeometry(radius, width)),
     barrel: keyed(
       (radius, width) =>
@@ -774,7 +788,7 @@ export function createCar(color = PAINT) {
     group.add(upright);
 
     const plate = new THREE.Mesh(geo.endplate, materials.trim);
-    plate.position.set(side * 0.465, 0.78, -1.1);
+    plate.position.set(side * 0.465, 0.78, -1.16);
     group.add(plate);
 
     group.add(new THREE.Mesh(geo.mirrorStalk[side], materials.trim));
@@ -792,10 +806,10 @@ export function createCar(color = PAINT) {
 
   const wheels = [];
   const specs = [
-    { radius: CAR.rearWheelRadius, width: CAR.rearTyreWidth, x: -0.405, z: CAR.rearAxle },
-    { radius: CAR.rearWheelRadius, width: CAR.rearTyreWidth, x: 0.405, z: CAR.rearAxle },
-    { radius: CAR.frontWheelRadius, width: CAR.frontTyreWidth, x: -0.41, z: CAR.frontAxle },
-    { radius: CAR.frontWheelRadius, width: CAR.frontTyreWidth, x: 0.41, z: CAR.frontAxle },
+    { radius: CAR.rearWheelRadius, width: CAR.rearTyreWidth, x: -0.41, z: CAR.rearAxle },
+    { radius: CAR.rearWheelRadius, width: CAR.rearTyreWidth, x: 0.41, z: CAR.rearAxle },
+    { radius: CAR.frontWheelRadius, width: CAR.frontTyreWidth, x: -0.415, z: CAR.frontAxle },
+    { radius: CAR.frontWheelRadius, width: CAR.frontTyreWidth, x: 0.415, z: CAR.frontAxle },
   ];
   for (const spec of specs) {
     const wheel = buildWheel(spec.radius, spec.width, spec.x < 0 ? -1 : 1);

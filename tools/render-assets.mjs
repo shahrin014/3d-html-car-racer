@@ -26,6 +26,7 @@ const PIECES = [
   { id: 'hill-crest-2.5', folder: 'track' },
   { id: 'boost-12', folder: 'track' },
   { id: 'car', folder: 'car', name: 'car-hero' },
+  { id: 'car-side', folder: 'car', name: 'car-side' },
   { id: 'cockpit', folder: 'cockpit', name: 'cockpit-view' },
 ];
 
