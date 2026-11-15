@@ -66,6 +66,8 @@ runtime API calls.
   required.
 - Pure rules (speed, score, spawn interval, collision, lane clamp, lane
   selection) have Vitest coverage.
+- The Playwright suite in `e2e/` covers the shipped bundle: shell boot, run
+  lifecycle, persistence, reduced motion, viewport fit, and offline startup.
 - Browser checks run at 390×844 portrait, 320×568 small phone, and 844×390
   landscape, with touch emulation and reduced motion enabled.
 - Deployment checks follow `openspec/specs/deployment/spec.md`.

@@ -3,9 +3,12 @@
  *
  * - The page shell is network-first so a new deploy is picked up immediately.
  * - Hashed build assets are cache-first; their filenames change on every build.
- * - Bump CACHE_VERSION when CORE_ASSETS changes so old caches are discarded.
+ * - CACHE_VERSION is stamped at build time with a hash of the emitted files
+ *   (see build/sw-cache-plugin.ts), so every deploy activates a new cache and
+ *   the previous one is discarded. Never hardcode a value here: the build fails
+ *   when the placeholder is missing.
  */
-const CACHE_VERSION = 'neon-racer-v1';
+const CACHE_VERSION = '__BUILD_CACHE_VERSION__';
 const CORE_ASSETS = [
   './',
   './index.html',

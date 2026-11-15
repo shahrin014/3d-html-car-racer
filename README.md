@@ -26,11 +26,14 @@ Requires Node.js 26 LTS (see `.nvmrc`).
 
 ```bash
 npm ci
-npm run dev      # http://localhost:5173
-npm test         # pure-logic unit tests
-npm run check    # typecheck + tests + production build
-npm run preview  # serve the production build on :4173
+npm run dev        # http://localhost:5173
+npm test           # pure-logic unit tests
+npm run test:e2e   # browser smoke tests (builds, then serves dist/)
+npm run check      # typecheck + tests + production build
+npm run preview    # serve the production build on :4173
 ```
+
+`npm run test:e2e` needs Chromium once per machine: `npm run test:e2e:install`.
 
 ## Deployment
 
@@ -40,18 +43,21 @@ Publishing is continuous from `main`:
 | --- | --- |
 | Production branch | `main` |
 | Workflow | `.github/workflows/deploy-pages.yml` |
+| Pull-request checks | `.github/workflows/ci.yml` |
 | Pages source | GitHub Actions (artifact) |
 | Live URL | https://shahrin014.github.io/3d-html-car-racer/ |
 
-Every push to `main` runs type checking, unit tests, and the production build.
-If they pass, the `dist/` artifact is deployed to GitHub Pages. Nothing is
-committed to a `gh-pages` branch.
+Every pull request runs type checking, unit tests, the production build (which
+enforces the 250 KB gzip JavaScript budget), and the Playwright smoke suite.
+Every push to `main` runs the same gate; if it passes, the `dist/` artifact is
+deployed to GitHub Pages. Nothing is committed to a `gh-pages` branch.
 
 ### One-time setup
 
 1. Open **Settings → Pages**.
 2. Set **Source** to **GitHub Actions**.
-3. Protect `main`: block force pushes and deletion and require a pull request.
+3. Protect `main`: block force pushes and deletion, require a pull request, and
+   require the **Checks** workflow.
 4. Run the deployment workflow and confirm the `github-pages` environment.
 5. Complete the checklist below on the live URL.
 
@@ -69,8 +75,8 @@ committed to a `gh-pages` branch.
 
 Revert the offending commit on `main` and let the workflow redeploy, or re-run
 the last known-good workflow run. A failed deployment leaves the previous site
-live. If a release changes the service worker's core asset list, bump
-`CACHE_VERSION` in `public/sw.js` so stale caches are removed.
+live. The service worker cache name is derived from the build, so a release
+cannot leave players on stale assets.
 
 ## Project structure
 
@@ -89,6 +95,8 @@ src/
     constants.ts     all tuning values
 public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator
+build/               bundle budget, service worker cache stamping
+e2e/                 Playwright browser smoke tests
 openspec/            behavior and deployment specs
 ```
 

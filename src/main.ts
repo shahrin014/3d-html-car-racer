@@ -131,6 +131,11 @@ try {
     onHearts: renderHearts,
     onHit: flashHit,
     onGameOver: handleGameOver,
+    // Non-visual state for browser smoke tests. Lane itself is a simulation
+    // concern; this only mirrors it as an attribute on the stage element.
+    onLane: (lane) => {
+      app.dataset.lane = String(lane);
+    },
   });
 } catch (error) {
   console.error('WebGL could not be initialised.', error);

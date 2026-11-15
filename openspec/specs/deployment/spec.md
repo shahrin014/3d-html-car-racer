@@ -16,6 +16,8 @@ handling, verification, rollback, and credentials.
 | URL | `https://shahrin014.github.io/3d-html-car-racer/` |
 | Pages source | GitHub Actions (artifact deployment) |
 | Workflow | `.github/workflows/deploy-pages.yml` |
+| Pull-request checks | `.github/workflows/ci.yml` |
+| Browser smoke tests | `e2e/` (Playwright, Chromium) |
 
 Deployment is **not** done by pushing to a `gh-pages` branch. GitHub Pages
 receives the built `dist/` directory as a workflow artifact.
@@ -48,11 +50,16 @@ Run this against the public URL after every deployment:
 | Console | No uncaught errors during menu, run, pause, and game over |
 | Revision | The deployed content matches the `main` commit recorded by the workflow run |
 
+The shell, run lifecycle, persistence, and offline rows are also covered
+automatically by `e2e/`; the remaining rows need a real device or a manual
+browser pass.
+
 ## First-Time Setup
 
 1. Open **Settings → Pages**.
 2. Set **Source** to **GitHub Actions**.
-3. Protect `main`: block force pushes and deletion and require a pull request.
+3. Protect `main`: block force pushes and deletion, require a pull request, and
+   require the **Checks** workflow.
 4. Run the deployment workflow and confirm the `github-pages` environment is
    created.
 5. Open the published URL and run the verification checklist.
@@ -146,6 +153,33 @@ refuse to deploy any ref other than `main` and SHALL use concurrency group
 - **THEN** deployments do not overlap
 - **AND** the newest commit is left serving production
 
+### Requirement: Pull requests are checked before merge
+
+A `pull_request` workflow SHALL run the quality gate without deploy
+permissions. It SHALL run type checking, unit tests, the production build
+(including the transfer budget), and the browser smoke suite. The workflow SHALL
+request only `contents: read` and SHALL NOT deploy.
+
+#### Scenario: Pull request runs the gate
+
+- **GIVEN** a pull request targets `main`
+- **WHEN** it is opened or updated
+- **THEN** the checks workflow runs type checking, unit tests, the build, and the browser smoke tests
+- **AND** no deployment is triggered
+
+#### Scenario: Fork pull request
+
+- **GIVEN** a pull request comes from a fork
+- **WHEN** the checks workflow runs
+- **THEN** it completes with read-only permissions
+- **AND** it cannot reach the deployment environment
+
+#### Scenario: Branch protection requires the gate
+
+- **GIVEN** `main` is protected
+- **THEN** the checks workflow result is a required status check
+- **AND** a failing run blocks the merge
+
 ### Requirement: The workflow builds with the pinned toolchain
 
 The workflow SHALL read the Node version from `.nvmrc`, install with `npm ci`
@@ -185,9 +219,9 @@ The deploy path SHALL configure Pages, upload `dist/`, and deploy to the
 
 ### Requirement: A failed check blocks deployment
 
-Type checking, tests, and the build SHALL succeed before the artifact is
-uploaded. A failure SHALL stop the workflow, SHALL NOT deploy, and SHALL leave
-the previous deployment live.
+Type checking, unit tests, the production build, and the browser smoke suite
+SHALL succeed before the artifact is uploaded. A failure SHALL stop the
+workflow, SHALL NOT deploy, and SHALL leave the previous deployment live.
 
 #### Scenario: Failing test
 
@@ -203,6 +237,14 @@ the previous deployment live.
 - **WHEN** the workflow runs
 - **THEN** the deployment step does not run
 - **AND** the failure is visible in the Actions run
+
+#### Scenario: Browser smoke failure
+
+- **GIVEN** the built app cannot boot, start a run, or update the HUD
+- **WHEN** the browser job runs
+- **THEN** it fails
+- **AND** the deploy job does not run
+- **AND** the previous deployment stays live
 
 #### Scenario: Pages is not enabled
 
@@ -297,8 +339,9 @@ last successful one.
 
 Hashed assets SHALL be immutable and cache-first. The app shell SHALL be
 network-first so a new deployment is discovered promptly. A new service worker
-SHALL take effect on the next launch, not mid-run. The service worker cache
-version SHALL be bumped whenever the set of core cached files changes.
+SHALL take effect on the next launch, not mid-run. The service worker cache name
+SHALL be derived from the emitted build so it changes whenever the app shell or
+the core asset list changes, and SHALL be identical for identical builds.
 
 #### Scenario: New deployment is discovered
 
@@ -313,11 +356,25 @@ version SHALL be bumped whenever the set of core cached files changes.
 - **THEN** the run continues without a forced reload
 - **AND** the update applies on the next launch
 
-#### Scenario: Stale core assets are removed
+#### Scenario: Cache version tracks the build
 
-- **GIVEN** the core asset list changed and the cache version was bumped
-- **WHEN** the new service worker activates
-- **THEN** caches from the previous version are deleted
+- **GIVEN** the app shell or the core asset list changed
+- **WHEN** the production build runs
+- **THEN** the service worker cache name changes
+- **AND** the previous cache is deleted when the new worker activates
+
+#### Scenario: Unchanged rebuild keeps the cache
+
+- **GIVEN** no tracked file changed
+- **WHEN** the production build runs again
+- **THEN** the cache name is identical
+- **AND** clients do not redownload the shell
+
+#### Scenario: Missing placeholder fails the build
+
+- **GIVEN** the service worker no longer contains the cache version placeholder
+- **WHEN** the production build runs
+- **THEN** the build fails with a message naming the placeholder
 
 ### Requirement: Deployment uses no stored secrets
 

@@ -39,6 +39,11 @@ export interface GameCallbacks {
   onHearts: (hearts: number) => void;
   onHit: () => void;
   onGameOver: (result: RunResult) => void;
+  /**
+   * Reports the lane the player is heading to. Optional so the simulation
+   * keeps working without a HUD; the browser smoke tests read it.
+   */
+  onLane?: (lane: number) => void;
 }
 
 interface Car {
@@ -195,6 +200,7 @@ export class Game {
     this.currentState = 'running';
     this.callbacks.onScore(0);
     this.callbacks.onHearts(this.hearts);
+    this.callbacks.onLane?.(this.lane);
     this.lastFrame = performance.now();
     this.renderer.setAnimationLoop(this.tick);
   }
@@ -237,6 +243,7 @@ export class Game {
     }
     this.lane = nextLane;
     this.targetX = LANE_X[nextLane] ?? 0;
+    this.callbacks.onLane?.(this.lane);
   }
 
   dispose(): void {

@@ -19,17 +19,17 @@ recommended next steps.
 | --- | --- |
 | Game | Playable: 3 lanes, traffic, 3 hearts, speed ramp, score, pause, reduced motion |
 | PWA | Installable; manifest, generated icons, offline service worker |
-| Tests | 22 unit tests across 3 files, all passing |
+| Tests | 32 unit tests across 5 files plus 9 Playwright browser tests |
 | Typecheck | Clean (`tsc --noEmit`) |
-| Build | ~556 kB raw / ~139.68 kB gzip JS; Vite warns over the 500 kB chunk threshold |
-| CI/CD | `.github/workflows/deploy-pages.yml` deploys every push to `main` |
+| Build | ~556 kB raw / ~139.71 kB gzip JS; the 250 kB budget is enforced at build time |
+| CI/CD | `ci.yml` checks pull requests; `deploy-pages.yml` deploys every push to `main` after the same gate |
 | Last deploy | Run [43691742530](https://github.com/shahrin014/3d-html-car-racer/actions/runs/43691742530), build ✅ deploy ✅ |
 | Live check | Base URL `200`, `manifest.webmanifest` `200` |
 | Specs | `openspec/specs/game/spec.md` and `openspec/specs/deployment/spec.md` validate cleanly |
-| Open changes | None (`openspec/changes/` is empty) |
+| Open changes | None active; `openspec/changes/archive/` holds `2026-11-15-add-quality-gates` |
 | Releases/tags | None; `main` is the release |
 | Branch protection | **Unverified** — the API requires authentication and `gh` is not installed |
-| Secrets | None required; the workflow uses the automatic `GITHUB_TOKEN` |
+| Secrets | None required; the workflows use the automatic `GITHUB_TOKEN` |
 
 ## 2. Architecture map
 
@@ -48,11 +48,16 @@ src/game/
   constants.ts           all tuning values
 public/
   manifest.webmanifest   PWA metadata
-  sw.js                  app-shell cache; bump CACHE_VERSION on asset changes
+  sw.js                  app-shell cache; cache name is stamped at build time
   icons/, favicon.svg    generated assets
 scripts/generate-icons.mjs  deterministic icon generation
+build/
+  bundle-budget.ts       gzip budget rules
+  check-bundle-size.ts   build-time budget gate
+  sw-cache-plugin.ts     stamps the service worker cache name
+e2e/                     Playwright browser smoke tests
 openspec/                behavior and deployment specs
-.github/workflows/       Pages deployment
+.github/workflows/       PR checks and Pages deployment
 ```
 
 Design boundaries to preserve:
@@ -77,8 +82,10 @@ npm run dev        # http://localhost:5173
 | --- | --- |
 | `npm run dev` | Vite dev server with HMR |
 | `npm test` | Vitest pure-logic tests |
+| `npm run test:e2e` | Playwright smoke tests against the production build |
+| `npm run test:e2e:install` | Install the Chromium build Playwright needs |
 | `npm run typecheck` | Strict TypeScript check |
-| `npm run build` | Typecheck + production build into `dist/` |
+| `npm run build` | Typecheck, production build into `dist/`, then the gzip budget gate |
 | `npm run preview` | Serve `dist/` on :4173 |
 | `npm run check` | Typecheck + tests + build (the CI gate) |
 | `npm run icons` | Regenerate PWA icons |
@@ -95,10 +102,11 @@ Trunk-based: **every merge to `main` is a release.**
 
 1. Branch from `main`: `feat/<slug>`, `fix/<slug>`, or `spec/<slug>`.
 2. Make the change; update the matching OpenSpec spec if behavior changes.
-3. Run `npm run check` and, for UI work, a browser smoke test.
-4. Open a pull request into `main`.
-5. Merge. The workflow runs typecheck, tests, and build; if they pass, the
-   `dist/` artifact deploys to Pages.
+3. Run `npm run check` and `npm run test:e2e`.
+4. Open a pull request into `main`. The Checks workflow runs the same gate with
+   read-only permissions and no deploy step.
+5. Merge. The deployment workflow repeats the gate, runs the browser smoke tests,
+   and uploads the artifact; `deploy` waits for both jobs.
 6. Run the post-deploy checklist in §5.
 
 The workflow also supports manual dispatch, but the `build` and `deploy` jobs
@@ -132,9 +140,11 @@ Pages keeps serving the previous successful deployment if a new deploy fails.
 
 ### Change cached files
 
-If the set of files in `CORE_ASSETS` in `public/sw.js` changes, bump
-`CACHE_VERSION` (currently `neon-racer-v1`) in the same commit. Otherwise old
-caches are never purged.
+Nothing to do. `build/sw-cache-plugin.ts` stamps `CACHE_VERSION` with a hash of
+the emitted build, so any change to the shell, the core asset list, or the
+service worker itself produces a new cache name and the old cache is deleted on
+activation. An unchanged rebuild keeps the same name, so clients do not
+redownload. The build fails if the placeholder disappears from `public/sw.js`.
 
 ### Upgrade Node
 
@@ -180,14 +190,11 @@ CLI dependency for the build.
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Branch protection not verified | Direct pushes or force pushes may be possible | Confirm Settings → Branches → protect `main`; require PR and the build check |
-| No PR-triggered CI | Breakage is discovered only after merge to `main` | Add a `pull_request` workflow running `npm run check` |
+| Branch protection not verified | Direct pushes or force pushes may be possible | Confirm Settings → Branches → protect `main`; require PR and the Checks workflow |
 | No tags or release notes | Harder to name a known-good revision | Tag releases or rely on workflow runs; document the convention |
-| Single 556 kB JS chunk | Slower first load on weak mobile networks | Code-split Three.js or raise the warning threshold with a budget decision |
-| Service worker cache version is manual | Stale assets if forgotten | Add a check or generate the version from the build |
-| Tests cover only pure logic | Rendering, input, and PWA behavior rely on manual checks | Add Playwright smoke tests for menu → run → collision → reload |
+| Browser tests cover one viewport and Chromium | Safari/iOS input and install paths rely on manual checks | Keep the phone-sized manual pass in the post-deploy checklist |
 | `openspec/changes/` unused | Specs may drift from ad-hoc edits | Require an OpenSpec change for behavior work, then archive it |
-| Pages API returns 404 anonymously | Confusing during diagnostics | Site and `has_pages` are authoritative; don’t chase the API |
+| Pages API returns 404 anonymously | Confusing during diagnostics | Site and `has_pages` are authoritative; don't chase the API |
 | No audio | Product gap only | Out of scope for the first release |
 
 ## 8. Recommended next steps
@@ -195,18 +202,14 @@ CLI dependency for the build.
 Ordered by value-to-effort:
 
 1. **Protect `main`** — block force pushes and deletion, require a PR, require
-   the check. This is the largest unmitigated risk.
-2. **Add PR CI** — a `pull_request` workflow running `npm run check` so
-   breakage never reaches `main`.
-3. **Add a browser smoke test** — Playwright: menu loads, run starts, collision
-   costs a heart, reload keeps the best score, no console errors.
-4. **Fix the chunk warning deliberately** — either code-split or set an
-   explicit size budget; record the decision.
-5. **Automate the service worker cache version** — derive it from the build or
-   assert it changed when `CORE_ASSETS` changes.
-6. **Add release tags** — annotate known-good deploys for easier rollback.
-7. **Product backlog** — audio, near-miss bonus, difficulty modes, leaderboard
+   the Checks workflow. This is the largest unmitigated risk.
+2. **Add release tags** — annotate known-good deploys for easier rollback.
+3. **Widen browser coverage** — add a landscape project and a WebKit run so iOS
+   behavior is checked, not assumed.
+4. **Product backlog** — audio, near-miss bonus, difficulty modes, leaderboard
    (only if a backend is explicitly accepted).
+5. **Revisit the bundle decision** — if the game grows, code-split at a route or
+   scene boundary rather than raising the budget.
 
 ## 9. Decision log
 
@@ -222,6 +225,10 @@ Ordered by value-to-effort:
 | No preview or staging environment | Single public site; scope control |
 | Relative asset paths | Works under `/3d-html-car-racer/` with no hardcoded repo name |
 | Node 26 LTS pinned everywhere | One supported runtime for local and CI |
+| Playwright against the production build | Tests the shipped bundles, stamped worker, and budget gate; WebGL works headless through SwiftShader |
+| Fail the build on gzip bytes, not raw chunk size | The budget is about transfer; the raw warning fired on a compliant bundle |
+| Derive the service worker cache name from the build | Removes the manual step that silently shipped stale clients |
+| Pull requests check, `main` deploys | Same quality gate, and no pull request can publish |
 
 ## 10. Onboarding checklist
 
@@ -236,9 +243,8 @@ Ordered by value-to-effort:
 ### Week one
 
 - [ ] Verify `main` protection and the `github-pages` environment settings.
-- [ ] Ship one small change through branch → PR → merge → deploy → verify.
+- [ ] Ship one small change through branch → PR → checks → merge → deploy → verify.
 - [ ] Perform one rollback drill on a throwaway commit.
-- [ ] Add PR CI or schedule it explicitly.
 - [ ] Confirm ownership of the GitHub account and Pages configuration.
 
 ### Sign-off
