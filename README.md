@@ -92,6 +92,11 @@ scripts/             deterministic PWA icon generator
 openspec/            behavior and deployment specs
 ```
 
+## Handover
+
+Operational ownership, release procedures, rollback, known gaps, and onboarding
+steps are documented in [`docs/HANDOVER.md`](docs/HANDOVER.md).
+
 ## Specs
 
 Behavior and deployment are specified in OpenSpec format:
