@@ -73,9 +73,9 @@ export function createFlameTexture() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const flames = [
-    { x: 40, len: 300, spread: 52, color: '#ffd447' },
-    { x: 20, len: 380, spread: 60, color: '#ff8a1f' },
-    { x: 0, len: 440, spread: 66, color: '#ff5a1f' },
+    { x: 30, len: 330, spread: 62, color: '#fff3b0' },
+    { x: 10, len: 400, spread: 70, color: '#ffc61a' },
+    { x: -10, len: 460, spread: 76, color: '#ff7a18' },
   ];
 
   for (const flame of flames) {
@@ -209,6 +209,7 @@ export function createCar() {
       new THREE.CylinderGeometry(0.045, 0.05, 0.16, 12),
       materials.chrome,
     );
+    stack.name = 'engine-stack';
     stack.position.set(x, 0.66, 0.5);
     car.add(stack);
   }
@@ -274,8 +275,8 @@ export function createCar() {
     depthWrite: false,
   });
   for (const side of [-1, 1]) {
-    const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.42), flameMaterial);
-    decal.position.set(side * (CAR.width / 2 + 0.002), 0.36, -0.15);
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.36), flameMaterial);
+    decal.position.set(side * (CAR.width / 2 + 0.014), 0.4, -0.12);
     decal.rotation.y = side * (Math.PI / 2);
     car.add(decal);
   }

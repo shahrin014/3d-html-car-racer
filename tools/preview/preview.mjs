@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
   createCar,
   createCockpitDashboard,
@@ -186,27 +187,32 @@ const camera = new THREE.PerspectiveCamera(
   500,
 );
 
-scene.add(new THREE.HemisphereLight(0x9fd6ff, 0x0a1018, 1.0));
+scene.add(new THREE.HemisphereLight(0x9fd6ff, 0x0a1018, 0.65));
 
-const key = new THREE.DirectionalLight(0xffe3b3, 1.9);
+const key = new THREE.DirectionalLight(0xffe3b3, 1.6);
 key.position.set(14, 22, 12);
 scene.add(key);
 
-const rim = new THREE.DirectionalLight(0x22d3ee, 1.4);
+const rim = new THREE.DirectionalLight(0x22d3ee, 1.2);
 rim.position.set(-12, 9, -14);
 scene.add(rim);
 
-scene.add(new THREE.AmbientLight(0x27445c, 0.6));
+scene.add(new THREE.AmbientLight(0x27445c, 0.35));
 
-const groundMaterial = new THREE.MeshStandardMaterial({
-  color: 0x0a1018,
-  roughness: 1,
-});
+// A studio environment gives chrome, paint, and rims something to reflect.
+const pmrem = new THREE.PMREMGenerator(renderer);
+const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = environment;
+scene.environmentIntensity = 0.55;
+
+const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x05080e });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMaterial);
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
 const grid = new THREE.GridHelper(200, 100, 0x22334a, 0x141d29);
+grid.material.transparent = true;
+grid.material.opacity = 0.3;
 scene.add(grid);
 
 const orangeDark = new THREE.Color(0xe8500a);
@@ -241,7 +247,7 @@ const offset = new THREE.Vector3();
 function buildTrack(path, length, { boost = false } = {}) {
   const group = new THREE.Group();
   const planks = Math.max(18, Math.round(length / TRACK.plank));
-  const plankLength = (length / planks) * 0.97;
+  const plankLength = (length / planks) * 1.04;
   const frames = [];
 
   for (let index = 0; index < planks; index += 1) {
@@ -312,7 +318,7 @@ function buildTrack(path, length, { boost = false } = {}) {
   group.add(plankMesh, railMesh);
 
   frames.forEach((frame, index) => {
-    if (index % 4 !== 2 || frame.position.y < 0.8) {
+    if (index % 4 !== 0 || frame.position.y < 0.8) {
       return;
     }
     const height = frame.position.y;
@@ -379,14 +385,6 @@ function createContactShadow(width, depth) {
 const assetGroup = new THREE.Group();
 scene.add(assetGroup);
 
-function hideForCockpit(car) {
-  car.traverse((child) => {
-    if (child.name === 'windscreen' || child.name === 'side-glass') {
-      child.visible = false;
-    }
-  });
-}
-
 function fitCamera(target, view, pad = 1.04) {
   const bounds = new THREE.Box3().setFromObject(target);
   const center = bounds.getCenter(new THREE.Vector3());
@@ -424,46 +422,57 @@ function fitCamera(target, view, pad = 1.04) {
 }
 
 if (piece.kind === 'car') {
-  const track = buildTrack(straightPath(9), 9);
+  const track = buildTrack(straightPath(14), 14);
   assetGroup.add(track);
   const car = createCar();
-  car.position.set(0, 0, 4.2);
+  car.position.set(0, 0, 6);
   assetGroup.add(car);
   const shadow = createContactShadow(3.4, 2.2);
-  shadow.position.set(0, 0.012, 4.2);
+  shadow.position.set(0, 0.012, 6);
   assetGroup.add(shadow);
-  const focus = new THREE.Box3()
-    .setFromObject(car)
-    .getCenter(new THREE.Vector3());
-  camera.fov = 32;
+  camera.fov = 28;
   camera.updateProjectionMatrix();
-  camera.position.set(3.6, 1.75, 7.7);
-  camera.lookAt(focus.x, focus.y + 0.05, focus.z);
+  camera.position.set(4.2, 2.5, 10.6);
+  camera.lookAt(0, 0.45, 6.2);
 } else if (piece.kind === 'cockpit') {
-  const track = buildTrack(straightPath(80), 80);
+  const track = buildTrack(straightPath(90), 90);
   assetGroup.add(track);
-  const car = createCar();
-  car.position.set(0, 0, 0);
-  assetGroup.add(car);
-  hideForCockpit(car);
 
+  // The cockpit view is a camera rig, not the exterior model: the shell would
+  // occlude the dashboard from the driver's eye.
+  const hood = new THREE.Mesh(
+    new THREE.BoxGeometry(1.02, 0.06, 1.2),
+    new THREE.MeshStandardMaterial({
+      color: 0xc0103f,
+      metalness: 0.6,
+      roughness: 0.28,
+    }),
+  );
+  hood.position.set(0, 0.3, 1.1);
+  hood.rotation.x = 0.04;
+  assetGroup.add(hood);
+
+  const dashPivot = new THREE.Group();
+  dashPivot.position.set(0, 0.54, 0.86);
+  dashPivot.rotation.y = Math.PI;
   const dashboard = createCockpitDashboard();
-  dashboard.position.set(0, 0.6, 0.34);
-  dashboard.rotation.x = -0.32;
-  assetGroup.add(dashboard);
+  dashboard.scale.setScalar(0.92);
+  dashboard.rotation.x = 0.45;
+  dashPivot.add(dashboard);
+  assetGroup.add(dashPivot);
 
   const wheel = createSteeringWheel();
-  wheel.position.set(0, 0.66, 0.2);
-  wheel.rotation.x = -0.42;
+  wheel.scale.setScalar(0.74);
+  wheel.position.set(0, 0.5, 0.5);
+  wheel.rotation.x = -0.2;
   assetGroup.add(wheel);
 
-  camera.fov = 74;
+  camera.fov = 70;
   camera.near = 0.03;
   camera.updateProjectionMatrix();
-  camera.position.set(0, 0.78, -0.18);
-  camera.lookAt(0, 0.5, 30);
-  scene.fog = new THREE.Fog(0x070a10, 18, 80);
-  ground.position.y = -0.02;
+  camera.position.set(0, 0.84, 0);
+  camera.lookAt(0, 0.6, 60);
+  scene.fog = new THREE.Fog(0x070a10, 25, 95);
 } else {
   const track = buildTrack(piece.path, piece.length, { boost: piece.boost });
   assetGroup.add(track);

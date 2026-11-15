@@ -1,10 +1,10 @@
 /**
- * Renders the track-piece catalog to assets/track.
+ * Renders the asset catalog (track pieces, car, cockpit) into assets/.
  *
  * Uses the same parametric geometry as tools/preview/preview.mjs, so the images
  * are a reproducible reference rather than hand-made art.
  *
- *   npm run assets:track
+ *   npm run assets
  */
 import { createServer } from 'node:http';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -77,7 +77,10 @@ page.on('console', (message) => {
 });
 page.on('pageerror', (error) => failures.push(error.message));
 
-for (const piece of PIECES) {
+const only = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
+const selected = only.length > 0 ? PIECES.filter((entry) => only.includes(entry.id)) : PIECES;
+
+for (const piece of selected) {
   const folder = path.join(outputDir, piece.folder);
   await mkdir(folder, { recursive: true });
   await page.goto(
