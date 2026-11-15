@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createCar, type Car } from './Car';
+import { createCar, WHEEL_RADIUS, type Car } from './Car';
 import {
   COUNTDOWN_SECONDS,
   LAPS,
@@ -365,7 +365,7 @@ export class Game {
   private updateCarVisuals(): void {
     const frame = this.frameAt(this.s);
     this.placeCar(this.s, this.lateral, frame);
-    const spin = (this.s / 0.34) * Math.PI * 2;
+    const spin = (this.s / WHEEL_RADIUS) * Math.PI * 2;
     for (const wheel of this.car.wheels) {
       wheel.rotation.x = spin;
     }

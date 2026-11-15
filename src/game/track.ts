@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   DESIGN_SPEED,
+  LOOP_OFFSET,
   LOOP_RADIUS,
   TRACK_THICKNESS,
   TRACK_WIDTH,
@@ -67,26 +68,44 @@ export function turnPath(
 }
 
 /**
- * Vertical loop that starts and ends at the same frame, merging flush with the
- * straight. A loop always returns over its own approach; the standard toy
- * geometry resolves that by letting the ring's ends angle into the straight at
- * the base, so entry and exit share one frame and segments still join cleanly.
+ * Vertical loop with a sideways drift. The ring turns once while moving
+ * laterally, so the exit lane sits beside the entrance instead of dropping back
+ * onto the approach. A following shift piece returns to the centreline.
  */
-export function loopPath(radius = LOOP_RADIUS): TrackPath {
+export function loopPath(
+  radius = LOOP_RADIUS,
+  offset = LOOP_OFFSET,
+): TrackPath {
   return (t) => {
     const theta = Math.PI * 2 * t;
+    const drift = t * t * (3 - 2 * t);
+    const driftRate = 6 * t * (1 - t);
     return {
       position: new THREE.Vector3(
-        0,
+        offset * drift,
         radius * (1 - Math.cos(theta)),
         radius * Math.sin(theta),
       ),
       tangent: new THREE.Vector3(
-        0,
-        Math.sin(theta),
-        Math.cos(theta),
+        offset * driftRate,
+        radius * Math.PI * 2 * Math.sin(theta),
+        radius * Math.PI * 2 * Math.cos(theta),
       ).normalize(),
       up: new THREE.Vector3(0, Math.cos(theta), -Math.sin(theta)).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** Curves the offset exit lane back to the circuit centreline. */
+export function shiftPath(offset: number, length = 14): TrackPath {
+  return (t) => {
+    const drift = t * t * (3 - 2 * t);
+    const driftRate = (6 * t * (1 - t)) / length;
+    return {
+      position: new THREE.Vector3(offset * (1 - drift), 0, length * t),
+      tangent: new THREE.Vector3(-offset * driftRate, 0, 1).normalize(),
+      up: new THREE.Vector3(0, 1, 0),
       bank: 0,
     };
   };
@@ -186,16 +205,17 @@ export function generateCircuit(seed: string, level: number): Circuit {
     pieces.push({ kind, path, length, matrix });
   };
 
-  // Side A displacement: 18 m + 6 m + straight. The loop adds length but no
-  // displacement, so side B must match that displacement for the circuit to
-  // close: hill + short straight.
+  // Side A displacement: 18 m + shift 14 m + 6 m + straight. The loop adds
+  // length but no displacement, so side B must match that displacement for the
+  // circuit to close: hill + short straight.
   addStraight(18);
   addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
+  addPiece('turn', shiftPath(LOOP_OFFSET, 14), 14);
   addStraight(6);
   addStraight(straight, true);
   addPiece('turn', turnPath(radius, 180, true), Math.PI * radius);
   addPiece('hill', hillPath(20, 1.6), 20);
-  addStraight(straight + 4, true);
+  addStraight(straight + 18, true);
   addPiece('turn', turnPath(radius, 180, true), Math.PI * radius);
 
   return {
