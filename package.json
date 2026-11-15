@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "node tools/run-e2e.mjs",
     "test:e2e:install": "playwright install chromium",
     "assets": "node tools/render-assets.mjs",
     "assets:glb": "node tools/export-glb.mjs",
