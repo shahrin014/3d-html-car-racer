@@ -1,6 +1,6 @@
 /**
  * Central tuning values for the circuit racer.
- * Behavior lives in openspec/changes/orange-loop-circuit-racer.
+ * Behavior lives in openspec/specs/game/spec.md.
  */
 
 /** Track width in world units; the car is 1 wide, so this is three car widths. */
