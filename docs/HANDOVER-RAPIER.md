@@ -88,7 +88,11 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
   game's model and `tools/preview/car-model.mjs` is the catalog model.
 - Playwright covers Chromium only; iOS tilt and install paths still need the
   phone-sized manual pass.
-- The full Playwright suite could not finish in this worktree because the
+- The Playwright suite is tuned for small runners: one worker, tests serial,
+  trace and video off, and a 256 MB renderer heap cap. CI builds `dist/` first
+  and runs with `E2E_SKIP_BUILD=1`, so the build process is not alive while
+  Chromium runs.
+- The full Playwright suite could not finish in this 1 GB worktree because the
   sandbox killed Chromium under memory pressure. A minimal Playwright check
   confirmed the menu, Start, wall-clock countdown, physics race start (9 km/h
   after 2.5 s), and a clean console. Run `npm run test:e2e` in CI before merge.

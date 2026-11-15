@@ -54,7 +54,12 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Build production bundles
+        run: npm run build
+
       - name: Run Playwright smoke tests
+        env:
+          E2E_SKIP_BUILD: '1'
         run: npm run test:e2e
 
       - name: Upload Playwright report
