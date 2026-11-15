@@ -598,7 +598,8 @@ function sharedGeometry() {
     diffuserFin: new THREE.BoxGeometry(0.014, 0.15, 0.17),
     upright: new THREE.BoxGeometry(0.028, 0.36, 0.075),
     endplate: new THREE.BoxGeometry(0.016, 0.13, 0.26),
-    intake: new THREE.BoxGeometry(0.6, 0.075, 0.17),
+    intake: new THREE.BoxGeometry(0.52, 0.1, 0.16),
+    mouth: new THREE.BoxGeometry(0.44, 0.085, 0.1),
     lampBar: new THREE.PlaneGeometry(0.64, 0.075),
     mirrorPod: new THREE.SphereGeometry(0.045, 14, 10),
     mirrorStalk: { [-1]: mirrorStalkGeometry(-1), 1: mirrorStalkGeometry(1) },
@@ -618,15 +619,20 @@ function sharedGeometry() {
       (radius) => new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, 0.02, 20),
     ),
     patches: {
-      hood: patchGeometry({ z0: 0.5, z1: 1.16, x0: -0.14, x1: 0.14, stepsX: 8 }),
-      cover: patchGeometry({ z0: -1.02, z1: -0.3, x0: -0.26, x1: 0.26, stepsX: 8 }),
+      hood: patchGeometry({
+        z0: 0.52, z1: 1.14, x0: -0.1, x1: 0.1,
+        back: -0.16, front: -0.13, stepsX: 6, stepsZ: 18,
+      }),
+      cover: patchGeometry({
+        z0: -1.0, z1: -0.42, x0: -0.24, x1: 0.24, stepsX: 8, stepsZ: 14,
+      }),
       sillRight: sidePanelGeometry({ z0: -0.38, z1: 0.4, y0: 0.095, y1: 0.18, side: 1 }),
       sillLeft: sidePanelGeometry({ z0: -0.38, z1: 0.4, y0: 0.095, y1: 0.18, side: -1 }),
       intakeRight: sidePanelGeometry({
-        z0: -0.33, z1: -0.05, y0: 0.28, y1: 0.47, side: 1, back: -0.05, front: -0.09, stepsZ: 8,
+        z0: -0.3, z1: -0.02, y0: 0.3, y1: 0.5, side: 1, back: -0.08, front: -0.14, stepsZ: 8,
       }),
       intakeLeft: sidePanelGeometry({
-        z0: -0.33, z1: -0.05, y0: 0.28, y1: 0.47, side: -1, back: -0.05, front: -0.09, stepsZ: 8,
+        z0: -0.3, z1: -0.02, y0: 0.3, y1: 0.5, side: -1, back: -0.08, front: -0.14, stepsZ: 8,
       }),
       lampRight: patchGeometry({
         z0: 0.94, z1: 1.04, x0: 0.28, x1: 0.38, back: -0.1, front: -0.08,
@@ -732,6 +738,11 @@ export function createCar(color = PAINT) {
   const intake = new THREE.Mesh(geo.intake, materials.trim);
   intake.position.set(0, 0.115, 1.12);
   group.add(intake);
+
+  // Wide-mouth front opening, visible head-on under the pointed nose.
+  const mouth = new THREE.Mesh(geo.mouth, materials.trim);
+  mouth.position.set(0, 0.2, 1.17);
+  group.add(mouth);
 
   const splitter = new THREE.Mesh(geo.splitter, materials.trim);
   splitter.position.y = 0.06;
