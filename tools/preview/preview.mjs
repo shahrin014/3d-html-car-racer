@@ -183,7 +183,7 @@ const PIECES = {
   car: {
     kind: 'car',
     title: 'Hypercar · die-cast',
-    meta: '2.45 × 1.0 × 0.72 m · candy red · gold aero wheels · swan-neck wing',
+    meta: '2.45 × 1.0 × 0.78 m · candy red · gold aero wheels · swan-neck wing',
   },
   cockpit: {
     kind: 'cockpit',
