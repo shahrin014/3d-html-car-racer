@@ -184,7 +184,7 @@ export function buildTrackMesh(
   const columnGeometry = new THREE.BoxGeometry(0.3, 1, 0.3);
   for (const piece of pieces) {
     piece.frames.forEach((frame, index) => {
-      if (index % 12 !== 0 || frame.position.y < 0.8 || frame.up.y < 0.75) {
+      if (index % 12 !== 0 || frame.position.y < 0.8 || frame.up.y < 0.3) {
         return;
       }
       const height = frame.position.y;

@@ -174,7 +174,13 @@ export function generateCircuit(seed: string, level: number): Circuit {
   const straight = 34 + Math.round(random() * 8);
   const pieces: Piece[] = [];
 
-  const identity = new THREE.Matrix4();
+  // Raise the whole circuit so the low edge of a banked turn never reaches
+  // the floor, then run supports from the track down to ground level.
+  const maxBank = (bankForRadius(radius) * Math.PI) / 180;
+  const lift =
+    (TRACK_WIDTH / 2) * Math.sin(maxBank) + TRACK_THICKNESS + 0.25;
+
+  const identity = new THREE.Matrix4().makeTranslation(0, lift, 0);
   const frameAt = (
     matrix: THREE.Matrix4,
     path: TrackPath,
