@@ -14,10 +14,9 @@ track-constrained movement.
 
 - `src/game/physics.ts` is a lazy Rapier adapter:
   - static, tiled track-surface and rail colliders with a start apron
-  - a dynamic chassis carried by four spherical wheel colliders, so the flat
-    chassis cannot catch on a collider seam
-  - collision groups keep the chassis off the driving surface while still
-    colliding with the rails
+  - a dynamic body with one rounded chassis collider that touches the deck and
+    the rails; the wheel meshes are visual only
+  - collision groups keep the track and rail colliders separate
   - CCD, friction, restitution, engine/brake thrust, quadratic drag
   - steering is a heading target plus yaw damping, not a torque: the guide turns
     the nose toward the requested angle
@@ -35,7 +34,8 @@ track-constrained movement.
   - progress is searched around the last known frame, so the closing frame
     cannot be mistaken for the start line
 - The headless trace accelerates above 10 m/s, climbs above 8 m on the loop,
-  stays within one track width of the centreline, and crosses the start line.
+  stays within one track width of the centreline, crosses the start line, and
+  holds body chatter under 2.4 rad/s RMS (measured 1.99).
 - The handling profile in `src/game/feel.test.ts` measures slip angle over a
   driven lap (`mean |slip|` under 10°, sliding under 35% of frames), proves that
   positive steer moves the car to the right of the screen, and checks that a
@@ -67,9 +67,13 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
 - **Rapier over cannon-es**: real CCD and a better solver, at roughly 1.57 MB
   gzip measured in the shipped compat bundle. It is lazy-loaded, cached by the service worker as a same-origin
   hashed asset, and the app-shell budget stays at 250 kB.
-- **Spherical wheel colliders, not a flat chassis**: a box sliding over tiled
-  cuboid track colliders catches on every seam. Four wheel balls carry the body
-  and roll over the seams; the chassis collider still hits the rails.
+- **One rounded chassis collider, wheel colliders removed**: a sharp box
+  sliding over tiled cuboid track colliders catches on every seam, and four
+  wheel spheres chatter because each is its own point contact. A single rounded
+  box (`roundCuboid`, 0.09 m edge) slides over the seams on a broad patch. The
+  same measured lap dropped body roll chatter from 2.76 to 1.99 rad/s RMS and
+  lateral acceleration chatter from 8.0 to 3.4 m/s². A plain sharp cuboid fails
+  the loop trace outright.
 - **Guide assist is intentional**: a rigid toy car cannot hold a loop on tyre
   grip alone. The assist adds downforce, a grip-capped lateral damper, and
   heading/roll alignment and adds **no forward energy**. It switches off when

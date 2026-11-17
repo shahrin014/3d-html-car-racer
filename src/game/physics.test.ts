@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import { FIXED_STEP, TRACK_WIDTH } from './constants';
 import { createPhysics } from './physics';
 import { buildFrames, generateCircuit, type TrackFrame } from './track';
@@ -47,6 +48,43 @@ function lateralOffset(
   );
 }
 
+/** World-space angular velocity for a one-step quaternion change. */
+function angularVelocity(
+  current: THREE.Quaternion,
+  previous: THREE.Quaternion,
+  out: THREE.Vector3,
+): THREE.Vector3 {
+  const delta = current.clone().multiply(previous.clone().invert());
+  const w = Math.abs(delta.w);
+  const sinHalf = Math.sqrt(Math.max(0, 1 - w * w));
+  const angle = 2 * Math.acos(Math.min(1, w));
+  if (sinHalf < 1e-9) {
+    return out.set(0, 0, 0);
+  }
+  const scale = angle / (sinHalf * FIXED_STEP);
+  out.set(delta.x * scale, delta.y * scale, delta.z * scale);
+  if (delta.w < 0) {
+    out.negate();
+  }
+  return out;
+}
+
+/**
+ * RMS of the part of a per-step signal above roughly 1.6 Hz. Slower motion is
+ * driving; faster motion is chatter.
+ */
+function chatterRms(values: number[], tauSeconds = 0.1): number {
+  const alpha = 1 - Math.exp(-FIXED_STEP / tauSeconds);
+  let low = values[0] ?? 0;
+  let sum = 0;
+  for (const value of values) {
+    low += (value - low) * alpha;
+    const high = value - low;
+    sum += high * high;
+  }
+  return Math.sqrt(sum / Math.max(1, values.length));
+}
+
 describe('Rapier vehicle', () => {
   it('accelerates from rest and responds to steering', async () => {
     const frames = buildFrames(generateCircuit(SEED, 1));
@@ -80,7 +118,7 @@ describe('Rapier vehicle', () => {
     physics.dispose();
   }, 30_000);
 
-  it('holds a loop and completes a lap without leaving the track', async () => {
+  it('holds a loop and a lap without leaving the track or chattering', async () => {
     const frames = buildFrames(generateCircuit(SEED, 1));
     const physics = await createPhysics(frames);
     let index = 0;
@@ -88,9 +126,19 @@ describe('Rapier vehicle', () => {
     let maxGap = 0;
     let maxSpeed = 0;
     let crossed = false;
+    const rollRates: number[] = [];
+    const omega = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    let previousQuaternion: THREE.Quaternion | null = null;
 
     for (let step = 0; step < 120 * 30 && !crossed; step += 1) {
       const state = physics.read();
+      if (previousQuaternion) {
+        angularVelocity(state.quaternion, previousQuaternion, omega);
+        forward.set(0, 0, 1).applyQuaternion(state.quaternion);
+        rollRates.push(omega.dot(forward));
+      }
+      previousQuaternion = state.quaternion;
       const previous = index;
       index = nextIndex(frames, index, state.position);
       if (
@@ -125,6 +173,12 @@ describe('Rapier vehicle', () => {
     expect(maxHeight).toBeGreaterThan(8);
     expect(maxGap).toBeLessThan(TRACK_WIDTH);
     expect(crossed).toBe(true);
+
+    // Body shake, measured as the high-frequency part of the roll rate about
+    // the car's own forward axis. Four separate wheel colliders measured
+    // 2.76 rad/s here because each sphere was its own contact point; one
+    // rounded chassis collider measures 1.99 rad/s.
+    expect(chatterRms(rollRates)).toBeLessThan(2.4);
 
     physics.dispose();
   }, 60_000);

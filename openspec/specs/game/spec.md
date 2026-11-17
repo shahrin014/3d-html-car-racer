@@ -484,6 +484,12 @@ fixed timestep with a bounded substep count, and SHALL NOT let the car pass
 through track geometry at maximum speed. The car SHALL be able to leave the
 ground, complete a loop in contact with the surface, and collide with rails.
 
+The car SHALL touch the track and rails through one rounded collider on the
+chassis, and the wheel meshes SHALL be visual only. Four separately colliding
+wheels are four independent point contacts and chatter against the tiled
+surface, while a sharp chassis edge catches on the seams between surface
+patches; one rounded box slides over them on a broad contact patch.
+
 #### Scenario: Acceleration
 
 - **GIVEN** the car is on the start line at rest
@@ -510,6 +516,16 @@ ground, complete a loop in contact with the surface, and collide with rails.
 - **WHEN** contact occurs
 - **THEN** the car is deflected back onto the track
 - **AND** the impact contributes to damage
+
+#### Scenario: One chassis collider touches the road
+
+- **GIVEN** the car is racing on the circuit
+- **WHEN** its colliders are inspected
+- **THEN** the chassis carries a single rounded collider that contacts both the
+  deck and the rails
+- **AND** the wheels have no colliders
+- **AND** body chatter, measured as the RMS of the roll rate above 1.6 Hz over a
+  driven lap, stays below 2.4 rad/s
 
 ### Requirement: Device tilt steers the car
 

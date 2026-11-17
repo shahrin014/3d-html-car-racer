@@ -56,10 +56,15 @@ export const ALIGNMENT_DAMPING = 2.6;
 
 /** Rigid-body vehicle tuning. Forces are newtons, torques newton-metres. */
 export const PHYSICS_ENGINE_FORCE = 32;
-export const PHYSICS_WHEEL_RADIUS = 0.3;
-export const PHYSICS_WHEEL_MOUNT_Y = -0.17;
-/** Height of the body centre above the track when the wheels rest on it. */
-export const PHYSICS_RIDE_HEIGHT = PHYSICS_WHEEL_RADIUS - PHYSICS_WHEEL_MOUNT_Y;
+/**
+ * Rounded edge on the single chassis collider. The track is built from short
+ * cuboid segments, so a sharp bottom edge catches on every seam; this rounding
+ * is what lets one collider replace the four wheel spheres that used to be the
+ * only parts touching the road.
+ */
+export const PHYSICS_CHASSIS_ROUNDING = 0.09;
+/** Height of the body centre above the track when the chassis rests on it. */
+export const PHYSICS_RIDE_HEIGHT = CHASSIS_HALF_HEIGHT;
 export const PHYSICS_BRAKE_FORCE = 24;
 /** Quadratic drag: force = coefficient * speed^2 opposing motion. */
 export const PHYSICS_DRAG = 0.05;

@@ -10,6 +10,7 @@ import {
   IMPACT_THRESHOLD,
   PHYSICS_BRAKE_FORCE,
   PHYSICS_CENTRE_GAIN,
+  PHYSICS_CHASSIS_ROUNDING,
   PHYSICS_DRAG,
   PHYSICS_DRIFT_SPEED,
   PHYSICS_ENGINE_FORCE,
@@ -22,8 +23,6 @@ import {
   PHYSICS_STICK_STRENGTH,
   PHYSICS_UP_ALIGNMENT,
   PHYSICS_YAW_DAMPING,
-  PHYSICS_WHEEL_MOUNT_Y,
-  PHYSICS_WHEEL_RADIUS,
   RAIL_HEIGHT,
   RAIL_WIDTH,
   TRACK_THICKNESS,
@@ -55,23 +54,14 @@ export interface PhysicsHandle {
   dispose: () => void;
 }
 
-/** Wheel positions in chassis space, shared by the colliders and the reset pose. */
-const WHEEL_MOUNTS = [
-  { x: -0.42, z: 0.78 },
-  { x: 0.42, z: 0.78 },
-  { x: -0.42, z: -0.78 },
-  { x: 0.42, z: -0.78 },
-] as const;
-
 /**
- * Collision groups: only the wheel colliders touch the driving surface, so a
- * tilted chassis cannot scrape a bank or loop and wedge the car. The chassis
- * still collides with the rails.
+ * Collision groups. One chassis collider touches both the driving surface and
+ * the rails; the groups are kept separate so track and rail colliders can still
+ * be tuned apart from each other.
  */
 const GROUP_TRACK = 1;
 const GROUP_RAIL = 2;
 const GROUP_CHASSIS = 4;
-const GROUP_WHEEL = 8;
 const groups = (membership: number, filter: number): number =>
   (membership << 16) | filter;
 
@@ -83,9 +73,13 @@ function quaternionOf(frame: TrackFrame): THREE.Quaternion {
 
 /**
  * Rapier-backed vehicle. The car is a real dynamic rigid body: mass, inertia,
- * gravity, friction, and CCD against static track and rail colliders. Four
- * spherical wheel colliders carry the chassis, because a flat box sliding over
- * tiled track colliders catches on every seam.
+ * gravity, friction, and CCD against static track and rail colliders.
+ *
+ * The body carries one rounded chassis collider and nothing else: the wheel
+ * meshes are visual. A sharp chassis edge catches on the seams between tiled
+ * surface colliders, and four independent wheel spheres chatter against them
+ * because each one is its own point contact. A single rounded box slides over
+ * the seams on a broad contact patch, which is both smoother and simpler.
  *
  * A guide assist adds downforce and yaw alignment so a toy car can hold a
  * loop; remove it and the same body slides, spins, and falls.
@@ -127,7 +121,7 @@ export async function createPhysics(
         .setRotation(rotation)
         .setFriction(0.35)
         .setRestitution(0.05)
-        .setCollisionGroups(groups(GROUP_TRACK, GROUP_WHEEL)),
+        .setCollisionGroups(groups(GROUP_TRACK, GROUP_CHASSIS)),
       track,
     );
   };
@@ -172,7 +166,7 @@ export async function createPhysics(
           .setRotation(rotation)
           .setFriction(0.2)
           .setRestitution(0.2)
-          .setCollisionGroups(groups(GROUP_RAIL, GROUP_CHASSIS | GROUP_WHEEL)),
+          .setCollisionGroups(groups(GROUP_RAIL, GROUP_CHASSIS)),
         track,
       );
     }
@@ -191,32 +185,20 @@ export async function createPhysics(
   );
 
   world.createCollider(
-    RAPIER.ColliderDesc.cuboid(
-      CAR_WIDTH / 2,
-      CHASSIS_HALF_HEIGHT,
-      CAR_LENGTH / 2,
+    RAPIER.ColliderDesc.roundCuboid(
+      CAR_WIDTH / 2 - PHYSICS_CHASSIS_ROUNDING,
+      CHASSIS_HALF_HEIGHT - PHYSICS_CHASSIS_ROUNDING,
+      CAR_LENGTH / 2 - PHYSICS_CHASSIS_ROUNDING,
+      PHYSICS_CHASSIS_ROUNDING,
     )
-      .setMass(CAR_MASS * 0.65)
-      .setFriction(0.2)
-      .setRestitution(0.1)
-      .setCollisionGroups(groups(GROUP_CHASSIS, GROUP_RAIL))
+      .setMass(CAR_MASS)
+      .setFriction(0.02)
+      .setRestitution(0.05)
+      .setCollisionGroups(groups(GROUP_CHASSIS, GROUP_TRACK | GROUP_RAIL))
       .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
       .setContactForceEventThreshold(IMPACT_THRESHOLD),
     car,
   );
-  for (const mount of WHEEL_MOUNTS) {
-    world.createCollider(
-      RAPIER.ColliderDesc.ball(PHYSICS_WHEEL_RADIUS)
-        .setTranslation(mount.x, PHYSICS_WHEEL_MOUNT_Y, mount.z)
-        .setMass((CAR_MASS * 0.35) / WHEEL_MOUNTS.length)
-        .setFriction(0.02)
-        .setRestitution(0.05)
-        .setCollisionGroups(groups(GROUP_WHEEL, GROUP_TRACK | GROUP_RAIL))
-        .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
-        .setContactForceEventThreshold(IMPACT_THRESHOLD),
-      car,
-    );
-  }
 
   const events = new RAPIER.EventQueue(true);
   const forward = new THREE.Vector3();
