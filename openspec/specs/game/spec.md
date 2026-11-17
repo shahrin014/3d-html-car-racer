@@ -384,12 +384,27 @@ satisfy the closure and required-feature rules. The game SHALL randomize the
 track every time: a new seed is drawn on each page load and on each race started
 from the menu, so the player does not see the same circuit repeatedly.
 
+The seed SHALL also choose the circuit's shape from a closed-polygon family:
+three, four, five, or six banked corners of 360°/n each, joined by legs that all
+carry the same forward length or, for an even corner count, two alternating
+lengths. Rotational symmetry SHALL close the loop for any radius and leg length,
+so the player sees triangles, rectangles, pentagons, and hexagons rather than
+one oval.
+
 #### Scenario: Every race is randomized
 
 - **GIVEN** the player is on the menu
 - **WHEN** the player starts a race
 - **THEN** a new seed is drawn before the circuit is assembled
 - **AND** the same flow after a page refresh also draws a new seed
+
+#### Scenario: Shapes vary across seeds
+
+- **GIVEN** several seeds at one level
+- **WHEN** the circuits are generated
+- **THEN** more than one corner count appears
+- **AND** every circuit is closed with a net 360° of turning
+- **AND** adjacent corners turn the same way, so the layout stays convex
 
 #### Scenario: Different seeds spread the combination
 
@@ -409,8 +424,9 @@ from the menu, so the player does not see the same circuit repeatedly.
 
 - **GIVEN** one level and two different seeds
 - **WHEN** both circuits are generated
-- **THEN** every loop, turn, hill, and shift keeps its authored size
-- **AND** only the combination and the straight lengths differ
+- **THEN** every loop, hill, and shift keeps its authored size
+- **AND** every turn keeps the level's authored radius
+- **AND** only the combination, corner count, and straight lengths differ
 
 ### Requirement: Every generated circuit is closed and playable
 

@@ -73,6 +73,15 @@ function forwardOf(pose: Pose): { x: number; y: number; z: number } {
   };
 }
 
+/** Component of the car's nose along a reference `right` vector. */
+function noseSide(
+  pose: Pose,
+  right: { x: number; y: number; z: number },
+): number {
+  const forward = forwardOf(pose);
+  return forward.x * right.x + forward.y * right.y + forward.z * right.z;
+}
+
 /** Signed slip: positive means sliding toward `frame.right`. */
 function slipDegrees(pose: Pose, forward: { x: number; y: number; z: number }) {
   const speed =
@@ -181,46 +190,50 @@ describe('handling feel', () => {
   it('steers right when the player steers right', async () => {
     const frames = buildFrames(generateCircuit(SEED, 1));
     const physics = await createPhysics(frames);
+    // A second, identical car takes the same run with neutral steering. The
+    // guide's yaw spring rings for a moment at speed, so comparing the steered
+    // run with its own phase instead of with a single frame is the only stable
+    // way to read the sign of the steering.
+    const control = await createPhysics(frames);
     let index = drive(physics, frames);
+    let controlIndex = drive(control, frames);
     const before = physics.read();
     const beforeFrame = frames[nextIndex(frames, index, before.position)]!;
     const beforeLateral = lateralOffset(beforeFrame, before.position);
-    const beforeForward = forwardOf(before);
+    const right = beforeFrame.right;
 
     for (let step = 0; step < 60; step += 1) {
       const state = physics.read();
       index = nextIndex(frames, index, state.position);
-      physics.step(
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer: 1 }, frames[index]!);
+
+      const controlState = control.read();
+      controlIndex = nextIndex(frames, controlIndex, controlState.position);
+      control.step(
         FIXED_STEP,
-        { throttle: 1, brake: false, steer: 1 },
-        frames[index]!,
+        { throttle: 1, brake: false, steer: 0 },
+        frames[controlIndex]!,
       );
     }
+
     const after = physics.read();
     const afterFrame = frames[nextIndex(frames, index, after.position)]!;
-    const afterLateral = lateralOffset(afterFrame, after.position);
-    const afterForward = forwardOf(after);
-    const movedRight = afterLateral - beforeLateral;
-    // `frame.right` points to the driver's left, so a right turn has to move
-    // in the negative direction and point the nose away from `frame.right`.
-    const noseSide =
-      afterForward.x * afterFrame.right.x +
-      afterForward.y * afterFrame.right.y +
-      afterForward.z * afterFrame.right.z;
-    const initialSide =
-      beforeForward.x * beforeFrame.right.x +
-      beforeForward.y * beforeFrame.right.y +
-      beforeForward.z * beforeFrame.right.z;
+    const movedRight = lateralOffset(afterFrame, after.position) - beforeLateral;
+    const steeredSide = noseSide(after, right);
+    const neutralSide = noseSide(control.read(), right);
 
     console.log(
       `steer right: lateral moved ${movedRight.toFixed(2)} m, ` +
-        `nose side ${initialSide.toFixed(2)} -> ${noseSide.toFixed(2)}`,
+        `nose side neutral ${neutralSide.toFixed(2)} -> steered ${steeredSide.toFixed(2)}`,
     );
 
     expect(movedRight).toBeLessThan(0);
-    expect(noseSide).toBeLessThan(initialSide);
+    // `frame.right` points to the driver's left, so a right turn moves the
+    // nose further away from it than the neutral run does.
+    expect(steeredSide).toBeLessThan(neutralSide - 0.01);
 
     physics.dispose();
+    control.dispose();
   }, 60_000);
 
   it('does not spin out on a held full lock', async () => {

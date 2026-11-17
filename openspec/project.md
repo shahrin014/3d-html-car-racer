@@ -57,9 +57,11 @@ runtime API calls.
   solid without a second vehicle simulation. They never add damage, because a
   kinematic body can produce very large solver forces in a frame.
 - **Seeded, catalog-based generation.** A seed selects and orders authored
-  pieces; it never invents geometry. Every piece starts and ends on a known
-  frame, and the two sides of the circuit are assembled to the same forward
-  length, so closure holds by construction. A fresh random seed is drawn on
+  pieces; it never invents geometry. The layout is a regular-polygon family
+  (three to six banked corners of 360°/n, with alternating leg lengths allowed
+  when the count is even); rotational symmetry makes every layout close for any
+  radius or leg length, so the seed can choose the shape and not just the piece
+  order. Every piece starts at a known frame. A fresh random seed is drawn on
   every load and every race start, so the track is randomized every time; best
   times are kept per level so the record survives the reseed.
 - **Game time, not wall-clock time.** Pausing stops the simulation, timers,

@@ -101,7 +101,7 @@ describe('chase camera', () => {
     const physicalSteps = Math.round(1 / 60 / FIXED_STEP);
     for (
       let frame = 0;
-      frame < 60 * 45 && !crossed;
+      frame < 60 * 75 && !crossed;
       frame += 1
     ) {
       for (let step = 0; step < physicalSteps; step += 1) {

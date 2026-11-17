@@ -20,19 +20,29 @@ function combination(circuit: Circuit): string {
     .join('|');
 }
 
-/** The authored, level-scaled pieces; a seed must not change these. */
+/**
+ * The authored, level-scaled pieces; a seed must not change an authored size.
+ * Turns are compared by radius because the seed chooses the corner count, which
+ * changes the turn angle and therefore the arc length.
+ */
 function authoredPieces(circuit: Circuit): string {
-  return circuit.pieces
-    .filter(
-      (piece) =>
-        piece.kind === 'loop' ||
-        piece.kind === 'turn' ||
-        piece.kind === 'hill' ||
-        piece.kind === 'shift',
-    )
-    .map((piece) => `${piece.kind}:${piece.length.toFixed(6)}`)
-    .sort()
-    .join('|');
+  const sizes = new Set<string>();
+  for (const piece of circuit.pieces) {
+    if (
+      piece.kind !== 'loop' &&
+      piece.kind !== 'turn' &&
+      piece.kind !== 'hill' &&
+      piece.kind !== 'shift'
+    ) {
+      continue;
+    }
+    sizes.add(
+      piece.kind === 'turn'
+        ? `turn:${piece.radius?.toFixed(6)}`
+        : `${piece.kind}:${piece.length.toFixed(6)}`,
+    );
+  }
+  return [...sizes].sort().join('|');
 }
 
 function firstBankedTurn(circuit: Circuit): Piece {
@@ -94,10 +104,27 @@ describe('track randomization', () => {
     for (const piece of [...first.pieces, ...second.pieces]) {
       expect(allowed.has(piece.kind)).toBe(true);
       expect(piece.length).toBeGreaterThan(0);
-      if (piece.kind === 'straight' || piece.kind === 'boost') {
+      if (piece.kind === 'boost') {
         expect(piece.length).toBeGreaterThanOrEqual(12);
       }
     }
+  });
+
+  it('varies the circuit shape, not just the piece order', () => {
+    const corners = new Set<number>();
+    for (const seed of SEEDS) {
+      for (const level of LEVELS) {
+        const circuit = generateCircuit(seed, level);
+        const turns = circuit.pieces.filter((piece) => piece.kind === 'turn');
+        corners.add(turns.length);
+        for (const turn of turns) {
+          expect(turn.angleDegrees).toBeCloseTo(360 / turns.length, 6);
+          expect(turn.radius ?? 0).toBeGreaterThanOrEqual(MIN_TURN_RADIUS);
+        }
+      }
+    }
+    // The seed picks triangles, quadrilaterals, pentagons, and hexagons.
+    expect(corners.size).toBeGreaterThan(1);
   });
 
   it('keeps every randomized circuit closed and feature-complete', () => {
@@ -146,7 +173,7 @@ describe('track randomization', () => {
 
     for (const level of LEVELS) {
       const circuit = generateCircuit('level-ladder', level);
-      const turnRadius = firstBankedTurn(circuit).length / Math.PI;
+      const turnRadius = firstBankedTurn(circuit).radius ?? 0;
       const loopRadius = onlyLoop(circuit).length / (Math.PI * 2);
 
       expect(turnRadius).toBeLessThanOrEqual(previousTurnRadius);

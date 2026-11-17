@@ -113,6 +113,23 @@ export const LOOP_RETURN_LENGTH = 14 * TRACK_SCALE;
 export const MIN_TURN_RADIUS = 8 * TRACK_SCALE;
 
 /**
+ * Circuit shape family. A circuit is a closed regular polygon with three to six
+ * banked corners, so the seed can choose a triangle, a square or rectangle, a
+ * pentagon, or a hexagon instead of always drawing the same oval.
+ */
+export const CIRCUIT_CORNER_COUNTS = [3, 4, 5, 6] as const;
+/**
+ * Base leg length before the level's straight increment, in metres. A leg must
+ * fit a 12 m lead straight plus the loop and a boost (12 + 21 + 12), leaving a
+ * short shim of deck; the catalog straights themselves stay at 12 m or more.
+ */
+export const CIRCUIT_LEG_BASE = 36;
+/** Flat straight at the start of every leg, so grids and gates sit on flat deck. */
+export const CIRCUIT_LEAD_STRAIGHT = 12;
+/** Length of a boost straight embedded in a leg. */
+export const CIRCUIT_BOOST_LENGTH = 12;
+
+/**
  * Opponents on the grid. Each drives a kinematic racing line at its own pace
  * and lane, so the field is deterministic and the player can bump into them.
  */

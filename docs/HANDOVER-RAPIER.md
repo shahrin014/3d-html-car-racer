@@ -145,6 +145,14 @@ persistence, and offline reload.
   the labelled swatches from that list, and `Game.setCarColor` rebuilds the car
   from `car-model.mjs`, whose geometry and per-colour paint materials are
   cached, so repainting costs one group rebuild and no new geometry.
+- **The circuit shape is a polygon family, not a stadium.** The original
+  generator always joined two straights with two 180° turns, so every seed drew
+  the same oval. The layout is now a regular polygon with 3–6 corners of 360°/n
+  and equal or (even counts only) alternating leg lengths. Closure follows from
+  rotational symmetry: the sum of the rotated leg vectors and of the identical
+  corner displacements is zero, so any radius and leg length close exactly. The
+  loop and hill always sit on different legs, and the start leg carries no
+  feature so the grid and the first measurements happen on a long flat straight.
 - **A fresh random seed every load and every race.** The seed used to be the
   UTC date, so the circuit only changed at midnight and every refresh showed
   the same track. `src/game/seed.ts` now draws 8 random bytes per start and
@@ -173,11 +181,12 @@ persistence, and offline reload.
 
 ## Current state of the game
 
-Three-lap generated circuit on a 7 m wide deck (seven car widths, two banked 180°
-turns, an offset loop with a return shift, a crest, boost straights), reseeded
-from 64 random bits on every load and every race start, continuous swept track
-mesh, chase and cockpit cameras, landscape HUD, tilt plus button/keyboard
-fallbacks, damage and rescue, plus a configurable field of zero to five
-kinematic opponents in distinct paints.
+Three-lap generated circuit on a 7 m wide deck (seven car widths, three to six
+banked corners of 360°/n chosen by the seed, alternating leg lengths on even
+corner counts, an offset loop with a return shift, a crest, boost straights),
+reseeded from 64 random bits on every load and every race start, continuous
+swept track mesh, chase and cockpit cameras, landscape HUD, tilt plus
+button/keyboard fallbacks, damage and rescue, plus a configurable field of zero
+to five kinematic opponents in distinct paints.
 Assets live in `assets/` as PNG previews plus GLB models for every track piece;
 `npm run assets` and `npm run assets:glb` regenerate them.

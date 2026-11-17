@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import {
   CAR_WIDTH,
+  CIRCUIT_BOOST_LENGTH,
+  CIRCUIT_CORNER_COUNTS,
+  CIRCUIT_LEAD_STRAIGHT,
+  CIRCUIT_LEG_BASE,
   DESIGN_SPEED,
   LOOP_OFFSET,
   LOOP_RADIUS,
@@ -177,11 +181,10 @@ function seededRandom(seed: string): () => number {
 /** Straight lengths the seeded assembly may choose from, in metres. */
 const HILL_LENGTH = 30;
 const HILL_HEIGHT = 2.4;
-const MIN_CLOSING_STRAIGHT = 12;
 const TURN_RADII = [18, 14, 10, 8] as const;
 const MAX_ASSEMBLY_ATTEMPTS = 32;
 
-/** Straight lengths offered at a level, scaled with the rest of the track. */
+/** Straight increment offered at a level, added to the base leg length. */
 export function straightCatalogForLevel(level: number): readonly number[] {
   if (level >= 7) {
     return [18, 24, 30];
@@ -206,13 +209,6 @@ export function loopRadiusForLevel(level: number): number {
   return Math.max(LOOP_RADIUS * 0.68, LOOP_RADIUS - (level - 1) * 0.3);
 }
 
-/** One assembled side of the stadium, measured along its local +Z axis. */
-interface SideModule {
-  kind: 'straight' | 'loop' | 'hill';
-  /** Forward distance contributed by the module. */
-  length: number;
-}
-
 interface PlanPoint {
   x: number;
   z: number;
@@ -220,15 +216,18 @@ interface PlanPoint {
 }
 
 /**
- * Assemble the piece list for one seeded attempt. The circuit is a stadium:
- * two sides joined by two 180° banked turns. The seed picks the turn direction,
- * which side carries the loop and the hill, the straight lengths, and the order
- * of those modules. Every piece starts at its own origin heading +Z, so the
- * placement matrix is the accumulated frame.
+ * Assemble the piece list for one seeded attempt.
  *
- * Closure is guaranteed by construction: both sides are assembled to the same
- * forward length, the loop's sideways exit is cancelled by a shift piece, and
- * the two equal turns return the heading and lateral offset to the start.
+ * The circuit is a closed regular-polygon family: three to six banked corners
+ * of 360°/n each, joined by legs that all carry the same forward length, or two
+ * alternating lengths when the corner count is even (which gives rectangles and
+ * stretched hexagons). Rotational symmetry closes the loop by construction
+ * whatever the radius or leg length, so the seed picks the whole shape rather
+ * than only reordering pieces on a fixed oval. Every piece starts at its own
+ * origin heading +Z, so the placement matrix is the accumulated frame.
+ *
+ * The loop's sideways exit is cancelled by a shift piece, so the leg it sits on
+ * still ends on the centreline with exactly its allocated forward length.
  */
 function assembleCircuit(
   seed: string,
@@ -280,19 +279,6 @@ function assembleCircuit(
     pieces.push({ kind, path, length, matrix });
   };
 
-  const addTurn = (): void => {
-    const last = pieces[pieces.length - 1];
-    const matrix = last ? frameAt(last.matrix, last.path, 1) : identity.clone();
-    pieces.push({
-      kind: 'turn',
-      path: turnPath(radius, 180, clockwise),
-      length: Math.PI * radius,
-      matrix,
-      radius,
-      angleDegrees: 180,
-    });
-  };
-
   const pick = <T,>(values: readonly T[]): T => {
     const value = values[Math.floor(random() * values.length)];
     if (value === undefined) {
@@ -301,92 +287,84 @@ function assembleCircuit(
     return value;
   };
 
-  const buildSide = (
-    withLoop: boolean,
-    withHill: boolean,
-    extraStraights: number,
-  ): SideModule[] => {
-    // Start on a straight so the grid and finish gate always sit on flat track.
-    const modules: SideModule[] = [
-      { kind: 'straight', length: pick(straights) },
-    ];
-    if (withLoop) {
-      modules.push({ kind: 'loop', length: LOOP_RETURN_LENGTH });
-    }
-    if (withHill) {
-      modules.push({ kind: 'hill', length: HILL_LENGTH });
-    }
-    for (let index = 0; index < extraStraights; index += 1) {
-      modules.push({ kind: 'straight', length: pick(straights) });
-    }
+  const corners = pick(CIRCUIT_CORNER_COUNTS);
+  const cornerAngle = 360 / corners;
 
-    // Keep the leading straight fixed, shuffle the rest of the combination.
-    for (let index = modules.length - 1; index > 1; index -= 1) {
-      const swap = 1 + Math.floor(random() * index);
-      const current = modules[index];
-      const other = modules[swap];
-      if (current && other) {
-        modules[index] = other;
-        modules[swap] = current;
-      }
-    }
-    return modules;
+  const addTurn = (): void => {
+    const last = pieces[pieces.length - 1];
+    const matrix = last ? frameAt(last.matrix, last.path, 1) : identity.clone();
+    pieces.push({
+      kind: 'turn',
+      path: turnPath(radius, cornerAngle, clockwise),
+      length: radius * (cornerAngle * Math.PI) / 180,
+      matrix,
+      radius,
+      angleDegrees: cornerAngle,
+    });
   };
 
   const clockwise = random() < 0.5;
-  const loopSide = random() < 0.5 ? 0 : 1;
-  // Put the hill on the other side so the two halves stay comparable in length.
-  const hillSide = loopSide === 0 ? 1 : 0;
-  const extraStraights = 1 + Math.min(2, Math.floor((level - 1) / 4));
-  const sides: [SideModule[], SideModule[]] = [
-    buildSide(loopSide === 0, hillSide === 0, extraStraights),
-    buildSide(loopSide === 1, hillSide === 1, extraStraights),
-  ];
 
-  const sideLength = (modules: SideModule[]): number =>
-    modules.reduce((total, module) => total + module.length, 0);
-  const fixedLengths: [number, number] = [
-    sideLength(sides[0]),
-    sideLength(sides[1]),
-  ];
-  // Give both sides the same forward length; the closing straights absorb the
-  // difference, so the circuit still meets itself at the seam.
-  const targetLength =
-    Math.max(...fixedLengths) +
-    MIN_CLOSING_STRAIGHT * 1.5 +
-    Math.round(random() * MIN_CLOSING_STRAIGHT * 1.5);
-  const closingStraights: [number, number] = [
-    targetLength - fixedLengths[0],
-    targetLength - fixedLengths[1],
-  ];
+  // Every leg must be long enough for a lead straight plus any single feature
+  // and a boost; the smallest leg is far larger than that.
+  const legBase = CIRCUIT_LEG_BASE + pick(straights);
+  const alternating = corners % 2 === 0 && random() < 0.8;
+  const legLong = legBase + 6 + Math.round(random() * 10);
+  const legs = Array.from({ length: corners }, (_, index) =>
+    alternating && index % 2 === 1 ? legLong : legBase,
+  );
 
-  const addSide = (modules: SideModule[], closingStraight: number): void => {
-    for (const module of modules) {
-      if (module.kind === 'straight') {
-        addStraight(module.length);
-      } else if (module.kind === 'hill') {
-        addPiece(
-          'hill',
-          hillPath(module.length, HILL_HEIGHT),
-          module.length,
-        );
-      } else {
-        addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
-        addPiece(
-          'shift',
-          shiftPath(LOOP_OFFSET, module.length),
-          module.length,
-        );
-      }
+  // The loop and the hill always sit on different legs, and the two boost
+  // straights avoid the hill leg so a 30 m crest and a boost never compete for
+  // the same 48 m of deck.
+  // Keep the grid leg free of features: the start straight stays long enough
+  // to accelerate and take the first measurement without an immediate bend.
+  const loopLeg = 1 + Math.floor(random() * (corners - 1));
+  const featureCandidates = Array.from(
+    { length: corners - 2 },
+    (_, index) => 1 + ((loopLeg - 1 + 1 + index) % (corners - 1)),
+  );
+  const hillLeg =
+    featureCandidates[Math.floor(random() * featureCandidates.length)]!;
+  const boostCandidates: number[] = [];
+  for (let step = 1; step < corners; step += 1) {
+    boostCandidates.push((hillLeg + step) % corners);
+  }
+  const boostStart = Math.floor(random() * boostCandidates.length);
+  const boostLegs = new Set([
+    boostCandidates[boostStart]!,
+    boostCandidates[(boostStart + 1) % boostCandidates.length]!,
+  ]);
+
+  legs.forEach((leg, index) => {
+    const feature =
+      index === loopLeg
+        ? LOOP_RETURN_LENGTH
+        : index === hillLeg
+          ? HILL_LENGTH
+          : 0;
+    const boost = boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0;
+    const pad = leg - CIRCUIT_LEAD_STRAIGHT - feature - boost;
+
+    addStraight(CIRCUIT_LEAD_STRAIGHT);
+    if (index === loopLeg) {
+      addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
+      addPiece(
+        'shift',
+        shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH),
+        LOOP_RETURN_LENGTH,
+      );
+    } else if (index === hillLeg) {
+      addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
     }
-    // The closing straight on each side carries a boost strip.
-    addStraight(closingStraight, true);
-  };
-
-  addSide(sides[0], closingStraights[0]);
-  addTurn();
-  addSide(sides[1], closingStraights[1]);
-  addTurn();
+    if (boost > 0) {
+      addStraight(boost, true);
+    }
+    if (pad > 1e-9) {
+      addStraight(pad);
+    }
+    addTurn();
+  });
 
   return {
     seed,
