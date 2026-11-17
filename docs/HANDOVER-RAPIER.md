@@ -59,7 +59,8 @@ npm run check          # typecheck + tests + build + both budget gates
 ```
 
 The physics trace tests cover acceleration, steering response, loop contact,
-and a complete lap without leaving the track. The browser suite covers the
+a complete lap without leaving the track, body-chatter bounds, and chase-camera
+deck clearance over a lap. The browser suite covers the
 menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
 
 ## Key decisions
@@ -101,6 +102,13 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
   frame centre pokes through the low side of a banked surface and renders as a
   dark square on the road. `supportTop` cuts it below the underside across the
   column footprint; `src/game/trackMesh.test.ts` checks every supported frame.
+- **The chase camera smooths in the car's frame, not world space.** Lerping the
+  world position toward a point on the car's arc cuts the chord through the
+  loop: the camera went 0.19 m under the deck on the measured lap. The rig keeps
+  its own slerped orientation and a time-constant position filter, then clamps
+  above the nearest deck frame (0.6 m). `src/game/chaseCamera.test.ts` drives a
+  full physics lap at 60 fps and checks the clearance against the deck under the
+  camera (measured minimum 1.12 m on the loop).
 - **`frame.right` is the driver's left.** The frame is `(up × tangent, up,
   tangent)`, which is right-handed, but a car facing `+Z` has its right hand
   toward `-X`. All player-facing steering is therefore negated once in

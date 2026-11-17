@@ -683,12 +683,19 @@ race, selectable with a labelled control. Both cameras SHALL roll with the car
 through banks and loops so the track stays in frame. The selection SHALL persist
 for the session.
 
+The chase camera SHALL smooth its orientation in the car's frame and SHALL stay
+at least 0.6 m above the deck beneath it. It SHALL NOT be driven by a
+world-space lerp toward the car's arc, because that cuts the chord through the
+loop and puts the view under the road.
+
 #### Scenario: Chase camera through a loop
 
 - **GIVEN** the chase camera is active
 - **WHEN** the car traverses a loop
 - **THEN** the car stays in frame
 - **AND** the horizon rolls with the track
+- **AND** the camera stays above the deck it is over for the whole lap
+- **AND** no road or support geometry passes between the camera and the car
 
 #### Scenario: Cockpit camera
 

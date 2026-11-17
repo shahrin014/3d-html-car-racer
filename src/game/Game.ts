@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCar, WHEEL_RADIUS, type Car } from './Car';
+import { chasePose, createChaseRig, resetChaseRig } from './chaseCamera';
 import { cockpitPose } from './cockpitCamera';
 import {
   BOOST_COOLDOWN,
@@ -90,15 +91,14 @@ export class Game {
   private wheelSpin = 0;
   private readonly resizeObserver: ResizeObserver;
   private readonly reducedMotion: MediaQueryList;
-  /** Reused scratch pose so the cockpit rig allocates nothing per frame. */
-  private readonly cockpitPose = {
+  /** Reused scratch pose so the camera rigs allocate nothing per frame. */
+  private readonly cameraPose = {
     position: new THREE.Vector3(),
     target: new THREE.Vector3(),
     up: new THREE.Vector3(),
   };
   private readonly carUp = new THREE.Vector3();
-  private readonly chaseDesired = new THREE.Vector3();
-  private readonly chaseTarget = new THREE.Vector3();
+  private readonly chaseRig = createChaseRig();
 
   constructor(container: HTMLElement, callbacks: GameCallbacks, seed: string) {
     this.container = container;
@@ -187,6 +187,7 @@ export class Game {
     if (this.physics && first) {
       this.physics.reset(first);
     }
+    resetChaseRig(this.chaseRig);
     this.state = 'countdown';
     this.placeCar(0, 0);
     void this.loadPhysics();
@@ -218,6 +219,7 @@ export class Game {
     if (this.physics && first) {
       this.physics.reset(first);
     }
+    resetChaseRig(this.chaseRig);
     this.placeCar(0, 0);
     this.report();
   }
@@ -450,6 +452,7 @@ export class Game {
         this.stallTime = 0;
         this.totalTime += RESCUE_PENALTY_SECONDS;
         physics.reset(frame);
+        resetChaseRig(this.chaseRig);
         this.s = frame.s;
         this.lastFrameIndex = index;
         this.physicsAccumulator = 0;
@@ -557,18 +560,21 @@ export class Game {
     const position = this.car.group.position;
     const orientation = this.car.group.quaternion;
     if (this.cameraMode === 'chase') {
-      this.chaseDesired
-        .set(0, 2.8 + shake, -8)
-        .applyQuaternion(orientation)
-        .add(position);
-      this.camera.position.lerp(this.chaseDesired, clamp(delta * 8, 0, 1));
-      this.chaseTarget
-        .set(0, 1.2, 14)
-        .applyQuaternion(orientation)
-        .add(position);
-      this.carUp.set(0, 1, 0).applyQuaternion(orientation);
-      this.camera.up.copy(this.carUp);
-      this.camera.lookAt(this.chaseTarget);
+      // The rig smooths its own orientation and stays clear of the deck, so the
+      // view follows the loop instead of cutting through it.
+      const pose = chasePose(
+        this.chaseRig,
+        position,
+        orientation,
+        this.frames,
+        this.lastFrameIndex,
+        delta,
+        shake,
+        this.cameraPose,
+      );
+      this.camera.position.copy(pose.position);
+      this.camera.up.copy(pose.up);
+      this.camera.lookAt(pose.target);
     } else {
       // The driver's eye rides the body, not the racing line. Reading the rig
       // off the car is what keeps the view across the track when the car
@@ -576,7 +582,7 @@ export class Game {
       const pose = cockpitPose(
         this.car.group.position,
         this.car.group.quaternion,
-        this.cockpitPose,
+        this.cameraPose,
       );
       this.camera.position.copy(pose.position);
       this.camera.up.copy(pose.up);
