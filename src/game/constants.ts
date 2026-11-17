@@ -7,11 +7,11 @@
 export const TRACK_SCALE = 1.5;
 
 /**
- * Track width in world units. The car is one unit wide, so this leaves six car
- * widths of driving room: wider than the catalogue scale, because the 2.45 m
- * long car still felt cramped on a 4.5 m deck.
+ * Track width in world units. The car is one unit wide, so this leaves five car
+ * widths of driving room. Anything narrower feels cramped for a 2.45 m long
+ * car; anything wider loses the sense of a lane to hold.
  */
-export const TRACK_WIDTH = 6;
+export const TRACK_WIDTH = 5;
 export const TRACK_THICKNESS = 0.12 * TRACK_SCALE;
 export const RAIL_WIDTH = 0.12 * TRACK_SCALE;
 /** Tall enough to keep the car on the surface through banks and loops. */

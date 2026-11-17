@@ -71,8 +71,8 @@ describe('circuit generation', () => {
 });
 
 describe('track pieces', () => {
-  it('gives the track four or more car widths and a car-height rail', () => {
-    expect(TRACK_WIDTH).toBeGreaterThanOrEqual(CAR_WIDTH * 4);
+  it('gives the track five car widths and a car-height rail', () => {
+    expect(TRACK_WIDTH).toBe(CAR_WIDTH * 5);
     expect(RAIL_HEIGHT).toBeGreaterThanOrEqual(CAR_HEIGHT);
   });
 

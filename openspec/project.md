@@ -124,7 +124,7 @@ runtime API calls.
 | Laps per race | 3 |
 | Countdown | 3 s |
 | Track scale | 1.5× the base catalogue |
-| Track width | 6 world units (six car widths) |
+| Track width | 5 world units (five car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
 | Maximum speed | 24 m/s |
