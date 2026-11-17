@@ -114,6 +114,7 @@ runtime API calls.
 | Rescue | A timed return to the last checkpoint after the car is stuck, inverted, or off track. |
 | Checkpoint | An ordered gate that must be crossed before the finish line counts a lap. |
 | Best time | The fastest total time at a level, stored locally and kept across circuits. |
+| Paint | One of ten named car colours; the player picks one in the menu and it is stored locally. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
 | Cockpit camera | A driver's-eye view with a generated dashboard texture. |
 | Pause | A frozen race; simulation, timers, damage, and camera motion stop until resumed. |
@@ -157,7 +158,8 @@ runtime API calls.
 - Input: tilt target, button and keyboard steering, brake, camera mode.
 - Presentation: camera position and roll, shake or rattle, reduced-motion
   preference.
-- Persistence: unlocked level and best time per level.
+- Persistence: unlocked level, best time per level, chosen paint, and opponent
+  count.
 
 Exact object shapes belong in code, not in behavior specs.
 

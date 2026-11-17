@@ -132,6 +132,11 @@ persistence, and offline reload.
   toward `-X`. All player-facing steering is therefore negated once in
   `physics.ts` and once for the wheel visuals; the physics tests pin the sign so
   the arrow keys cannot silently invert again.
+- **Ten car paints, stored by id.** `src/game/palette.ts` owns the palette and
+  the opponent assignment rule (never reuse the player's paint). The menu draws
+  the labelled swatches from that list, and `Game.setCarColor` rebuilds the car
+  from `car-model.mjs`, whose geometry and per-colour paint materials are
+  cached, so repainting costs one group rebuild and no new geometry.
 - **A fresh random seed every load and every race.** The seed used to be the
   UTC date, so the circuit only changed at midnight and every refresh showed
   the same track. `src/game/seed.ts` now draws 8 random bytes per start and

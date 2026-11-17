@@ -129,6 +129,8 @@ export const TILT_RANGE_DEGREES = 25;
 export const TILT_SMOOTHING = 10;
 
 export const BEST_TIME_KEY_PREFIX = 'neon-racer.best-time';
+/** Storage key for the chosen player paint. */
+export const PAINT_KEY = 'neon-racer.paint';
 export const UNLOCKED_LEVEL_KEY = 'neon-racer.unlocked-level';
 
 export const DEFAULT_LEVEL = 1;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createCar, WHEEL_RADIUS, type Car } from './Car';
+import { createCar, PLAYER_PAINT, WHEEL_RADIUS, type Car } from './Car';
 import { chasePose, createChaseRig, resetChaseRig } from './chaseCamera';
 import { cockpitPose } from './cockpitCamera';
 import {
@@ -64,7 +64,8 @@ export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly car: Car;
+  private car: Car;
+  private playerColor: number;
   private trackMesh!: TrackMesh;
   private frames!: TrackFrame[];
   private length!: number;
@@ -109,9 +110,15 @@ export class Game {
   private readonly visualPose = createSmoothedPose();
   private readonly chaseRig = createChaseRig();
 
-  constructor(container: HTMLElement, callbacks: GameCallbacks, seed: string) {
+  constructor(
+    container: HTMLElement,
+    callbacks: GameCallbacks,
+    seed: string,
+    paint = PLAYER_PAINT,
+  ) {
     this.container = container;
     this.callbacks = callbacks;
+    this.playerColor = paint;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -135,7 +142,7 @@ export class Game {
     this.seed = seed;
     this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
 
-    this.car = createCar();
+    this.car = createCar(paint);
     this.scene.add(this.car.group);
     this.placeCar(0, 0);
 
@@ -268,6 +275,23 @@ export class Game {
     resetChaseRig(this.chaseRig);
     this.placeCar(0, 0);
     this.report();
+  }
+
+  /**
+   * Repaint the player car. The body, aero, and lamp materials are shared per
+   * paint by `car-model.mjs`, so a rebuild is cheap and a colour the player
+   * returns to does not leak another material. The visual pose snaps on the
+   * next frame, and physics keeps its own state.
+   */
+  setCarColor(color: number): void {
+    if (color === this.playerColor) {
+      return;
+    }
+    this.playerColor = color;
+    this.scene.remove(this.car.group);
+    this.car = createCar(color);
+    this.scene.add(this.car.group);
+    resetSmoothedPose(this.visualPose);
   }
 
   setSteer(value: number): void {

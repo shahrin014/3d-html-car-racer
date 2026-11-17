@@ -13,8 +13,8 @@ export type Car = CarModel;
 /** Paint of the reference casting: candy red with black aero and gold wheels. */
 export const PLAYER_PAINT = 0xa30f1d;
 
-export function createCar(): Car {
-  return buildCar(PLAYER_PAINT);
+export function createCar(color = PLAYER_PAINT): Car {
+  return buildCar(color);
 }
 
 /** Visual envelope in metres, kept in step with the physics chassis. */

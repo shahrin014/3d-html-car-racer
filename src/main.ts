@@ -1,11 +1,17 @@
 import './style.css';
-import { BEST_TIME_KEY_PREFIX, LAPS, DEFAULT_LEVEL } from './game/constants';
+import {
+  BEST_TIME_KEY_PREFIX,
+  LAPS,
+  DEFAULT_LEVEL,
+  PAINT_KEY,
+} from './game/constants';
 import {
   brakeFromKeys,
   HELD_KEYS,
   steerFromKeys,
 } from './game/controls';
 import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
+import { DEFAULT_PAINT, PAINTS, paintById } from './game/palette';
 import { randomSeed } from './game/seed';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -44,6 +50,7 @@ const finalTime = mustQuery<HTMLElement>('#final-time');
 const finalDamage = mustQuery<HTMLElement>('#final-damage');
 const newBest = mustQuery<HTMLElement>('#new-best');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
+const paintPicker = mustQuery<HTMLElement>('#paint-picker');
 
 // A fresh circuit every load: the seed is drawn at random, never from the
 // date. This first seed builds the track behind the menu and is the one the
@@ -80,6 +87,24 @@ function writeBest(value: number): void {
     // Persistence is best effort.
   }
 }
+
+function readPaint() {
+  try {
+    return paintById(window.localStorage.getItem(PAINT_KEY));
+  } catch {
+    return DEFAULT_PAINT;
+  }
+}
+
+function writePaint(id: string): void {
+  try {
+    window.localStorage.setItem(PAINT_KEY, id);
+  } catch {
+    // Persistence is best effort.
+  }
+}
+
+let paint = readPaint();
 
 let best = readBest();
 bestElement.textContent = formatTime(best ?? 0);
@@ -179,12 +204,47 @@ try {
       },
     },
     nextSeed,
+    paint.color,
   );
 } catch (error) {
   console.error('WebGL could not be initialised.', error);
   startButton.disabled = true;
   startButton.textContent = 'WebGL unavailable';
 }
+
+function markPaint(id: string): void {
+  for (const swatch of paintPicker.querySelectorAll<HTMLButtonElement>('button[data-paint]')) {
+    swatch.setAttribute('aria-pressed', String(swatch.dataset.paint === id));
+  }
+}
+
+for (const option of PAINTS) {
+  const swatch = document.createElement('button');
+  swatch.type = 'button';
+  swatch.className = 'paint';
+  swatch.dataset.paint = option.id;
+  swatch.style.setProperty(
+    '--paint',
+    `#${option.color.toString(16).padStart(6, '0')}`,
+  );
+  swatch.title = option.name;
+  swatch.setAttribute('aria-label', option.name);
+  swatch.setAttribute('aria-pressed', String(option.id === paint.id));
+  paintPicker.append(swatch);
+}
+
+paintPicker.addEventListener('click', (event) => {
+  const swatch = (event.target as Element | null)?.closest<HTMLButtonElement>(
+    'button[data-paint]',
+  );
+  if (!swatch) {
+    return;
+  }
+  paint = paintById(swatch.dataset.paint);
+  markPaint(paint.id);
+  writePaint(paint.id);
+  game?.setCarColor(paint.color);
+});
 
 function startRace(): void {
   if (!game) {

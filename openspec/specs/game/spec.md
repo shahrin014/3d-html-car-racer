@@ -567,6 +567,36 @@ so a steered wheel spins about its own axle instead of precessing.
 - **AND** the unfiltered rigid-body pose still drives handling, damage, and lap
   progress
 
+### Requirement: The player car's paint is selectable
+
+The menu SHALL offer ten named car paints, including the default candy red, as
+labelled swatches that can be activated by touch, mouse, or keyboard. The
+selection SHALL apply to the car immediately, SHALL persist across reloads, and
+SHALL expose its state to assistive technology. An unknown or corrupt stored
+paint SHALL fall back to the default.
+
+#### Scenario: Ten paints are offered
+
+- **GIVEN** the menu is shown
+- **WHEN** the paint picker is inspected
+- **THEN** ten paints are shown, each with a name and a distinct colour
+- **AND** exactly one is marked as the current paint
+- **AND** every swatch has an accessible name and a pressed state
+
+#### Scenario: Selection applies and persists
+
+- **GIVEN** the menu is shown
+- **WHEN** the player activates a paint
+- **THEN** the car is repainted immediately
+- **AND** that swatch becomes the current paint
+- **AND** the same paint is used after a reload
+
+#### Scenario: Corrupt paint falls back
+
+- **GIVEN** the stored paint id is not one of the ten
+- **WHEN** the game loads
+- **THEN** the default candy red is used
+
 ### Requirement: Device tilt steers the car
 
 Steering SHALL follow the device's left/right tilt. The neutral angle SHALL be
