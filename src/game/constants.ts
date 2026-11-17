@@ -3,8 +3,8 @@
  * Behavior lives in openspec/specs/game/spec.md.
  */
 
-/** Track width in world units; the car is 1 wide, so this is three car widths. */
-export const TRACK_WIDTH = 3;
+/** Track width in world units; the car is 1 wide, so this is six car widths. */
+export const TRACK_WIDTH = 6;
 export const TRACK_THICKNESS = 0.12;
 export const RAIL_WIDTH = 0.12;
 export const RAIL_HEIGHT = 0.35;
@@ -54,17 +54,32 @@ export const PHYSICS_RIDE_HEIGHT = PHYSICS_WHEEL_RADIUS - PHYSICS_WHEEL_MOUNT_Y;
 export const PHYSICS_BRAKE_FORCE = 24;
 /** Quadratic drag: force = coefficient * speed^2 opposing motion. */
 export const PHYSICS_DRAG = 0.05;
-/** Yaw torque applied directly by the steering control. */
-export const PHYSICS_STEER_TORQUE = 2.6;
-/** Guide assist that pulls the body onto the track surface and its tangent. */
+/**
+ * Steering is a heading target, not a torque: full lock aims the nose this
+ * many radians off the track tangent. Torque alone spins a 1.2 kg toy car
+ * through 90 degrees in well under a second.
+ */
+export const PHYSICS_STEER_ANGLE = 0.12;
+/** Assist that pulls the body onto the track surface and its tangent. */
 export const PHYSICS_STICK_STRENGTH = 80;
 export const PHYSICS_STICK_DAMPING = 8;
-export const PHYSICS_HEADING_ASSIST = 14;
+export const PHYSICS_HEADING_ASSIST = 20;
+/** Damps the spring above so the nose settles without oscillating. */
+export const PHYSICS_YAW_DAMPING = 6;
 /** Torque that rolls and pitches the body onto the track surface. */
 export const PHYSICS_UP_ALIGNMENT = 20;
-/** Weak lateral spring and damper that model the rails as a guide. */
-export const PHYSICS_LATERAL_STRENGTH = 40;
-export const PHYSICS_LATERAL_DAMPING = 8;
+/**
+ * Lateral grip budget, in multiples of the car's weight. The assist may never
+ * push sideways harder than this, so steering cannot slide the car further
+ * than a tyre could.
+ */
+export const PHYSICS_GRIP = 3;
+/** Lateral speed the car is allowed to drift at, in m/s at full lock. */
+export const PHYSICS_DRIFT_SPEED = 1.4;
+/** How fast the assist cancels sideways velocity, per second. */
+export const PHYSICS_LATERAL_GAIN = 8;
+/** Gentle pull back to the centreline once the player releases steering. */
+export const PHYSICS_CENTRE_GAIN = 2.5;
 /** Contact force above this is treated as a crash. */
 export const IMPACT_THRESHOLD = 40;
 
@@ -75,8 +90,9 @@ export const LIMP_SPEED = 10;
 
 export const DESIGN_SPEED = 12;
 export const LOOP_RADIUS = 7;
-export const LOOP_OFFSET = 4;
-export const LOOP_RETURN_LENGTH = 14;
+/** Sideways drift of the loop; must exceed the track width so the lanes clear. */
+export const LOOP_OFFSET = 8;
+export const LOOP_RETURN_LENGTH = 18;
 
 export const BOOST_IMPULSE = 7;
 export const BOOST_COOLDOWN = 1.6;

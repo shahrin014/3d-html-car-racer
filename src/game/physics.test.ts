@@ -107,7 +107,7 @@ describe('Rapier vehicle', () => {
         state.velocity.z * frame.right.z;
       const steer = Math.max(
         -1,
-        Math.min(1, -latitude / 0.8 - lateralSpeed * 0.15),
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
       );
 
       maxHeight = Math.max(maxHeight, state.position.y);

@@ -9,16 +9,19 @@ import {
   GRAVITY,
   IMPACT_THRESHOLD,
   PHYSICS_BRAKE_FORCE,
+  PHYSICS_CENTRE_GAIN,
   PHYSICS_DRAG,
+  PHYSICS_DRIFT_SPEED,
   PHYSICS_ENGINE_FORCE,
+  PHYSICS_GRIP,
   PHYSICS_HEADING_ASSIST,
-  PHYSICS_LATERAL_DAMPING,
-  PHYSICS_LATERAL_STRENGTH,
+  PHYSICS_LATERAL_GAIN,
   PHYSICS_RIDE_HEIGHT,
-  PHYSICS_STEER_TORQUE,
+  PHYSICS_STEER_ANGLE,
   PHYSICS_STICK_DAMPING,
-  PHYSICS_UP_ALIGNMENT,
   PHYSICS_STICK_STRENGTH,
+  PHYSICS_UP_ALIGNMENT,
+  PHYSICS_YAW_DAMPING,
   PHYSICS_WHEEL_MOUNT_Y,
   PHYSICS_WHEEL_RADIUS,
   RAIL_HEIGHT,
@@ -206,7 +209,7 @@ export async function createPhysics(
       RAPIER.ColliderDesc.ball(PHYSICS_WHEEL_RADIUS)
         .setTranslation(mount.x, PHYSICS_WHEEL_MOUNT_Y, mount.z)
         .setMass((CAR_MASS * 0.35) / WHEEL_MOUNTS.length)
-        .setFriction(0.2)
+        .setFriction(0.02)
         .setRestitution(0.05)
         .setCollisionGroups(groups(GROUP_WHEEL, GROUP_TRACK | GROUP_RAIL))
         .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
@@ -240,11 +243,23 @@ export async function createPhysics(
       car.resetForces(true);
       car.resetTorques(true);
 
+      // The guide only acts while the car is on the track. Once it is airborne
+      // or off the surface, gravity and the rescue timer take over; applying
+      // the spring to a distant frame would fling the body across the scene.
+      const translation = car.translation();
+      carPosition.set(translation.x, translation.y, translation.z);
+      toSurface.copy(frame.position).sub(carPosition);
+      const onTrack = toSurface.length() < TRACK_WIDTH;
+
+      // Thrust follows the racing line while the guide is active. If it were
+      // applied along the nose, holding lock at speed would push the car
+      // sideways as well as forward, which is what makes the body slide.
+      const thrust = onTrack ? frame.tangent : forward;
       const engine = input.brake
         ? -PHYSICS_BRAKE_FORCE
         : PHYSICS_ENGINE_FORCE * input.throttle;
       car.addForce(
-        { x: forward.x * engine, y: forward.y * engine, z: forward.z * engine },
+        { x: thrust.x * engine, y: thrust.y * engine, z: thrust.z * engine },
         true,
       );
 
@@ -263,23 +278,17 @@ export async function createPhysics(
         );
       }
 
-      // Steering is a yaw torque around the car's own up vector.
-      const steerTorque = input.steer * PHYSICS_STEER_TORQUE;
-      car.addTorque(
-        { x: up.x * steerTorque, y: up.y * steerTorque, z: up.z * steerTorque },
-        true,
-      );
+      // Steering aims the nose off the track tangent; the guide assist below
+      // turns that target into yaw. Positive steer is the driver's right, and
+      // `frame.right` is `up x tangent`, which for a car facing +Z points to
+      // the driver's left. Hence the negation.
+      const steerAngle =
+        -input.steer * PHYSICS_STEER_ANGLE * Math.min(1, speed / 6);
 
       // Guide assist: pull the body onto the track surface and align its
       // heading with the local tangent. This is what lets a toy car hold a
       // loop; it adds no forward energy.
-      const translation = car.translation();
-      carPosition.set(translation.x, translation.y, translation.z);
-      toSurface.copy(frame.position).sub(carPosition);
-      // The guide only acts while the car is on the track. Once it is airborne
-      // or off the surface, gravity and the rescue timer take over; applying
-      // the spring to a distant frame would fling the body across the scene.
-      if (toSurface.length() < TRACK_WIDTH) {
+      if (onTrack) {
         const verticalSpeed = velocity.dot(frame.up);
         const height = toSurface.dot(frame.up) + PHYSICS_RIDE_HEIGHT;
         const stick =
@@ -294,26 +303,42 @@ export async function createPhysics(
           true,
         );
 
-        const lateralOffset = toSurface.dot(frame.right);
+        // `toSurface` points from the car to the frame, so the car's offset
+        // from the centreline is the negated projection. Getting this sign
+        // wrong turns the centring spring into a spring that pushes the car
+        // toward the rails.
+        const lateralOffset = -toSurface.dot(frame.right);
         const lateralSpeed = velocity.dot(frame.right);
-        const targetLateral = input.steer * (TRACK_WIDTH / 2 - 0.7);
-        const lateral =
-          (targetLateral - lateralOffset) * PHYSICS_LATERAL_STRENGTH -
-          lateralSpeed * PHYSICS_LATERAL_DAMPING;
+        // Positive steer is the driver's right, i.e. -frame.right. Cap the
+        // sideways acceleration at the grip budget: steering may drift the car
+        // across the track, but never fling it further than a tyre could hold.
+        const targetLateralSpeed = -input.steer * PHYSICS_DRIFT_SPEED;
+        const grip = PHYSICS_GRIP * Math.abs(GRAVITY);
+        const lateralAccel = THREE.MathUtils.clamp(
+          (targetLateralSpeed - lateralSpeed) * PHYSICS_LATERAL_GAIN -
+            lateralOffset * PHYSICS_CENTRE_GAIN,
+          -grip,
+          grip,
+        );
+        const lateralForce = lateralAccel * CAR_MASS;
         car.addForce(
           {
-            x: frame.right.x * lateral,
-            y: frame.right.y * lateral,
-            z: frame.right.z * lateral,
+            x: frame.right.x * lateralForce,
+            y: frame.right.y * lateralForce,
+            z: frame.right.z * lateralForce,
           },
           true,
         );
 
-        desired.copy(frame.tangent).applyAxisAngle(frame.up, input.steer * 0.22);
+        desired.copy(frame.tangent).applyAxisAngle(frame.up, steerAngle);
         axis.crossVectors(forward, desired);
         const angle = Math.asin(THREE.MathUtils.clamp(axis.length(), -1, 1));
         if (axis.lengthSq() > 1e-6) {
+          const angular = car.angvel();
+          const yawRate =
+            angular.x * up.x + angular.y * up.y + angular.z * up.z;
           axis.normalize().multiplyScalar(angle * PHYSICS_HEADING_ASSIST);
+          axis.addScaledVector(up, -yawRate * PHYSICS_YAW_DAMPING);
           car.addTorque({ x: axis.x, y: axis.y, z: axis.z }, true);
         }
 

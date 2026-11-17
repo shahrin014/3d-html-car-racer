@@ -18,9 +18,11 @@ track-constrained movement.
     chassis cannot catch on a collider seam
   - collision groups keep the chassis off the driving surface while still
     colliding with the rails
-  - CCD, friction, restitution, engine/brake force, quadratic drag, yaw torque
-  - guide assist: surface stick, lateral centering toward a steering target,
-    heading alignment, and roll/pitch alignment
+  - CCD, friction, restitution, engine/brake thrust, quadratic drag
+  - steering is a heading target plus yaw damping, not a torque: the guide turns
+    the nose toward the requested angle
+  - guide assist: surface stick, a lateral grip budget that cancels sideways
+    velocity, a capped drift at full lock, and roll/pitch alignment
   - contact-force events converted to damage impulses
   - `read()`, `reset(frame)`, `boost(impulse)`, `takeImpact()`, `dispose()`
 - `src/game/Game.ts` integrates the adapter:
@@ -34,6 +36,10 @@ track-constrained movement.
     cannot be mistaken for the start line
 - The headless trace accelerates above 10 m/s, climbs above 8 m on the loop,
   stays within one track width of the centreline, and crosses the start line.
+- The handling profile in `src/game/feel.test.ts` measures slip angle over a
+  driven lap (`mean |slip|` under 10°, sliding under 35% of frames), proves that
+  positive steer moves the car to the right of the screen, and checks that a
+  held full lock at speed does not spin the car.
 - The build has two transfer tiers:
   - app shell ≤ 250 kB gzip
   - lazy `physics-*.js` chunk ≤ 1.75 MB gzip (measured 1.57 MB)
@@ -65,10 +71,23 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
   cuboid track colliders catches on every seam. Four wheel balls carry the body
   and roll over the seams; the chassis collider still hits the rails.
 - **Guide assist is intentional**: a rigid toy car cannot hold a loop on tyre
-  grip alone. The assist adds downforce, lateral centering, and heading/roll
-  alignment and adds **no forward energy**. Steering and impacts remain
-  physical. It switches off when the car is more than one track width from the
-  frame, so a fall cannot be flung back by a distant spring.
+  grip alone. The assist adds downforce, a grip-capped lateral damper, and
+  heading/roll alignment and adds **no forward energy**. It switches off when
+  the car is more than one track width from the frame, so a fall cannot be flung
+  back by a distant spring.
+- **Steering is a heading target, not a torque**: a 2.6 N·m torque on a 1.2 kg
+  body spun it through 90° in under a second. The guide now turns the nose
+  toward `tangent + steer × 0.22 rad` with yaw damping, and the lateral damper
+  holds the resulting drift to 1 m/s, so the car points into the corner instead
+  of sliding across it.
+- **Thrust follows the racing line while the guide is active.** Applying it
+  along the yawed nose pushed the car sideways and was the main source of
+  floaty handling.
+- **`frame.right` is the driver's left.** The frame is `(up × tangent, up,
+  tangent)`, which is right-handed, but a car facing `+Z` has its right hand
+  toward `-X`. All player-facing steering is therefore negated once in
+  `physics.ts` and once for the wheel visuals; the physics tests pin the sign so
+  the arrow keys cannot silently invert again.
 - **No arcade fallback**: the rigid body is the only vehicle simulation. If
   Rapier cannot initialise, the game reports the failure and disables Start
   rather than silently changing the handling.
@@ -91,8 +110,9 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
 
 ## Current state of the game
 
-Three-lap generated circuit (two banked 180° turns, offset loop with a return
-shift, crest, boost straights), continuous swept track mesh, chase and cockpit
-cameras, landscape HUD, tilt plus button/keyboard fallbacks, damage and rescue.
+Three-lap generated circuit on a 6 m wide deck (six car widths, two banked 180°
+turns, an offset loop with a return shift, a crest, boost straights), continuous
+swept track mesh, chase and cockpit cameras, landscape HUD, tilt plus
+button/keyboard fallbacks, damage and rescue.
 Assets live in `assets/` as PNG previews plus GLB models for every track piece;
 `npm run assets` and `npm run assets:glb` regenerate them.

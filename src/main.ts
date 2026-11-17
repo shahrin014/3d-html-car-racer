@@ -1,5 +1,10 @@
 import './style.css';
 import { BEST_TIME_KEY_PREFIX, LAPS, DEFAULT_LEVEL } from './game/constants';
+import {
+  brakeFromKeys,
+  HELD_KEYS,
+  steerFromKeys,
+} from './game/controls';
 import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -280,7 +285,7 @@ for (const event of ['pointerup', 'pointerleave', 'pointercancel'] as const) {
 const keys = new Set<string>();
 window.addEventListener('keydown', (event) => {
   keys.add(event.key.toLowerCase());
-  if (['arrowleft', 'arrowright', ' ', 'arrowup', 'arrowdown'].includes(event.key.toLowerCase())) {
+  if ((HELD_KEYS as readonly string[]).includes(event.key.toLowerCase())) {
     event.preventDefault();
   }
   if (event.key === 'Escape' || event.key === 'p' || event.key === 'P') {
@@ -298,21 +303,21 @@ window.addEventListener('keydown', (event) => {
       camera === 'cockpit' ? 'Switch to chase camera' : 'Switch to cockpit camera',
     );
   }
-  const keyboardSteer = (keys.has('arrowright') ? 1 : 0) - (keys.has('arrowleft') ? 1 : 0);
+  const keyboardSteer = steerFromKeys(keys);
   if (keyboardSteer !== 0) {
     pointerSteer = keyboardSteer;
     applySteer(game);
   }
-  setBrake(keys.has(' ') || keys.has('arrowdown'));
+  setBrake(brakeFromKeys(keys));
 });
 window.addEventListener('keyup', (event) => {
   keys.delete(event.key.toLowerCase());
-  const keyboardSteer = (keys.has('arrowright') ? 1 : 0) - (keys.has('arrowleft') ? 1 : 0);
+  const keyboardSteer = steerFromKeys(keys);
   if (keyboardSteer === 0) {
     pointerSteer = 0;
     applySteer(game);
   }
-  setBrake(keys.has(' ') || keys.has('arrowdown'));
+  setBrake(brakeFromKeys(keys));
 });
 
 document.addEventListener('visibilitychange', () => {

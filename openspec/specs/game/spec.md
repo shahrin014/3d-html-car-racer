@@ -19,7 +19,7 @@ of the requirements.
 | Laps per race | 3 |
 | Race states | 5 (menu, countdown, racing, paused, finished) |
 | Countdown | 3 s |
-| Track width | 3 world units (three car widths) |
+| Track width | 6 world units (six car widths) |
 | Design speed | 12 m/s |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
@@ -423,9 +423,9 @@ rule SHALL be rejected and regenerated from the next deterministic seed offset.
 - **THEN** it is rejected
 - **AND** generation continues with a different deterministic offset
 
-### Requirement: The track is a narrow orange surface with guide rails
+### Requirement: The track is a wide orange surface with guide rails
 
-The track SHALL be one continuous surface about three car widths wide with guide
+The track SHALL be one continuous surface about six car widths wide with guide
 rails on both edges. It SHALL read as orange plastic with visible segment seams,
 and the rails, supports, boost strips, and start/finish gate SHALL be visually
 distinct. Supports SHALL connect raised track to the ground, including under
@@ -436,7 +436,7 @@ SHALL have a distinct entrance and exit.
 
 - **GIVEN** the built track
 - **WHEN** the clear width between rails is measured
-- **THEN** it is about three car widths
+- **THEN** it is about six car widths
 
 #### Scenario: Supported geometry
 
@@ -519,6 +519,34 @@ and a refusal SHALL NOT block play.
 - **GIVEN** the platform requires permission and the player refuses it
 - **THEN** the race still starts
 - **AND** fallback controls steer the car
+
+### Requirement: Steering is screen-relative
+
+Every steering input SHALL be screen-relative: a right input SHALL turn the car
+toward the right of the screen, and a left input toward the left, whatever the
+source. Tilt, the on-screen buttons, the arrow keys, and `A`/`D` SHALL all share
+one sign convention, and the front wheels SHALL visibly point into the turn.
+
+The car SHALL be tuned so that steering turns its nose into the corner instead of
+sliding it across the track. Holding full lock at racing speed SHALL NOT spin the
+car past the tangent by more than 45°, and the throttle SHALL NOT add sideways
+velocity of its own.
+
+#### Scenario: Steering direction agrees across inputs
+
+- **GIVEN** a race is in progress on a device with a keyboard
+- **WHEN** the player presses the right arrow key or `D`
+- **THEN** the car moves toward the right of the screen
+- **AND** the left arrow key and `A` move it toward the left
+- **AND** the on-screen buttons and tilt agree with the same directions
+
+#### Scenario: Full lock at speed
+
+- **GIVEN** the car is on a straight at racing speed
+- **WHEN** the player holds full steering lock for one second
+- **THEN** the car turns and drifts toward that side
+- **AND** its nose stays within 45° of the direction of the track
+- **AND** it does not spin out or stop
 
 ### Requirement: Fallback controls always work
 

@@ -474,7 +474,9 @@ export class Game {
     for (const wheel of this.car.wheels) {
       wheel.rotation.x = this.wheelSpin;
     }
-    this.car.setSteer(this.steerTarget);
+    // Positive steer is the player's right, and the model faces +Z, so its
+    // local +X is the driver's left; the wheels need the negated angle.
+    this.car.setSteer(-this.steerTarget);
   }
 
   private placeCar(

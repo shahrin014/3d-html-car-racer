@@ -123,7 +123,7 @@ runtime API calls.
 | --- | --- |
 | Laps per race | 3 |
 | Countdown | 3 s |
-| Track width | 3 world units (three car widths) |
+| Track width | 6 world units (six car widths) |
 | Design speed | 12 m/s |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
+import { LOOP_OFFSET, LOOP_RETURN_LENGTH, TRACK_WIDTH } from './constants';
 import { buildFrames, generateCircuit, loopPath, shiftPath, turnPath } from './track';
 
 const SEED = '2026-11-15';
@@ -71,10 +72,11 @@ describe('track pieces', () => {
     const path = loopPath(7);
     const start = path(0);
     const end = path(1);
-    expect(end.position.x - start.position.x).toBeCloseTo(4, 5);
+    // The exit lane must clear the entry lane by more than a track width.
+    expect(end.position.x - start.position.x).toBeGreaterThan(TRACK_WIDTH);
     expect(start.up.dot(end.up)).toBeCloseTo(1, 6);
-    const shifted = shiftPath(4, 14)(1);
-    expect(shifted.position.x).toBeCloseTo(-4, 6);
+    const shifted = shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH)(1);
+    expect(shifted.position.x).toBeCloseTo(-LOOP_OFFSET, 6);
   });
 
   it('clamps turn banking to the documented range', () => {
