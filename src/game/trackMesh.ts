@@ -111,7 +111,7 @@ export interface TrackMesh {
  * are no gaps to catch on.
  */
 export function buildTrackMesh(
-  pieces: { frames: TrackFrame[]; boost?: boolean }[],
+  pieces: { frames: TrackFrame[]; boost?: boolean; gap?: boolean }[],
 ): TrackMesh {
   const group = new THREE.Group();
   const half = TRACK_WIDTH / 2;
@@ -126,7 +126,8 @@ export function buildTrackMesh(
 
   for (const piece of pieces) {
     const frames = piece.frames;
-    if (frames.length < 2) {
+    if (frames.length < 2 || piece.gap) {
+      // A jump gap has no deck, no rails, and no supports.
       continue;
     }
     const texture = createTrackTexture(piece.boost ?? false);

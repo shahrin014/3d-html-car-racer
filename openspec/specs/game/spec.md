@@ -421,6 +421,7 @@ one oval.
 - **GIVEN** several seeds at one level
 - **WHEN** the circuits are generated
 - **THEN** more than one corner count appears
+- **AND** some circuits carry a crest where others carry a jump
 - **AND** every circuit is closed with a net 360° of turning
 - **AND** adjacent corners turn the same way, so the layout stays convex
 
@@ -480,7 +481,12 @@ The track SHALL be one continuous orange surface seven car widths wide,
 with guide rails on both edges at least one car height tall. Seams, rails,
 supports, boost strips, and the start/finish gate SHALL be visually distinct.
 Supports SHALL connect raised track to the ground. The surface SHALL have no
-gaps, cracks, or steps, and loops SHALL have distinct entrances and exits.
+gaps, cracks, or steps except the intentional gap of a jump, and loops SHALL
+have distinct entrances and exits.
+
+A jump SHALL consist of a kicker that rises to a raised lip, a deckless gap, and
+a landing ramp that returns to the deck. The kicker and landing SHALL end at the
+gap with a clear edge; no deck, rail, or support SHALL cross the gap.
 
 #### Scenario: Track width
 
@@ -511,8 +517,17 @@ gaps, cracks, or steps, and loops SHALL have distinct entrances and exits.
 
 - **GIVEN** the built track
 - **WHEN** the surface is inspected
-- **THEN** it is one continuous mesh with no gap or step between sections
+- **THEN** it is one continuous mesh with no gap or step between sections,
+  apart from a jump's intentional gap
 - **AND** seam lines come from the surface texture, not from separate pieces
+
+#### Scenario: Jump
+
+- **GIVEN** a circuit with a jump, and the car is at racing speed
+- **WHEN** it reaches the kicker
+- **THEN** it leaves the lip and crosses the gap unsupported
+- **AND** it lands on the landing ramp
+- **AND** it keeps racing without a rescue
 
 #### Scenario: Loop entrance and exit
 

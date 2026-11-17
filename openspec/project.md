@@ -109,6 +109,10 @@ runtime API calls.
 - **`frame.right` is the driver's left.** The frame is right-handed but a car
   facing `+Z` has its right toward `-X`; player steering is negated once in the
   physics and once for the wheel visuals, pinned by tests.
+- **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. Gap
+  frames exist for progress and the camera but carry no collider and disable the
+  guide assist, so the body flies ballistically and lands on the ramp. The mesh
+  skips the gap entirely: no deck, rails, or supports.
 - **Supports stop under the deck.** A support whose top reaches the frame centre
   pokes through the low side of a banked surface; supports are cut below the
   underside across their footprint.
@@ -186,6 +190,7 @@ runtime API calls.
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
 | Opponent cruise speed | 12–15.6 m/s |
+| Jump | 1.6 m lip · 6 m gap · 15 m landing ramp |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
 | Fixed simulation step | 1/120 s |

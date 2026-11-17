@@ -163,6 +163,10 @@ export async function createPhysics(
     if (!a || !b) {
       continue;
     }
+    // A jump gap has frames for progress and the camera but no deck.
+    if (!a.solid || !b.solid) {
+      continue;
+    }
     const length = a.position.distanceTo(b.position);
     if (length < 1e-4) {
       continue;
@@ -288,7 +292,9 @@ export async function createPhysics(
       const translation = car.translation();
       carPosition.set(translation.x, translation.y, translation.z);
       toSurface.copy(frame.position).sub(carPosition);
-      const onTrack = toSurface.length() < TRACK_WIDTH;
+      // The guide is off over a jump gap, so the body flies ballistically.
+      const onTrack =
+        frame.solid && toSurface.length() < TRACK_WIDTH;
 
       // Thrust follows the racing line while the guide is active. If it were
       // applied along the nose, holding lock at speed would push the car

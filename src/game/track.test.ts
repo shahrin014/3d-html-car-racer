@@ -3,6 +3,11 @@ import * as THREE from 'three';
 import {
   CAR_HEIGHT,
   CAR_WIDTH,
+  JUMP_GAP_LENGTH,
+  JUMP_HEIGHT,
+  JUMP_KICKER_LENGTH,
+  JUMP_LANDING_LENGTH,
+  JUMP_LENGTH,
   LOOP_OFFSET,
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
@@ -10,7 +15,16 @@ import {
   RAIL_HEIGHT,
   TRACK_WIDTH,
 } from './constants';
-import { buildFrames, generateCircuit, loopPath, shiftPath, turnPath } from './track';
+import {
+  buildFrames,
+  gapPath,
+  generateCircuit,
+  kickerPath,
+  landingPath,
+  loopPath,
+  shiftPath,
+  turnPath,
+} from './track';
 
 const SEED = '2026-11-15';
 
@@ -92,6 +106,42 @@ describe('track pieces', () => {
     expect(start.up.dot(end.up)).toBeCloseTo(1, 6);
     const shifted = shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH)(1);
     expect(shifted.position.x).toBeCloseTo(-LOOP_OFFSET, 6);
+  });
+
+  it('joins a kicker, gap, and landing into one launch', () => {
+    const kicker = kickerPath();
+    const gap = gapPath();
+    const landing = landingPath();
+    // The kicker lifts to a flat lip, the gap is deckless at that height, and
+    // the landing ramp brings the path back down with zero slope.
+    expect(kicker(1).position.y).toBeCloseTo(JUMP_HEIGHT, 6);
+    expect(kicker(1).tangent.y).toBeCloseTo(0, 6);
+    expect(gap(0).position.y).toBeCloseTo(0, 6);
+    expect(gap(1).position.y).toBeCloseTo(0, 6);
+    expect(landing(1).position.y).toBeCloseTo(-JUMP_HEIGHT, 6);
+    expect(landing(1).tangent.y).toBeCloseTo(0, 6);
+    expect(JUMP_LENGTH).toBe(
+      JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH,
+    );
+    expect(JUMP_LENGTH).toBe(30);
+  });
+
+  it('marks gap frames as non-solid for physics and the guide', () => {
+    for (let index = 0; index < 40; index += 1) {
+      const circuit = generateCircuit(`jump-check-${index}`, 1);
+      if (!circuit.pieces.some((piece) => piece.kind === 'gap')) {
+        continue;
+      }
+      const frames = buildFrames(circuit);
+      const inGap = frames.filter((frame) => !frame.solid);
+      expect(inGap.length).toBeGreaterThan(0);
+      // Closure still holds with a jump in the layout.
+      expect(
+        frames[0]?.position.distanceTo(frames[frames.length - 1]!.position) ?? 1,
+      ).toBeLessThan(0.05);
+      return;
+    }
+    throw new Error('no jump circuit found');
   });
 
   it('clamps turn banking to the documented range', () => {

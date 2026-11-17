@@ -130,6 +130,18 @@ export const CIRCUIT_LEAD_STRAIGHT = 12;
 export const CIRCUIT_BOOST_LENGTH = 12;
 
 /**
+ * Jump module: a kicker up to a raised lip, a gap with no deck, and a landing
+ * ramp back down. The three pieces add up to the hill's 30 m slot, so a leg can
+ * carry either a crest or a jump.
+ */
+export const JUMP_HEIGHT = 1.6;
+export const JUMP_KICKER_LENGTH = 9;
+export const JUMP_GAP_LENGTH = 6;
+export const JUMP_LANDING_LENGTH = 15;
+export const JUMP_LENGTH =
+  JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH;
+
+/**
  * Opponents on the grid. Each drives a kinematic racing line at its own pace
  * and lane, so the field is deterministic and the player can bump into them.
  */

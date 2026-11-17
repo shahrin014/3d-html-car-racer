@@ -6,6 +6,10 @@ import {
   CIRCUIT_LEAD_STRAIGHT,
   CIRCUIT_LEG_BASE,
   DESIGN_SPEED,
+  JUMP_GAP_LENGTH,
+  JUMP_HEIGHT,
+  JUMP_KICKER_LENGTH,
+  JUMP_LANDING_LENGTH,
   LOOP_OFFSET,
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
@@ -22,6 +26,11 @@ export interface TrackFrame {
   right: THREE.Vector3;
   /** Distance along the circuit in metres. */
   s: number;
+  /**
+   * False over a jump gap: the frame is only a progress and camera reference,
+   * so it must get no collider and must not apply the guide assist.
+   */
+  solid: boolean;
 }
 
 export interface TrackSample {
@@ -120,6 +129,63 @@ export function shiftPath(offset: number, length = 14): TrackPath {
   };
 }
 
+/** Ease curve with zero slope at both ends. */
+function smoothStep(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+/** Ramp up to a flat lip: the launch end of a jump. */
+export function kickerPath(
+  length = JUMP_KICKER_LENGTH,
+  height = JUMP_HEIGHT,
+): TrackPath {
+  return (t) => {
+    const slope = (height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/**
+ * The gap between a kicker and its landing ramp. There is no deck here: the
+ * frames continue the lip's line so progress, the camera, and the rivals still
+ * know where the circuit goes.
+ */
+export function gapPath(length = JUMP_GAP_LENGTH): TrackPath {
+  // Local coordinates: the placement matrix already sits at the lip height, so
+  // the gap continues flat at y = 0 and the landing ramp brings it back down.
+  return (t) => ({
+    position: new THREE.Vector3(0, 0, length * t),
+    tangent: new THREE.Vector3(0, 0, 1),
+    up: new THREE.Vector3(0, 1, 0),
+    bank: 0,
+  });
+}
+
+/** Landing ramp from the lip height back to the ground with zero slope. */
+export function landingPath(
+  length = JUMP_LANDING_LENGTH,
+  height = JUMP_HEIGHT,
+): TrackPath {
+  return (t) => {
+    const slope = (-height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, -height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
 /** Crest that returns to ground level with zero slope at both ends. */
 export function hillPath(length = 18, height = 2): TrackPath {
   return (t) => {
@@ -137,7 +203,16 @@ export function hillPath(length = 18, height = 2): TrackPath {
 }
 
 export interface Piece {
-  kind: 'straight' | 'turn' | 'loop' | 'hill' | 'boost' | 'shift';
+  kind:
+    | 'straight'
+    | 'turn'
+    | 'loop'
+    | 'hill'
+    | 'boost'
+    | 'shift'
+    | 'kicker'
+    | 'gap'
+    | 'landing';
   path: TrackPath;
   length: number;
   /** Matrix that places the piece's local frame in the circuit. */
@@ -330,6 +405,7 @@ function assembleCircuit(
   for (let step = 1; step < corners; step += 1) {
     boostCandidates.push((hillLeg + step) % corners);
   }
+  const jump = random() < 0.5;
   const boostStart = Math.floor(random() * boostCandidates.length);
   const boostLegs = new Set([
     boostCandidates[boostStart]!,
@@ -355,7 +431,14 @@ function assembleCircuit(
         LOOP_RETURN_LENGTH,
       );
     } else if (index === hillLeg) {
-      addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
+      // A leg carries either a crest or a jump; both fill the same 30 m slot.
+      if (jump) {
+        addPiece('kicker', kickerPath(), JUMP_KICKER_LENGTH);
+        addPiece('gap', gapPath(), JUMP_GAP_LENGTH);
+        addPiece('landing', landingPath(), JUMP_LANDING_LENGTH);
+      } else {
+        addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
+      }
     }
     if (boost > 0) {
       addStraight(boost, true);
@@ -545,6 +628,7 @@ export function buildFrames(circuit: Circuit, step = 0.4): TrackFrame[] {
         up: upWorld,
         right: new THREE.Vector3().crossVectors(upWorld, tangent).normalize(),
         s: distance + t * piece.length,
+        solid: piece.kind !== 'gap',
       });
     }
     distance += piece.length;

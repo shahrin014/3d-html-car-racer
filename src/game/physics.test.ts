@@ -221,3 +221,73 @@ describe('opponents', () => {
     physics.dispose();
   }, 60_000);
 });
+
+describe('jumps', () => {
+  it('launches over the gap and lands on the ramp', async () => {
+    let frames: TrackFrame[] | null = null;
+    let gapIndex = -1;
+    for (let index = 0; index < 40; index += 1) {
+      const candidate = buildFrames(generateCircuit(`jump-run-${index}`, 1));
+      const gap = candidate.findIndex((frame) => !frame.solid);
+      if (gap > 100) {
+        frames = candidate;
+        gapIndex = gap;
+        break;
+      }
+    }
+    expect(frames).not.toBeNull();
+    const track = frames!;
+    const physics = await createPhysics(track);
+    const start = Math.max(0, gapIndex - 90);
+    physics.reset(track[start]!);
+
+    let index = start;
+    let firstGapVertical = 0;
+    let lastGapVertical = 0;
+    let landedSpeed = 0;
+    let sawGap = false;
+    let hasLanded = false;
+
+    for (let step = 0; step < 120 * 10; step += 1) {
+      const state = physics.read();
+      index = nextIndex(track, index, state.position);
+      const frame = track[index]!;
+      const latitude = lateralOffset(frame, state.position);
+      const lateralSpeed =
+        state.velocity.x * frame.right.x +
+        state.velocity.y * frame.right.y +
+        state.velocity.z * frame.right.z;
+      const steer = Math.max(
+        -1,
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
+      );
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer }, frame);
+
+      const after = physics.read();
+      if (!frame.solid) {
+        const vertical =
+          after.velocity.x * frame.up.x +
+          after.velocity.y * frame.up.y +
+          after.velocity.z * frame.up.z;
+        if (!sawGap) {
+          firstGapVertical = vertical;
+        }
+        sawGap = true;
+        lastGapVertical = vertical;
+      }
+      if (sawGap && index > gapIndex + 30 && frame.solid && after.speed > 4) {
+        hasLanded = true;
+        landedSpeed = after.speed;
+        break;
+      }
+    }
+
+    physics.dispose();
+    expect(sawGap).toBe(true);
+    // Nothing holds the car up over the gap: its vertical speed falls under
+    // gravity instead of tracking the (virtual) deck.
+    expect(lastGapVertical - firstGapVertical).toBeLessThan(-1);
+    expect(hasLanded).toBe(true);
+    expect(landedSpeed).toBeGreaterThan(4);
+  }, 60_000);
+});

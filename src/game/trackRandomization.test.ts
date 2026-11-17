@@ -100,6 +100,9 @@ describe('track randomization', () => {
       'hill',
       'boost',
       'shift',
+      'kicker',
+      'gap',
+      'landing',
     ]);
     for (const piece of [...first.pieces, ...second.pieces]) {
       expect(allowed.has(piece.kind)).toBe(true);
