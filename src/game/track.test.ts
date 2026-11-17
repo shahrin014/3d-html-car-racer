@@ -7,6 +7,7 @@ import {
   JUMP_HEIGHT,
   JUMP_KICKER_LENGTH,
   JUMP_LANDING_LENGTH,
+  JUMP_LAUNCH_SLOPE,
   JUMP_LENGTH,
   LOOP_OFFSET,
   LOOP_RADIUS,
@@ -19,12 +20,24 @@ import {
   buildFrames,
   gapPath,
   generateCircuit,
+  jumpPlanarLength,
   kickerPath,
   landingPath,
   loopPath,
   shiftPath,
   turnPath,
+  type TrackPath,
 } from './track';
+
+/** Local frame at the end of a path, as the piece placement composes it. */
+function endFrame(path: TrackPath): THREE.Matrix4 {
+  const sample = path(1);
+  return new THREE.Matrix4().makeBasis(
+    new THREE.Vector3().crossVectors(sample.up, sample.tangent).normalize(),
+    sample.up,
+    sample.tangent,
+  ).setPosition(sample.position);
+}
 
 const SEED = '2026-11-15';
 
@@ -112,18 +125,40 @@ describe('track pieces', () => {
     const kicker = kickerPath();
     const gap = gapPath();
     const landing = landingPath();
-    // The kicker lifts to a flat lip, the gap is deckless at that height, and
-    // the landing ramp brings the path back down with zero slope.
+    // The kicker lifts the car and ends pointing up the launch line; the gap
+    // is empty space on that line; the landing ramp enters on the same line
+    // and sinks back to a flat deck. Composing the three placed frames proves
+    // the module ends flat, at ground height, and facing the way it started.
+    const launch = new THREE.Vector3(0, JUMP_LAUNCH_SLOPE, 1).normalize();
     expect(kicker(1).position.y).toBeCloseTo(JUMP_HEIGHT, 6);
-    expect(kicker(1).tangent.y).toBeCloseTo(0, 6);
+    expect(kicker(1).tangent.angleTo(launch)).toBeLessThan(1e-6);
     expect(gap(0).position.y).toBeCloseTo(0, 6);
-    expect(gap(1).position.y).toBeCloseTo(0, 6);
-    expect(landing(1).position.y).toBeCloseTo(-JUMP_HEIGHT, 6);
-    expect(landing(1).tangent.y).toBeCloseTo(0, 6);
+    expect(gap(1).tangent.angleTo(new THREE.Vector3(0, 0, 1))).toBeLessThan(1e-6);
+    expect(landing(0).tangent.angleTo(new THREE.Vector3(0, 0, 1))).toBeLessThan(
+      1e-6,
+    );
+
+    const world = new THREE.Matrix4()
+      .multiply(endFrame(kicker))
+      .multiply(endFrame(gap))
+      .multiply(endFrame(landing));
+    const end = new THREE.Vector3(0, 0, 0).applyMatrix4(world);
+    const heading = new THREE.Vector3(0, 0, 1)
+      .transformDirection(world)
+      .normalize();
+    const up = new THREE.Vector3(0, 1, 0).transformDirection(world).normalize();
+    expect(end.y).toBeCloseTo(0, 6);
+    expect(heading.dot(new THREE.Vector3(0, 0, 1))).toBeCloseTo(1, 6);
+    expect(up.dot(new THREE.Vector3(0, 1, 0))).toBeCloseTo(1, 6);
+
     expect(JUMP_LENGTH).toBe(
       JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH,
     );
     expect(JUMP_LENGTH).toBe(30);
+    // The module's plan advance is what the leg budget must reserve; it is
+    // slightly longer than the three piece lengths because of the launch tilt.
+    expect(jumpPlanarLength()).toBeGreaterThan(JUMP_LENGTH);
+    expect(Math.hypot(end.x, end.z)).toBeCloseTo(jumpPlanarLength(), 4);
   });
 
   it('marks gap frames as non-solid for physics and the guide', () => {

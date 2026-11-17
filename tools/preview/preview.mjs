@@ -106,6 +106,77 @@ function loopPath(radius, offset = TRACK.loopOffset) {
   };
 }
 
+const JUMP_HEIGHT = 1.6;
+const JUMP_SLOPE = 0.2;
+const JUMP_GAP = 6;
+const JUMP_LANDING = 16;
+
+function hermite(t) {
+  const squared = t * t;
+  const cubed = squared * t;
+  return {
+    h00: 2 * cubed - 3 * squared + 1,
+    h10: cubed - 2 * squared + t,
+    h01: -2 * cubed + 3 * squared,
+    h11: cubed - squared,
+  };
+}
+
+function hermiteSlope(t) {
+  const squared = t * t;
+  return {
+    d00: 6 * squared - 6 * t,
+    d10: 3 * squared - 4 * t + 1,
+    d01: -6 * squared + 6 * t,
+    d11: 3 * squared - 2 * t,
+  };
+}
+
+/** Ramp up to the lip, ending on the launch slope (matches the game path). */
+function kickerPath(length = 8, height = JUMP_HEIGHT, slope = JUMP_SLOPE) {
+  return (t) => {
+    const basis = hermite(t);
+    const derivative = hermiteSlope(t);
+    const y = basis.h01 * height + basis.h11 * (length * slope);
+    const dy =
+      (derivative.d01 * height + derivative.d11 * (length * slope)) / length;
+    const tangent = new THREE.Vector3(0, dy, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, y, length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** Landing ramp placed on the launch frame (matches the game path). */
+function landingPath(
+  length = JUMP_LANDING,
+  height = JUMP_HEIGHT,
+  slope = JUMP_SLOPE,
+  gapLength = JUMP_GAP,
+) {
+  const angle = Math.atan(slope);
+  const drop = -(height / Math.cos(angle) + (gapLength + length) * slope);
+  return (t) => {
+    const basis = hermite(t);
+    const derivative = hermiteSlope(t);
+    const y = basis.h01 * drop + basis.h11 * (length * -slope);
+    const dy =
+      (derivative.d01 * drop + derivative.d11 * (length * -slope)) / length;
+    const tangent = new THREE.Vector3(0, dy, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, y, length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
 function hillPath({ length, height }) {
   return (t) => {
     const y = height * Math.sin(Math.PI * t) ** 2;
@@ -173,6 +244,20 @@ const PIECES = {
     path: hillPath({ length: 16, height: 2.5 }),
     view: new THREE.Vector3(0.9, 0.45, 1),
   },
+  'ramp-up-1.6': {
+    title: 'Launch ramp · 1.6 m lip',
+    meta: '8 m · ends on an 11° launch · empty gap follows',
+    length: 8,
+    path: kickerPath(),
+    view: new THREE.Vector3(0.9, 0.5, 1),
+  },
+  'ramp-down-1.6': {
+    title: 'Landing ramp · 1.6 m lip',
+    meta: '16 m · enters on the launch line and flattens to the deck',
+    length: 16,
+    path: landingPath(),
+    view: new THREE.Vector3(0.9, 0.5, 1),
+  },
   'boost-12': {
     title: 'Boost straight · 12 m',
     meta: 'Armed acceleration strip · chevrons face the driving direction',
@@ -180,6 +265,27 @@ const PIECES = {
     path: straightPath(12),
     boost: true,
     view: new THREE.Vector3(0.9, 0.6, 1),
+  },
+  'building-block': {
+    kind: 'building',
+    title: 'City block · low',
+    meta: '8 x 6 x 8 m · lit window facade',
+    size: { width: 8, height: 6, depth: 8 },
+    view: new THREE.Vector3(1, 0.55, 1),
+  },
+  'building-tower': {
+    kind: 'building',
+    title: 'City tower',
+    meta: '6 x 30 x 6 m · lit window facade',
+    size: { width: 6, height: 30, depth: 6 },
+    view: new THREE.Vector3(1, 0.4, 1),
+  },
+  'building-wide': {
+    kind: 'building',
+    title: 'City block · wide',
+    meta: '12 x 10 x 6 m · lit window facade',
+    size: { width: 12, height: 10, depth: 6 },
+    view: new THREE.Vector3(1, 0.55, 1),
   },
   car: {
     kind: 'car',
@@ -272,11 +378,6 @@ const railMaterial = new THREE.MeshStandardMaterial({
   metalness: 0.3,
   side: THREE.DoubleSide,
 });
-const supportMaterial = new THREE.MeshStandardMaterial({
-  color: 0x232a36,
-  roughness: 0.9,
-  metalness: 0.1,
-});
 
 /** Orange plastic with seam lines, optionally carrying boost chevrons. */
 function createTrackTexture({ boost = false } = {}) {
@@ -322,6 +423,85 @@ function createTrackTexture({ boost = false } = {}) {
   const texture = new THREE.CanvasTexture(canvasTexture);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Dark facade with a grid of lit windows, matching the game's skyline. */
+function createWindowTexture() {
+  let hash = 2166136261;
+  const seed = 'catalog-buildings';
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  const random = () => {
+    hash += 0x6d2b79f5;
+    let t = hash;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const canvasTexture = document.createElement('canvas');
+  canvasTexture.width = 128;
+  canvasTexture.height = 256;
+  const ctx = canvasTexture.getContext('2d');
+  if (!ctx) {
+    throw new Error('2D canvas unavailable');
+  }
+  ctx.fillStyle = '#0a121d';
+  ctx.fillRect(0, 0, canvasTexture.width, canvasTexture.height);
+
+  // One irregular façade per face (see src/game/scenery.ts): dark floors,
+  // varied pane sizes, and structural piers instead of a repeated tile.
+  const columns = 8;
+  const rows = 20;
+  const cellWidth = canvasTexture.width / columns;
+  const cellHeight = canvasTexture.height / rows;
+  const palette = ['#ffd98a', '#8fe3ff', '#ffb46b', '#cfe8ff'];
+  for (let row = 0; row < rows; row += 1) {
+    const darkFloor = random() < 0.09;
+    const brightFloor = random() < 0.1;
+    for (let column = 0; column < columns; column += 1) {
+      if (darkFloor || (random() < 0.34 && !brightFloor)) {
+        continue;
+      }
+      const colour = palette[Math.floor(random() * palette.length)] ?? '#ffd98a';
+      ctx.globalAlpha = 0.3 + random() * 0.65;
+      ctx.fillStyle = colour;
+      const inset = cellWidth * (0.16 + random() * 0.1);
+      const top = row * cellHeight + cellHeight * (0.22 + random() * 0.14);
+      ctx.fillRect(
+        column * cellWidth + inset,
+        top,
+        cellWidth - inset * 2,
+        cellHeight * (0.3 + random() * 0.18),
+      );
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = 'rgba(4, 9, 16, 0.75)';
+  for (let pier = 0; pier < 3; pier += 1) {
+    const x = random() * canvasTexture.width;
+    ctx.fillRect(
+      x,
+      0,
+      canvasTexture.width * (0.02 + random() * 0.035),
+      canvasTexture.height,
+    );
+  }
+  ctx.fillStyle = 'rgba(120, 190, 255, 0.08)';
+  for (let band = 0; band < 2; band += 1) {
+    ctx.fillRect(0, random() * canvasTexture.height, canvasTexture.width, 3);
+  }
+
+  const texture = new THREE.CanvasTexture(canvasTexture);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 1);
   texture.anisotropy = 8;
   return texture;
 }
@@ -530,27 +710,7 @@ function buildTrack(path, length, { boost = false, railFade } = {}) {
     );
   }
 
-  const supportSpacing = Math.max(1, Math.round(6 / 0.35));
-  frames.forEach((frame, index) => {
-    // Pillars only under near-horizontal elevated track; a loop's ring is
-    // carried by its own base, not by columns inside the opening.
-    if (
-      index % supportSpacing !== 0 ||
-      frame.position.y < 0.8 ||
-      frame.up.y < 0.75
-    ) {
-      return;
-    }
-    const top = frame.position.y - TRACK.thickness;
-    const height = top + 1;
-    const column = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, height, 0.3),
-      supportMaterial,
-    );
-    column.position.set(frame.position.x, (top - 1) / 2, frame.position.z);
-    group.add(column);
-  });
-
+  // The deck floats: no support columns, matching the game.
   return group;
 }
 
@@ -698,6 +858,28 @@ if (piece.kind === 'car') {
   camera.position.set(0, 0.84, 0);
   camera.lookAt(0, 0.6, 60);
   scene.fog = new THREE.Fog(0x070a10, 25, 95);
+} else if (piece.kind === 'building') {
+  const map = createWindowTexture();
+  const material = new THREE.MeshStandardMaterial({
+    map,
+    emissive: 0xffffff,
+    emissiveMap: map,
+    emissiveIntensity: 0.85,
+    roughness: 0.92,
+    metalness: 0.06,
+  });
+  const building = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      piece.size.width,
+      piece.size.height,
+      piece.size.depth,
+    ),
+    material,
+  );
+  building.position.y = piece.size.height / 2;
+  building.name = 'building';
+  assetGroup.add(building);
+  fitCamera(assetGroup, piece.view ?? new THREE.Vector3(1, 0.55, 1), 1.08);
 } else {
   const track = buildTrack(piece.path, piece.length, { boost: piece.boost });
   assetGroup.add(track);

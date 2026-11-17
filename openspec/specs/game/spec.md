@@ -484,8 +484,10 @@ The deck SHALL float like a plastic track piece, with no support columns beneath
 it. The surface SHALL have no gaps, cracks, or steps except the intentional gap
 of a jump, and loops SHALL have distinct entrances and exits.
 
-A jump SHALL consist of a kicker that rises to a raised lip, a deckless gap, and
-a landing ramp that returns to the deck. The kicker and landing SHALL end at the
+A jump SHALL consist of a kicker that rises to a raised lip and ends on an
+upward launch angle, a deckless gap, and a landing ramp that enters on the same
+line and sinks back to the deck. The car SHALL leave the lip, fly over the empty
+space, and land on the down-ramp. The kicker and landing SHALL end at the
 gap with a clear edge; no deck or rail SHALL cross the gap.
 
 #### Scenario: Track width
@@ -971,16 +973,23 @@ treated as absent. Storage failure SHALL NOT prevent play.
 
 ### Requirement: Every track asset ships as binary glTF
 
-Every track piece SHALL be exported as a binary glTF (`.glb`) file under
-`assets/track/`, with the same geometry and embedded materials as its rendered
-preview. Export SHALL be reproducible from the catalog definitions with a single
-command. Every file SHALL be a valid glTF 2.0 binary and SHALL be committed
-alongside its preview.
+Every catalog asset SHALL be exported as a binary glTF (`.glb`) file in its
+catalog folder: track pieces under `assets/track/` and buildings under
+`assets/buildings/`, with the same geometry and embedded materials as the
+rendered preview. Export SHALL be reproducible from the catalog definitions with
+a single command. Every file SHALL be a valid glTF 2.0 binary and SHALL be
+committed alongside its preview.
 
 #### Scenario: Track pieces have models
 
 - **GIVEN** the track catalog
 - **THEN** every track piece has a matching `.glb` file under `assets/track/`
+- **AND** each file begins with the glTF binary magic
+
+#### Scenario: Buildings have models
+
+- **GIVEN** the building catalog
+- **THEN** every building has a matching `.glb` file under `assets/buildings/`
 - **AND** each file begins with the glTF binary magic
 
 #### Scenario: Export is reproducible

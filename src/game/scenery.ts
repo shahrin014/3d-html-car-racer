@@ -59,34 +59,53 @@ function createWindowTexture(seed: string): THREE.CanvasTexture {
   ctx.fillStyle = '#0a121d';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const columns = 6;
-  const rows = 14;
+  // A single irregular façade instead of a small tile repeated over every
+  // face: some floors are dark, some panes are wide, and a few structural
+  // piers break the grid so a tower no longer reads as wallpaper.
+  const columns = 8;
+  const rows = 20;
   const cellWidth = canvas.width / columns;
   const cellHeight = canvas.height / rows;
   const palette = ['#ffd98a', '#8fe3ff', '#ffb46b', '#cfe8ff'];
   for (let row = 0; row < rows; row += 1) {
+    const darkFloor = random() < 0.09;
+    const brightFloor = random() < 0.1;
     for (let column = 0; column < columns; column += 1) {
-      if (random() < 0.42) {
+      if (darkFloor || (random() < 0.34 && !brightFloor)) {
         continue;
       }
       const colour = palette[Math.floor(random() * palette.length)] ?? '#ffd98a';
-      ctx.globalAlpha = 0.35 + random() * 0.6;
+      ctx.globalAlpha = 0.3 + random() * 0.65;
       ctx.fillStyle = colour;
+      const inset = cellWidth * (0.16 + random() * 0.1);
+      const top = row * cellHeight + cellHeight * (0.22 + random() * 0.14);
       ctx.fillRect(
-        column * cellWidth + cellWidth * 0.22,
-        row * cellHeight + cellHeight * 0.3,
-        cellWidth * 0.56,
-        cellHeight * 0.34,
+        column * cellWidth + inset,
+        top,
+        cellWidth - inset * 2,
+        cellHeight * (0.3 + random() * 0.18),
       );
     }
   }
   ctx.globalAlpha = 1;
 
+  // Structural piers and a couple of darker service columns.
+  ctx.fillStyle = 'rgba(4, 9, 16, 0.75)';
+  for (let pier = 0; pier < 3; pier += 1) {
+    const x = random() * canvas.width;
+    ctx.fillRect(x, 0, canvas.width * (0.02 + random() * 0.035), canvas.height);
+  }
+  ctx.fillStyle = 'rgba(120, 190, 255, 0.08)';
+  for (let band = 0; band < 2; band += 1) {
+    ctx.fillRect(0, random() * canvas.height, canvas.width, 3);
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2, 4);
+  // One façade per face: repetition is what made the towers look tiled.
+  texture.repeat.set(1, 1);
   texture.anisotropy = 4;
   return texture;
 }

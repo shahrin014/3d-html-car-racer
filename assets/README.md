@@ -24,12 +24,29 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Hairpin | ![hairpin](track/turn-180-r10.png) | 180°, R10 | Bank clamped at 45° |
 | Loop | ![loop](track/loop-r7.png) | R7 vertical, 360° | Ring lifted 0.8 m on 3.4 m entry and exit ramps; ends 6.8 m apart |
 | Hill | ![hill](track/hill-crest-2.5.png) | 16 m, crest 2.5 m | Zero slope at both ends |
+| Launch ramp | ![ramp up](track/ramp-up-1.6.png) | 8 m, 1.6 m lip | Ends on an 11° launch; an empty gap follows |
+| Landing ramp | ![ramp down](track/ramp-down-1.6.png) | 16 m, 1.6 m lip | Enters on the launch line and flattens to the deck |
 | Boost straight | ![boost](track/boost-12.png) | 12 m + armed strip | Chevrons face the driving direction |
 
 All pieces are 3.0 m wide in the catalogue (three car widths), 0.12 m thick,
 with 0.35 m guide rails, and start and end unbanked so any two pieces join
-cleanly. The game scales the catalogue by 1.5× and widens the deck to 6 m at
-runtime, so the track in play is twice the catalogue width.
+cleanly. The deck floats: there are no support columns under elevated track. The
+game scales the catalogue by 1.5× and widens the deck to 7 m at runtime, so the
+track in play is wider than the catalogue.
+
+## Buildings
+
+![city block](buildings/building-block.png)
+
+![city tower](buildings/building-tower.png)
+
+![wide block](buildings/building-wide.png)
+
+Deterministic city scenery placed around every generated circuit: a low block,
+a wide block, and a tower, each with a lit-window façade. The game instantiates
+these proportions as one instanced mesh, seeded by the circuit, and keeps every
+building at least 16 m from the deck. They are presentation only and carry no
+colliders.
 
 ## Car
 

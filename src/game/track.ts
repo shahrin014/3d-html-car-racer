@@ -10,6 +10,7 @@ import {
   JUMP_HEIGHT,
   JUMP_KICKER_LENGTH,
   JUMP_LANDING_LENGTH,
+  JUMP_LAUNCH_SLOPE,
   LOOP_OFFSET,
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
@@ -129,22 +130,61 @@ export function shiftPath(offset: number, length = 14): TrackPath {
   };
 }
 
-/** Ease curve with zero slope at both ends. */
-function smoothStep(t: number): number {
-  return t * t * (3 - 2 * t);
+/** Hermite basis for a curve with chosen end values and end slopes. */
+function hermite(t: number): { h00: number; h10: number; h01: number; h11: number } {
+  const squared = t * t;
+  const cubed = squared * t;
+  return {
+    h00: 2 * cubed - 3 * squared + 1,
+    h10: cubed - 2 * squared + t,
+    h01: -2 * cubed + 3 * squared,
+    h11: cubed - squared,
+  };
 }
 
-/** Ramp up to a flat lip: the launch end of a jump. */
+/** Derivative of the Hermite basis, with respect to t. */
+function hermiteSlope(t: number): { d00: number; d10: number; d01: number; d11: number } {
+  const squared = t * t;
+  return {
+    d00: 6 * squared - 6 * t,
+    d10: 3 * squared - 4 * t + 1,
+    d01: -6 * squared + 6 * t,
+    d11: 3 * squared - 2 * t,
+  };
+}
+
+/**
+ * Planar forward distance of a whole jump module.
+ *
+ * The gap and the landing are placed on the tilted launch frame, and the
+ * landing also drops a long way along that frame's up vector, which leans
+ * forward. Both effects add plan distance beyond the piece lengths, so the leg
+ * budget must use this figure rather than the sum of the three lengths.
+ */
+export function jumpPlanarLength(): number {
+  const angle = Math.atan(JUMP_LAUNCH_SLOPE);
+  return (
+    JUMP_KICKER_LENGTH +
+    JUMP_HEIGHT * JUMP_LAUNCH_SLOPE +
+    (JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH) / Math.cos(angle)
+  );
+}
+
+/** Ramp up to the lip, ending on the launch slope. */
 export function kickerPath(
   length = JUMP_KICKER_LENGTH,
   height = JUMP_HEIGHT,
+  slope = JUMP_LAUNCH_SLOPE,
 ): TrackPath {
   return (t) => {
-    const slope = (height * 6 * t * (1 - t)) / length;
-    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const basis = hermite(t);
+    const derivative = hermiteSlope(t);
+    const y = basis.h01 * height + basis.h11 * (length * slope);
+    const dy = (derivative.d01 * height + derivative.d11 * (length * slope)) / length;
+    const tangent = new THREE.Vector3(0, dy, 1).normalize();
     const right = new THREE.Vector3(1, 0, 0);
     return {
-      position: new THREE.Vector3(0, height * smoothStep(t), length * t),
+      position: new THREE.Vector3(0, y, length * t),
       tangent,
       up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
       bank: 0,
@@ -153,13 +193,12 @@ export function kickerPath(
 }
 
 /**
- * The gap between a kicker and its landing ramp. There is no deck here: the
- * frames continue the lip's line so progress, the camera, and the rivals still
- * know where the circuit goes.
+ * The empty space between a kicker and its landing ramp. There is no deck here:
+ * the frames continue the launch line so progress, the camera, and the rivals
+ * still know where the circuit goes. In local coordinates the launch line is
+ * the placement frame's own +Z, so this piece is a plain straight.
  */
 export function gapPath(length = JUMP_GAP_LENGTH): TrackPath {
-  // Local coordinates: the placement matrix already sits at the lip height, so
-  // the gap continues flat at y = 0 and the landing ramp brings it back down.
   return (t) => ({
     position: new THREE.Vector3(0, 0, length * t),
     tangent: new THREE.Vector3(0, 0, 1),
@@ -168,17 +207,32 @@ export function gapPath(length = JUMP_GAP_LENGTH): TrackPath {
   });
 }
 
-/** Landing ramp from the lip height back to the ground with zero slope. */
+/**
+ * Landing ramp: enters along the launch line and sinks back to a flat deck.
+ *
+ * The piece is placed on the launch frame, so its local +Z is already tilted
+ * up by the launch angle and its local +Y is the lip's up. It therefore starts
+ * with zero local slope, ends with the opposite slope so the world tangent is
+ * flat again, and drops far enough along the tilted local Y to reach height 0.
+ */
 export function landingPath(
   length = JUMP_LANDING_LENGTH,
   height = JUMP_HEIGHT,
+  slope = JUMP_LAUNCH_SLOPE,
+  gapLength = JUMP_GAP_LENGTH,
 ): TrackPath {
+  const angle = Math.atan(slope);
+  const drop = -(height / Math.cos(angle) + (gapLength + length) * slope);
   return (t) => {
-    const slope = (-height * 6 * t * (1 - t)) / length;
-    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const basis = hermite(t);
+    const derivative = hermiteSlope(t);
+    const y = basis.h01 * drop + basis.h11 * (length * -slope);
+    const dy =
+      (derivative.d01 * drop + derivative.d11 * (length * -slope)) / length;
+    const tangent = new THREE.Vector3(0, dy, 1).normalize();
     const right = new THREE.Vector3(1, 0, 0);
     return {
-      position: new THREE.Vector3(0, -height * smoothStep(t), length * t),
+      position: new THREE.Vector3(0, y, length * t),
       tangent,
       up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
       bank: 0,
@@ -417,7 +471,9 @@ function assembleCircuit(
       index === loopLeg
         ? LOOP_RETURN_LENGTH
         : index === hillLeg
-          ? HILL_LENGTH
+          ? jump
+            ? jumpPlanarLength()
+            : HILL_LENGTH
           : 0;
     const boost = boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0;
     const pad = leg - CIRCUIT_LEAD_STRAIGHT - feature - boost;

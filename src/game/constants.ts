@@ -135,9 +135,11 @@ export const CIRCUIT_BOOST_LENGTH = 12;
  * carry either a crest or a jump.
  */
 export const JUMP_HEIGHT = 1.6;
-export const JUMP_KICKER_LENGTH = 9;
+export const JUMP_KICKER_LENGTH = 8;
 export const JUMP_GAP_LENGTH = 6;
-export const JUMP_LANDING_LENGTH = 15;
+export const JUMP_LANDING_LENGTH = 16;
+/** Lip slope, dy/dz: about 11 degrees of upward launch. */
+export const JUMP_LAUNCH_SLOPE = 0.2;
 export const JUMP_LENGTH =
   JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH;
 

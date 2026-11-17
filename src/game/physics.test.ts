@@ -284,9 +284,10 @@ describe('jumps', () => {
 
     physics.dispose();
     expect(sawGap).toBe(true);
-    // Nothing holds the car up over the gap: its vertical speed falls under
-    // gravity instead of tracking the (virtual) deck.
-    expect(lastGapVertical - firstGapVertical).toBeLessThan(-1);
+    // The lip launches the car upward, and over the gap gravity is the only
+    // vertical force: the climb decays instead of tracking the (virtual) deck.
+    expect(firstGapVertical).toBeGreaterThan(0.2);
+    expect(lastGapVertical - firstGapVertical).toBeLessThan(-1.5);
     expect(hasLanded).toBe(true);
     expect(landedSpeed).toBeGreaterThan(4);
   }, 60_000);

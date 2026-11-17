@@ -109,9 +109,12 @@ runtime API calls.
 - **`frame.right` is the driver's left.** The frame is right-handed but a car
   facing `+Z` has its right toward `-X`; player steering is negated once in the
   physics and once for the wheel visuals, pinned by tests.
-- **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. Gap
-  frames exist for progress and the camera but carry no collider and disable the
-  guide assist, so the body flies ballistically and lands on the ramp. The mesh
+- **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
+  kicker ends on an upward launch slope and the landing ramp enters on the same
+  slope before flattening out, so the two ramps and the empty gap share one
+  tangent and still close the module vertically. Gap frames exist for progress
+  and the camera but carry no collider and disable the guide assist, so the body
+  flies ballistically and lands on the ramp. The mesh
   skips the gap entirely: no deck and no rails.
 - **Scenery is deterministic and one draw call.** The skyline is a single
   instanced box mesh with a canvas façade of lit windows, planned from the
@@ -125,7 +128,9 @@ runtime API calls.
 ### Asset formats
 
 - Catalog assets live under `assets/`: PNG previews plus binary glTF (`.glb`)
-  models for every 3D asset. New 3D assets are GLB with embedded textures.
+  models for every 3D asset, split by kind (`assets/track/`,
+  `assets/buildings/`, `assets/car/`, `assets/cockpit/`). New 3D assets are GLB
+  with embedded textures.
 - The game itself still builds geometry procedurally and downloads no models;
   GLB files are the design and interchange format, not runtime dependencies.
 
@@ -196,7 +201,7 @@ runtime API calls.
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
 | Opponent cruise speed | 12–15.6 m/s |
-| Jump | 1.6 m lip · 6 m gap · 15 m landing ramp |
+| Jump | 1.6 m lip at a 0.2 slope · 6 m gap · 16 m landing ramp |
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |

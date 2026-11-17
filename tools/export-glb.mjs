@@ -14,17 +14,22 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const repoRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
-const outputDir = path.join(repoRoot, 'assets', 'track');
+const assetsRoot = path.join(repoRoot, 'assets');
 const port = 4312;
 
 const PIECES = [
-  'straight-12',
-  'turn-45-r18',
-  'turn-90-r14',
-  'turn-180-r10',
-  'loop-r7',
-  'hill-crest-2.5',
-  'boost-12',
+  { id: 'straight-12', folder: 'track' },
+  { id: 'turn-45-r18', folder: 'track' },
+  { id: 'turn-90-r14', folder: 'track' },
+  { id: 'turn-180-r10', folder: 'track' },
+  { id: 'loop-r7', folder: 'track' },
+  { id: 'hill-crest-2.5', folder: 'track' },
+  { id: 'ramp-up-1.6', folder: 'track' },
+  { id: 'ramp-down-1.6', folder: 'track' },
+  { id: 'boost-12', folder: 'track' },
+  { id: 'building-block', folder: 'buildings' },
+  { id: 'building-tower', folder: 'buildings' },
+  { id: 'building-wide', folder: 'buildings' },
 ];
 
 const MIME_TYPES = {
@@ -59,7 +64,6 @@ const server = createServer(async (request, response) => {
 });
 
 await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
-await mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch();
 const page = await browser.newPage({
@@ -76,19 +80,21 @@ page.on('console', (message) => {
 page.on('pageerror', (error) => failures.push(error.message));
 
 for (const piece of PIECES) {
+  const outputDir = path.join(assetsRoot, piece.folder);
+  await mkdir(outputDir, { recursive: true });
   await page.goto(
-    `http://127.0.0.1:${port}/tools/preview/index.html?piece=${piece}`,
+    `http://127.0.0.1:${port}/tools/preview/index.html?piece=${piece.id}`,
     { waitUntil: 'load' },
   );
   await page.waitForFunction(() => window.__previewReady === true, undefined, {
     timeout: 30_000,
   });
   const base64 = await page.evaluate(() => window.__exportGlb());
-  const file = path.join(outputDir, `${piece}.glb`);
+  const file = path.join(outputDir, `${piece.id}.glb`);
   const bytes = Buffer.from(base64, 'base64');
   const magic = bytes.subarray(0, 4).toString('ascii');
   if (magic !== 'glTF') {
-    throw new Error(`${piece}: exporter did not produce a binary glTF`);
+    throw new Error(`${piece.id}: exporter did not produce a binary glTF`);
   }
   await writeFile(file, bytes);
   const size = (await stat(file)).size;
