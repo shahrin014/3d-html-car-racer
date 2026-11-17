@@ -492,6 +492,11 @@ patches; one rounded box slides over them on a broad contact patch. The torque
 that rolls and pitches the body onto the surface SHALL be damped, so a contact
 bump does not ring the body.
 
+The pose that is drawn SHALL be low-pass filtered, while the physics pose and
+all game logic SHALL keep the unfiltered state. The body rests directly on a
+faceted deck, so contact bumps it a few millimetres at 8–14 Hz; filtering the
+rendered pose only removes that buzz without delaying handling.
+
 #### Scenario: Acceleration
 
 - **GIVEN** the car is on the start line at rest
@@ -528,6 +533,16 @@ bump does not ring the body.
 - **AND** the wheels have no colliders
 - **AND** body chatter, measured as the RMS of the roll rate above 1.6 Hz over a
   driven lap, stays below 1.2 rad/s
+
+#### Scenario: Rendered pose is filtered
+
+- **GIVEN** the car is racing on the circuit
+- **WHEN** its rendered pose is compared with the rigid-body pose
+- **THEN** the rendered pose is low-pass filtered with a 0.04 s time constant
+- **AND** it snaps to the rigid-body pose on the first frame and after a rescue
+  teleport
+- **AND** the unfiltered rigid-body pose still drives handling, damage, and lap
+  progress
 
 ### Requirement: Device tilt steers the car
 

@@ -31,6 +31,10 @@ track-constrained movement.
   - wall-clock countdown, so a slow first Rapier load cannot restart the countdown
   - drives the car group, cameras, speed, lap progress, boost strips, damage,
     and rescue from the rigid body
+  - draws a filtered car pose (`src/game/poseSmoothing.ts`, 0.04 s time
+    constant) so contact buzz does not read as the car shaking; handling,
+    damage, and lap progress use the unfiltered body. The filter snaps on the
+    first frame and after a rescue teleport.
   - progress is searched around the last known frame, so the closing frame
     cannot be mistaken for the start line
 - The headless trace accelerates above 10 m/s, climbs above 8 m on the loop,
@@ -59,9 +63,10 @@ npm run check          # typecheck + tests + build + both budget gates
 ```
 
 The physics trace tests cover acceleration, steering response, loop contact,
-a complete lap without leaving the track, body-chatter bounds, and chase-camera
-deck clearance over a lap. The browser suite covers the
-menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
+a complete lap without leaving the track, body-chatter bounds, chase-camera
+deck clearance over a lap, and attenuation of the rendered pose filter. The
+browser suite covers the menu, start, HUD, cameras, pause, orientation,
+persistence, and offline reload.
 
 ## Key decisions
 
@@ -85,6 +90,13 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
   trimesh contact against the flat chassis bottom was less stable than the
   tiled cuboids. The chatter came from the undamped alignment spring, not the
   collider topology.
+- **The drawn car pose is filtered, the physics is not**: even after the
+  alignment damper, the body buzzes a few millimetres at 8–14 Hz because it
+  rests directly on the faceted deck. A 0.04 s low-pass on the rendered
+  position and quaternion cut the rendered roll rate's high-frequency RMS from
+  0.60 to 0.27 rad/s and the rendered roll error's from 0.018 to 0.014 rad.
+  Handling, damage, and lap progress still read the unfiltered body, and the
+  filter snaps on the first frame and after a rescue teleport.
 - **Guide assist is intentional**: a rigid toy car cannot hold a loop on tyre
   grip alone. The assist adds downforce, a grip-capped lateral damper, and
   heading/roll alignment and adds **no forward energy**. It switches off when

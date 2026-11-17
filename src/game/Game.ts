@@ -20,6 +20,7 @@ import {
   TRACK_WIDTH,
 } from './constants';
 import { createPhysics, type PhysicsHandle } from './physics';
+import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothing';
 import {
   buildFrames,
   generateCircuit,
@@ -98,6 +99,8 @@ export class Game {
     up: new THREE.Vector3(),
   };
   private readonly carUp = new THREE.Vector3();
+  private readonly carTarget = new THREE.Vector3();
+  private readonly visualPose = createSmoothedPose();
   private readonly chaseRig = createChaseRig();
 
   constructor(container: HTMLElement, callbacks: GameCallbacks, seed: string) {
@@ -453,6 +456,7 @@ export class Game {
         this.totalTime += RESCUE_PENALTY_SECONDS;
         physics.reset(frame);
         resetChaseRig(this.chaseRig);
+        resetSmoothedPose(this.visualPose);
         this.s = frame.s;
         this.lastFrameIndex = index;
         this.physicsAccumulator = 0;
@@ -466,10 +470,20 @@ export class Game {
     if (this.physics) {
       const state = this.physics.read();
       this.carUp.set(0, 1, 0).applyQuaternion(state.quaternion);
-      this.car.group.position
+      // Draw a filtered pose. The body rests directly on a faceted deck, so
+      // pure physics bounces it a few millimetres at contact frequency; that
+      // buzz is not gameplay and reads as the car shaking.
+      this.carTarget
         .copy(state.position)
         .addScaledVector(this.carUp, -PHYSICS_RIDE_HEIGHT);
-      this.car.group.quaternion.copy(state.quaternion);
+      const pose = smoothPose(
+        this.visualPose,
+        this.carTarget,
+        state.quaternion,
+        delta,
+      );
+      this.car.group.position.copy(pose.position);
+      this.car.group.quaternion.copy(pose.quaternion);
       this.wheelSpin += (this.speed * delta) / WHEEL_RADIUS;
     } else {
       this.placeCar(0, 0);
@@ -491,6 +505,7 @@ export class Game {
       .clone()
       .addScaledVector(frame.right, lateral)
       .addScaledVector(frame.up, 0.02);
+    resetSmoothedPose(this.visualPose);
     this.car.group.position.copy(position);
     const basis = new THREE.Matrix4().makeBasis(
       frame.right,
