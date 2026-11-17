@@ -20,7 +20,7 @@ of the requirements.
 | Race states | 5 (menu, countdown, racing, paused, finished) |
 | Countdown | 3 s |
 | Track scale | 1.5× the base catalogue |
-| Track width | 5 world units (five car widths) |
+| Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Turn radius | 12–27 m across the level ladder |
 | Straight lengths | 12–30 m across the level ladder |
@@ -429,7 +429,7 @@ rule SHALL be rejected and regenerated from the next deterministic seed offset.
 
 ### Requirement: The track is an orange surface with tall guide rails
 
-The track SHALL be one continuous orange surface five car widths wide,
+The track SHALL be one continuous orange surface seven car widths wide,
 with guide rails on both edges at least one car height tall. Seams, rails,
 supports, boost strips, and the start/finish gate SHALL be visually distinct.
 Supports SHALL connect raised track to the ground. The surface SHALL have no
@@ -439,7 +439,7 @@ gaps, cracks, or steps, and loops SHALL have distinct entrances and exits.
 
 - **GIVEN** the built track
 - **WHEN** the clear width between rails is measured
-- **THEN** it is five car widths
+- **THEN** it is seven car widths
 
 #### Scenario: Rail height
 

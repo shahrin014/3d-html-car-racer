@@ -154,7 +154,7 @@ persistence, and offline reload.
 
 ## Current state of the game
 
-Three-lap generated circuit on a 5 m wide deck (five car widths, two banked 180°
+Three-lap generated circuit on a 7 m wide deck (seven car widths, two banked 180°
 turns, an offset loop with a return shift, a crest, boost straights), continuous
 swept track mesh, chase and cockpit cameras, landscape HUD, tilt plus
 button/keyboard fallbacks, damage and rescue.
