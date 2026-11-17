@@ -30,9 +30,11 @@ parametric definitions the game uses, in headless Chromium with three.js.
 
 All pieces are 3.0 m wide in the catalogue (three car widths), 0.12 m thick,
 with 0.35 m guide rails, and start and end unbanked so any two pieces join
-cleanly. The deck floats: there are no support columns under elevated track. The
-game scales the catalogue by 1.5× and widens the deck to 7 m at runtime, so the
-track in play is wider than the catalogue.
+cleanly. The launch and landing ramps are the exception: they intentionally
+share a launch tangent, with the empty gap between them. The deck floats: there
+are no support columns under elevated track. The game scales the catalogue by
+1.5× and widens the deck to 7 m at runtime, so the track in play is wider than
+the catalogue.
 
 ## Buildings
 
