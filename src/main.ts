@@ -3,6 +3,9 @@ import {
   BEST_TIME_KEY_PREFIX,
   LAPS,
   DEFAULT_LEVEL,
+  DEFAULT_OPPONENT_COUNT,
+  OPPONENT_COUNT_MAX,
+  OPPONENTS_KEY,
   PAINT_KEY,
 } from './game/constants';
 import {
@@ -51,6 +54,9 @@ const finalDamage = mustQuery<HTMLElement>('#final-damage');
 const newBest = mustQuery<HTMLElement>('#new-best');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const paintPicker = mustQuery<HTMLElement>('#paint-picker');
+const opponentsValue = mustQuery<HTMLOutputElement>('#opponents-value');
+const fewerOpponents = mustQuery<HTMLButtonElement>('#opponents-fewer');
+const moreOpponents = mustQuery<HTMLButtonElement>('#opponents-more');
 
 // A fresh circuit every load: the seed is drawn at random, never from the
 // date. This first seed builds the track behind the menu and is the one the
@@ -104,7 +110,28 @@ function writePaint(id: string): void {
   }
 }
 
+function readOpponentCount(): number {
+  try {
+    const raw = window.localStorage.getItem(OPPONENTS_KEY);
+    const value = raw === null ? Number.NaN : Number.parseInt(raw, 10);
+    return Number.isFinite(value)
+      ? Math.min(OPPONENT_COUNT_MAX, Math.max(0, value))
+      : DEFAULT_OPPONENT_COUNT;
+  } catch {
+    return DEFAULT_OPPONENT_COUNT;
+  }
+}
+
+function writeOpponentCount(count: number): void {
+  try {
+    window.localStorage.setItem(OPPONENTS_KEY, String(count));
+  } catch {
+    // Persistence is best effort.
+  }
+}
+
 let paint = readPaint();
+let opponentCount = readOpponentCount();
 
 let best = readBest();
 bestElement.textContent = formatTime(best ?? 0);
@@ -204,7 +231,8 @@ try {
       },
     },
     nextSeed,
-    paint.color,
+    paint,
+    opponentCount,
   );
 } catch (error) {
   console.error('WebGL could not be initialised.', error);
@@ -243,8 +271,28 @@ paintPicker.addEventListener('click', (event) => {
   paint = paintById(swatch.dataset.paint);
   markPaint(paint.id);
   writePaint(paint.id);
-  game?.setCarColor(paint.color);
+  game?.setPlayerPaint(paint);
 });
+
+function showOpponentCount(): void {
+  opponentsValue.textContent = String(opponentCount);
+  fewerOpponents.disabled = opponentCount <= 0;
+  moreOpponents.disabled = opponentCount >= OPPONENT_COUNT_MAX;
+}
+
+function changeOpponentCount(step: number): void {
+  opponentCount = Math.min(
+    OPPONENT_COUNT_MAX,
+    Math.max(0, opponentCount + step),
+  );
+  showOpponentCount();
+  writeOpponentCount(opponentCount);
+  game?.setOpponentCount(opponentCount);
+}
+
+fewerOpponents.addEventListener('click', () => changeOpponentCount(-1));
+moreOpponents.addEventListener('click', () => changeOpponentCount(1));
+showOpponentCount();
 
 function startRace(): void {
   if (!game) {

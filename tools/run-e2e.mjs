@@ -14,6 +14,9 @@ import { fileURLToPath } from 'node:url';
 
 const specs = [
   'menu.spec.ts',
+  'paint.spec.ts',
+  'opponents.spec.ts',
+  'opponents-limit.spec.ts',
   'camera-pause.spec.ts',
   'storage.spec.ts',
   'orientation.spec.ts',

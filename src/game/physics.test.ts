@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { FIXED_STEP, TRACK_WIDTH } from './constants';
+import { opponentSpecs } from './opponents';
 import { createPhysics } from './physics';
 import { buildFrames, generateCircuit, type TrackFrame } from './track';
 
@@ -181,6 +182,39 @@ describe('Rapier vehicle', () => {
     // alignment spring brought it to 0.68. Without the damper the spring rings
     // on every contact bump, which is what reads as the car shaking.
     expect(chatterRms(rollRates)).toBeLessThan(1.2);
+
+    physics.dispose();
+  }, 60_000);
+});
+
+describe('opponents', () => {
+  it('drives the field along the circuit and keeps it on the deck', async () => {
+    const frames = buildFrames(generateCircuit(SEED, 1));
+    const physics = await createPhysics(frames, {
+      opponents: opponentSpecs(3),
+    });
+    const start = physics.readOpponents();
+    expect(start).toHaveLength(3);
+
+    const guide = frames[0]!;
+    for (let step = 0; step < 240; step += 1) {
+      physics.step(FIXED_STEP, { throttle: 0, brake: false, steer: 0 }, guide);
+    }
+
+    const after = physics.readOpponents();
+    expect(after).toHaveLength(3);
+    for (let index = 0; index < after.length; index += 1) {
+      const before = start[index]!;
+      const current = after[index]!;
+      // Two seconds of racing moves several car lengths forward.
+      expect(current.position.distanceTo(before.position)).toBeGreaterThan(8);
+      // The racing line keeps the body above the deck and inside the rails.
+      const distanceToTrack = Math.min(
+        ...frames.map((frame) => frame.position.distanceTo(current.position)),
+      );
+      expect(distanceToTrack).toBeLessThan(TRACK_WIDTH);
+      expect(current.speed).toBeGreaterThan(0);
+    }
 
     physics.dispose();
   }, 60_000);

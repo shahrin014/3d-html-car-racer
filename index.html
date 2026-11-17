@@ -93,6 +93,28 @@
           <legend>Car paint</legend>
           <div class="paints__grid" id="paint-picker"></div>
         </fieldset>
+        <div class="opponents">
+          <span class="opponents__label" id="opponents-label">Opponents</span>
+          <div
+            class="opponents__stepper"
+            role="group"
+            aria-labelledby="opponents-label"
+          >
+            <button
+              type="button"
+              class="opponents__step"
+              id="opponents-fewer"
+              aria-label="Fewer opponents"
+            >&minus;</button>
+            <output id="opponents-value" aria-live="polite">3</output>
+            <button
+              type="button"
+              class="opponents__step"
+              id="opponents-more"
+              aria-label="More opponents"
+            >+</button>
+          </div>
+        </div>
         <button type="button" class="button button--ghost" id="install" hidden>Install app</button>
         <p class="hint">
           Tilt or <kbd>&larr;</kbd><kbd>&rarr;</kbd> &middot; <kbd>Space</kbd> brake &middot;

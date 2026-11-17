@@ -132,6 +132,14 @@ persistence, and offline reload.
   toward `-X`. All player-facing steering is therefore negated once in
   `physics.ts` and once for the wheel visuals; the physics tests pin the sign so
   the arrow keys cannot silently invert again.
+- **Opponents are kinematic, not a second car simulation.** `src/game/opponents.ts`
+  samples a racing line from the same frames the renderer uses: each rival has a
+  lane, a cruise speed, and a start slot ahead of the player. `physics.ts`
+  creates one kinematic body and rounded chassis collider per rival in the
+  player's Rapier world, so the player's body collides with them but they never
+  need steering, grip, or contact resolution of their own. Their contacts are
+  filtered out of the damage event queue: a kinematic body can generate very
+  large solver forces, and bumping a rival is racing, not a crash.
 - **Ten car paints, stored by id.** `src/game/palette.ts` owns the palette and
   the opponent assignment rule (never reuse the player's paint). The menu draws
   the labelled swatches from that list, and `Game.setCarColor` rebuilds the car
@@ -169,6 +177,7 @@ Three-lap generated circuit on a 7 m wide deck (seven car widths, two banked 180
 turns, an offset loop with a return shift, a crest, boost straights), reseeded
 from 64 random bits on every load and every race start, continuous swept track
 mesh, chase and cockpit cameras, landscape HUD, tilt plus button/keyboard
-fallbacks, damage and rescue.
+fallbacks, damage and rescue, plus a configurable field of zero to five
+kinematic opponents in distinct paints.
 Assets live in `assets/` as PNG previews plus GLB models for every track piece;
 `npm run assets` and `npm run assets:glb` regenerate them.

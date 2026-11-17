@@ -1,4 +1,10 @@
 import * as THREE from 'three';
+import {
+  advanceDistance,
+  circuitLength,
+  racingPose,
+  type OpponentSpec,
+} from './opponents';
 import type { TrackFrame } from './track';
 import {
   CAR_LENGTH,
@@ -43,10 +49,17 @@ export interface VehicleState {
   speed: number;
 }
 
+export interface PhysicsOptions {
+  /** Rivals to drive around the circuit as kinematic bodies. */
+  opponents?: OpponentSpec[];
+}
+
 export interface PhysicsHandle {
   /** Advance the world by one fixed step with the given controls. */
   step: (dt: number, input: VehicleInput, frame: TrackFrame) => void;
   read: () => VehicleState;
+  /** Current poses of the opponents, in the order they were created. */
+  readOpponents: () => VehicleState[];
   /** Impulse-shaped impact magnitude accumulated since the last call. */
   takeImpact: () => number;
   /** Forward impulse for a boost strip, in newton-seconds. */
@@ -63,6 +76,7 @@ export interface PhysicsHandle {
 const GROUP_TRACK = 1;
 const GROUP_RAIL = 2;
 const GROUP_CHASSIS = 4;
+const GROUP_OPPONENT = 8;
 const groups = (membership: number, filter: number): number =>
   (membership << 16) | filter;
 
@@ -90,6 +104,7 @@ function quaternionOf(frame: TrackFrame): THREE.Quaternion {
  */
 export async function createPhysics(
   frames: TrackFrame[],
+  options: PhysicsOptions = {},
 ): Promise<PhysicsHandle> {
   const RAPIER = await import('@dimforge/rapier3d-compat');
   await RAPIER.init();
@@ -195,11 +210,40 @@ export async function createPhysics(
       .setMass(CAR_MASS)
       .setFriction(0.02)
       .setRestitution(0.05)
-      .setCollisionGroups(groups(GROUP_CHASSIS, GROUP_TRACK | GROUP_RAIL))
+      .setCollisionGroups(
+        groups(GROUP_CHASSIS, GROUP_TRACK | GROUP_RAIL | GROUP_OPPONENT),
+      )
       .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
       .setContactForceEventThreshold(IMPACT_THRESHOLD),
     car,
   );
+
+  // Opponents are kinematic: they follow the racing line exactly, but the
+  // player's chassis still collides with them, so rivals feel solid. They carry
+  // the same rounded box as the player so the contact patch is comparable.
+  const trackLength = circuitLength(frames);
+  const opponents = (options.opponents ?? []).map((spec) => {
+    const pose = racingPose(frames, spec.start, spec.lane);
+    const body = world.createRigidBody(
+      RAPIER.RigidBodyDesc.kinematicPositionBased()
+        .setTranslation(pose.position.x, pose.position.y, pose.position.z)
+        .setRotation(pose.quaternion),
+    );
+    const collider = world.createCollider(
+      RAPIER.ColliderDesc.roundCuboid(
+        CAR_WIDTH / 2 - PHYSICS_CHASSIS_ROUNDING,
+        CHASSIS_HALF_HEIGHT - PHYSICS_CHASSIS_ROUNDING,
+        CAR_LENGTH / 2 - PHYSICS_CHASSIS_ROUNDING,
+        PHYSICS_CHASSIS_ROUNDING,
+      )
+        .setFriction(0.08)
+        .setRestitution(0.1)
+        .setCollisionGroups(groups(GROUP_OPPONENT, GROUP_CHASSIS)),
+      body,
+    );
+    return { spec, body, collider: collider.handle, distance: spec.start };
+  });
+  const opponentColliders = new Set(opponents.map((racer) => racer.collider));
 
   const events = new RAPIER.EventQueue(true);
   const forward = new THREE.Vector3();
@@ -351,9 +395,29 @@ export async function createPhysics(
         }
       }
 
+      for (const racer of opponents) {
+        racer.distance = advanceDistance(
+          racer.spec,
+          racer.distance,
+          dt,
+          trackLength,
+        );
+        const pose = racingPose(frames, racer.distance, racer.spec.lane);
+        racer.body.setNextKinematicTranslation(pose.position);
+        racer.body.setNextKinematicRotation(pose.quaternion);
+      }
+
       world.timestep = dt;
       world.step(events);
       events.drainContactForceEvents((event) => {
+        // Bumping a rival is part of racing, not a crash: kinematic bodies can
+        // produce large solver forces, so their contacts never add damage.
+        if (
+          opponentColliders.has(event.collider1()) ||
+          opponentColliders.has(event.collider2())
+        ) {
+          return;
+        }
         const impulse = event.totalForceMagnitude() * dt;
         pendingImpact = Math.max(pendingImpact, impulse);
       });
@@ -379,6 +443,28 @@ export async function createPhysics(
         speed: Math.hypot(linear.x, linear.y, linear.z),
       };
     },
+
+    readOpponents: () =>
+      opponents.map((racer) => {
+        const translation = racer.body.translation();
+        const rotation = racer.body.rotation();
+        const pose = racingPose(frames, racer.distance, racer.spec.lane);
+        return {
+          position: new THREE.Vector3(
+            translation.x,
+            translation.y,
+            translation.z,
+          ),
+          quaternion: new THREE.Quaternion(
+            rotation.x,
+            rotation.y,
+            rotation.z,
+            rotation.w,
+          ),
+          velocity: pose.tangent.clone().multiplyScalar(racer.spec.speed),
+          speed: racer.spec.speed,
+        };
+      }),
 
     takeImpact: () => {
       const impact = pendingImpact;
@@ -415,6 +501,14 @@ export async function createPhysics(
       car.setLinvel({ x: 0, y: 0, z: 0 }, true);
       car.setAngvel({ x: 0, y: 0, z: 0 }, true);
       pendingImpact = 0;
+      for (const racer of opponents) {
+        racer.distance = racer.spec.start;
+        const pose = racingPose(frames, racer.distance, racer.spec.lane);
+        racer.body.setTranslation(pose.position, true);
+        racer.body.setRotation(pose.quaternion, true);
+        racer.body.setNextKinematicTranslation(pose.position);
+        racer.body.setNextKinematicRotation(pose.quaternion);
+      }
     },
 
     dispose: () => {

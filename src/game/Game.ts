@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createCar, PLAYER_PAINT, WHEEL_RADIUS, type Car } from './Car';
+import { createCar, WHEEL_RADIUS, type Car } from './Car';
 import { chasePose, createChaseRig, resetChaseRig } from './chaseCamera';
 import { cockpitPose } from './cockpitCamera';
 import {
@@ -9,17 +9,21 @@ import {
   COUNTDOWN_SECONDS,
   DAMAGE_IMPULSE_FLOOR,
   DEFAULT_LEVEL,
+  DEFAULT_OPPONENT_COUNT,
   FIXED_STEP,
   LAPS,
   MAX_DAMAGE,
   MAX_FRAME_DELTA,
   MAX_SUBSTEPS,
+  OPPONENT_COUNT_MAX,
   PHYSICS_RIDE_HEIGHT,
   RESCUE_PENALTY_SECONDS,
   RESCUE_SPEED_THRESHOLD,
   RESCUE_STALL_SECONDS,
   TRACK_WIDTH,
 } from './constants';
+import { opponentSpecs, racingPose } from './opponents';
+import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
 import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothing';
 import {
@@ -65,7 +69,9 @@ export class Game {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private car: Car;
-  private playerColor: number;
+  private playerPaint: Paint;
+  private opponentCount: number;
+  private opponents: { car: Car; spin: number }[] = [];
   private trackMesh!: TrackMesh;
   private frames!: TrackFrame[];
   private length!: number;
@@ -106,6 +112,7 @@ export class Game {
     up: new THREE.Vector3(),
   };
   private readonly carUp = new THREE.Vector3();
+  private readonly opponentUp = new THREE.Vector3();
   private readonly carTarget = new THREE.Vector3();
   private readonly visualPose = createSmoothedPose();
   private readonly chaseRig = createChaseRig();
@@ -114,11 +121,16 @@ export class Game {
     container: HTMLElement,
     callbacks: GameCallbacks,
     seed: string,
-    paint = PLAYER_PAINT,
+    paint: Paint = DEFAULT_PAINT,
+    opponents = DEFAULT_OPPONENT_COUNT,
   ) {
     this.container = container;
     this.callbacks = callbacks;
-    this.playerColor = paint;
+    this.playerPaint = paint;
+    this.opponentCount = Math.min(
+      OPPONENT_COUNT_MAX,
+      Math.max(0, Math.round(opponents)),
+    );
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -142,9 +154,10 @@ export class Game {
     this.seed = seed;
     this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
 
-    this.car = createCar(paint);
+    this.car = createCar(paint.color);
     this.scene.add(this.car.group);
     this.placeCar(0, 0);
+    this.rebuildOpponentCars();
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
@@ -199,6 +212,12 @@ export class Game {
    */
   private replaceCircuit(seed: string): void {
     this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
+    this.invalidatePhysics();
+    this.placeOpponents();
+  }
+
+  /** Drop the physics world so the next load builds it for the current field. */
+  private invalidatePhysics(): void {
     this.physicsRevision += 1;
     this.physics?.dispose();
     this.physics = null;
@@ -281,17 +300,83 @@ export class Game {
    * Repaint the player car. The body, aero, and lamp materials are shared per
    * paint by `car-model.mjs`, so a rebuild is cheap and a colour the player
    * returns to does not leak another material. The visual pose snaps on the
-   * next frame, and physics keeps its own state.
+   * next frame, and physics keeps its own state. Rivals are repainted at the
+   * same time so they never share the player's new colour.
    */
-  setCarColor(color: number): void {
-    if (color === this.playerColor) {
+  setPlayerPaint(paint: Paint): void {
+    if (paint.id === this.playerPaint.id) {
       return;
     }
-    this.playerColor = color;
+    this.playerPaint = paint;
     this.scene.remove(this.car.group);
-    this.car = createCar(color);
+    this.car = createCar(paint.color);
     this.scene.add(this.car.group);
     resetSmoothedPose(this.visualPose);
+    this.rebuildOpponentCars();
+  }
+
+  /** Set the field size for the next race; ignored once a race is under way. */
+  setOpponentCount(count: number): void {
+    if (
+      this.state === 'countdown' ||
+      this.state === 'racing' ||
+      this.state === 'paused'
+    ) {
+      return;
+    }
+    const next = Math.min(
+      OPPONENT_COUNT_MAX,
+      Math.max(0, Math.round(count)),
+    );
+    if (next === this.opponentCount) {
+      return;
+    }
+    this.opponentCount = next;
+    // The field lives in the physics world, so drop it; it is rebuilt with the
+    // new opponents on the next race. Rebuild the visuals after, so the rivals
+    // sit on the grid rather than at their last frozen pose.
+    this.invalidatePhysics();
+    this.rebuildOpponentCars();
+  }
+
+  /** Draw each rival at its grid slot, or at its physics pose in a race. */
+  private rebuildOpponentCars(): void {
+    for (const opponent of this.opponents) {
+      this.scene.remove(opponent.car.group);
+    }
+    this.opponents = opponentPaints(this.playerPaint, this.opponentCount).map(
+      (paint) => {
+        const car = createCar(paint.color);
+        this.scene.add(car.group);
+        return { car, spin: 0 };
+      },
+    );
+    this.placeOpponents();
+  }
+
+  private placeOpponents(): void {
+    const specs = opponentSpecs(this.opponentCount);
+    const states = this.physics?.readOpponents() ?? [];
+    this.opponents.forEach((opponent, index) => {
+      const state = states[index];
+      if (state) {
+        this.opponentUp.set(0, 1, 0).applyQuaternion(state.quaternion);
+        opponent.car.group.position
+          .copy(state.position)
+          .addScaledVector(this.opponentUp, -PHYSICS_RIDE_HEIGHT);
+        opponent.car.group.quaternion.copy(state.quaternion);
+        return;
+      }
+      const spec = specs[index];
+      if (!spec) {
+        return;
+      }
+      const pose = racingPose(this.frames, spec.start, spec.lane);
+      opponent.car.group.position
+        .copy(pose.position)
+        .addScaledVector(pose.up, -PHYSICS_RIDE_HEIGHT);
+      opponent.car.group.quaternion.copy(pose.quaternion);
+    });
   }
 
   setSteer(value: number): void {
@@ -331,7 +416,9 @@ export class Game {
       return this.physicsLoad;
     }
     const revision = this.physicsRevision;
-    this.physicsLoad = createPhysics(this.frames)
+    this.physicsLoad = createPhysics(this.frames, {
+      opponents: opponentSpecs(this.opponentCount),
+    })
       .then((handle) => {
         if (revision !== this.physicsRevision) {
           // The circuit changed while Rapier was loading: this world holds the
@@ -448,6 +535,7 @@ export class Game {
       this.simulatePhysics(delta);
     }
     this.updateCarVisuals(delta);
+    this.updateOpponentVisuals(delta);
     this.updateCamera(delta);
     this.renderer.render(this.scene, this.camera);
     this.report();
@@ -542,6 +630,28 @@ export class Game {
     } else {
       this.stallTime = 0;
     }
+  }
+
+  private updateOpponentVisuals(delta: number): void {
+    if (this.opponents.length === 0) {
+      return;
+    }
+    const states = this.physics?.readOpponents() ?? [];
+    this.opponents.forEach((opponent, index) => {
+      const state = states[index];
+      if (!state) {
+        return;
+      }
+      this.opponentUp.set(0, 1, 0).applyQuaternion(state.quaternion);
+      opponent.car.group.position
+        .copy(state.position)
+        .addScaledVector(this.opponentUp, -PHYSICS_RIDE_HEIGHT);
+      opponent.car.group.quaternion.copy(state.quaternion);
+      opponent.spin += (state.speed * delta) / WHEEL_RADIUS;
+      for (const wheel of opponent.car.wheels) {
+        wheel.rotation.x = opponent.spin;
+      }
+    });
   }
 
   private updateCarVisuals(delta: number): void {

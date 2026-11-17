@@ -112,6 +112,20 @@ export const LOOP_RETURN_LENGTH = 14 * TRACK_SCALE;
 /** Smallest turn radius the seeded assembly may use. */
 export const MIN_TURN_RADIUS = 8 * TRACK_SCALE;
 
+/**
+ * Opponents on the grid. Each drives a kinematic racing line at its own pace
+ * and lane, so the field is deterministic and the player can bump into them.
+ */
+export const OPPONENT_COUNT_MAX = 5;
+export const DEFAULT_OPPONENT_COUNT = 3;
+/** Lateral offsets from the centreline, in metres. */
+export const OPPONENT_LANES = [-1.4, 0.9, -0.4, 1.4, 0.4] as const;
+export const OPPONENT_BASE_SPEED = 10.5;
+export const OPPONENT_SPEED_STEP = 0.9;
+/** Metres ahead of the player on the grid for the first opponent. */
+export const OPPONENT_GRID_OFFSET = 3;
+export const OPPONENT_GRID_SPACING = 2.6;
+
 export const BOOST_IMPULSE = 7;
 export const BOOST_COOLDOWN = 1.6;
 
@@ -131,6 +145,8 @@ export const TILT_SMOOTHING = 10;
 export const BEST_TIME_KEY_PREFIX = 'neon-racer.best-time';
 /** Storage key for the chosen player paint. */
 export const PAINT_KEY = 'neon-racer.paint';
+/** Storage key for the chosen number of opponents. */
+export const OPPONENTS_KEY = 'neon-racer.opponents';
 export const UNLOCKED_LEVEL_KEY = 'neon-racer.unlocked-level';
 
 export const DEFAULT_LEVEL = 1;

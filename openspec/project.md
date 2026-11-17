@@ -52,6 +52,10 @@ runtime API calls.
 - **Pure helpers for testable rules.** Track assembly, sampled frames, level
   scaling, damage, lap timing, and input mapping are framework-free modules with
   unit tests.
+- **Opponents are kinematic.** Rivals follow the circuit exactly on their own
+  lanes and pace; the player's rigid body still collides with them, so they feel
+  solid without a second vehicle simulation. They never add damage, because a
+  kinematic body can produce very large solver forces in a frame.
 - **Seeded, catalog-based generation.** A seed selects and orders authored
   pieces; it never invents geometry. Every piece starts and ends on a known
   frame, and the two sides of the circuit are assembled to the same forward
@@ -115,6 +119,7 @@ runtime API calls.
 | Checkpoint | An ordered gate that must be crossed before the finish line counts a lap. |
 | Best time | The fastest total time at a level, stored locally and kept across circuits. |
 | Paint | One of ten named car colours; the player picks one in the menu and it is stored locally. |
+| Opponent | A computer rival on the same circuit, driven along a kinematic racing line in its own paint. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
 | Cockpit camera | A driver's-eye view with a generated dashboard texture. |
 | Pause | A frozen race; simulation, timers, damage, and camera motion stop until resumed. |
@@ -125,6 +130,7 @@ runtime API calls.
 | Setting | Default |
 | --- | --- |
 | Laps per race | 3 |
+| Opponents | 3 by default, 0–5 selectable in the menu |
 | Countdown | 3 s |
 | Track scale | 1.5× the base catalogue |
 | Track width | 7 world units (seven car widths) |

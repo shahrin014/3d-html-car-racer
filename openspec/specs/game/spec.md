@@ -567,6 +567,45 @@ so a steered wheel spins about its own axle instead of precessing.
 - **AND** the unfiltered rigid-body pose still drives handling, damage, and lap
   progress
 
+### Requirement: The race can include computer opponents
+
+The menu SHALL let the player choose a field of zero to five opponents, defaulting
+to three, and the choice SHALL persist across reloads. Each opponent SHALL use a
+palette paint that differs from the player's paint and from every other
+opponent's. Opponents SHALL follow the circuit on a kinematic racing line with
+their own lane and pace, SHALL stay on the deck through banks and loops, and
+SHALL be solid: the player's car collides with them without taking damage. They
+SHALL NOT change lap counting, timing, or the three-lap race against the clock.
+
+#### Scenario: Configurable field
+
+- **GIVEN** the menu is shown
+- **WHEN** the player raises or lowers the opponent count
+- **THEN** the count moves within zero to five and is shown as a number
+- **AND** the same count is used on the next race
+- **AND** the count is restored after a reload
+
+#### Scenario: Distinct rival paints
+
+- **GIVEN** a race with opponents
+- **WHEN** the cars are inspected
+- **THEN** every opponent has a paint different from the player's
+- **AND** no two opponents share a paint
+
+#### Scenario: Rivals are solid
+
+- **GIVEN** the player's car drives into an opponent
+- **WHEN** contact occurs
+- **THEN** the player's car is deflected
+- **AND** the impact adds no damage
+
+#### Scenario: Rivals stay on the circuit
+
+- **GIVEN** a race with opponents
+- **WHEN** the field drives a lap
+- **THEN** every opponent stays on the deck
+- **AND** follows the turns, banks, and loop of the circuit
+
 ### Requirement: The player car's paint is selectable
 
 The menu SHALL offer ten named car paints, including the default candy red, as
