@@ -35,7 +35,7 @@ track-constrained movement.
     cannot be mistaken for the start line
 - The headless trace accelerates above 10 m/s, climbs above 8 m on the loop,
   stays within one track width of the centreline, crosses the start line, and
-  holds body chatter under 2.4 rad/s RMS (measured 1.99).
+  holds body chatter under 1.2 rad/s RMS (measured 0.68).
 - The handling profile in `src/game/feel.test.ts` measures slip angle over a
   driven lap (`mean |slip|` under 10°, sliding under 35% of frames), proves that
   positive steer moves the car to the right of the screen, and checks that a
@@ -74,6 +74,16 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
   same measured lap dropped body roll chatter from 2.76 to 1.99 rad/s RMS and
   lateral acceleration chatter from 8.0 to 3.4 m/s². A plain sharp cuboid fails
   the loop trace outright.
+- **The surface alignment torque is damped**: it was a pure spring, so every
+  contact bump rang the body at 3–5 Hz. Damping only the rate across the body's
+  up axis (yaw already has its own damper) cut roll chatter from 1.99 to
+  0.68 rad/s RMS and roll error chatter from 3.8° to 0.9°. The stick spring's
+  damper also rose from 8 to 14 N·s/m, which halved the height bounce.
+- **A triangle-mesh deck was tried and rejected**: it has the same facet slope
+  changes at every 0.4 m frame, so it vibrated as much or more, and Rapier's
+  trimesh contact against the flat chassis bottom was less stable than the
+  tiled cuboids. The chatter came from the undamped alignment spring, not the
+  collider topology.
 - **Guide assist is intentional**: a rigid toy car cannot hold a loop on tyre
   grip alone. The assist adds downforce, a grip-capped lateral damper, and
   heading/roll alignment and adds **no forward energy**. It switches off when

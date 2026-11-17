@@ -488,7 +488,9 @@ The car SHALL touch the track and rails through one rounded collider on the
 chassis, and the wheel meshes SHALL be visual only. Four separately colliding
 wheels are four independent point contacts and chatter against the tiled
 surface, while a sharp chassis edge catches on the seams between surface
-patches; one rounded box slides over them on a broad contact patch.
+patches; one rounded box slides over them on a broad contact patch. The torque
+that rolls and pitches the body onto the surface SHALL be damped, so a contact
+bump does not ring the body.
 
 #### Scenario: Acceleration
 
@@ -525,7 +527,7 @@ patches; one rounded box slides over them on a broad contact patch.
   deck and the rails
 - **AND** the wheels have no colliders
 - **AND** body chatter, measured as the RMS of the roll rate above 1.6 Hz over a
-  driven lap, stays below 2.4 rad/s
+  driven lap, stays below 1.2 rad/s
 
 ### Requirement: Device tilt steers the car
 

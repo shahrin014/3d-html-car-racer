@@ -76,12 +76,14 @@ export const PHYSICS_DRAG = 0.05;
 export const PHYSICS_STEER_ANGLE = 0.12;
 /** Assist that pulls the body onto the track surface and its tangent. */
 export const PHYSICS_STICK_STRENGTH = 80;
-export const PHYSICS_STICK_DAMPING = 8;
+export const PHYSICS_STICK_DAMPING = 14;
 export const PHYSICS_HEADING_ASSIST = 20;
 /** Damps the spring above so the nose settles without oscillating. */
 export const PHYSICS_YAW_DAMPING = 6;
 /** Torque that rolls and pitches the body onto the track surface. */
 export const PHYSICS_UP_ALIGNMENT = 20;
+/** Damps that spring so a contact bump does not ring the body. */
+export const PHYSICS_UP_DAMPING = 6;
 /**
  * Lateral grip budget, in multiples of the car's weight. The assist may never
  * push sideways harder than this, so steering cannot slide the car further

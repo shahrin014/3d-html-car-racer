@@ -176,9 +176,11 @@ describe('Rapier vehicle', () => {
 
     // Body shake, measured as the high-frequency part of the roll rate about
     // the car's own forward axis. Four separate wheel colliders measured
-    // 2.76 rad/s here because each sphere was its own contact point; one
-    // rounded chassis collider measures 1.99 rad/s.
-    expect(chatterRms(rollRates)).toBeLessThan(2.4);
+    // 2.76 rad/s because each sphere was its own contact point; one rounded
+    // chassis collider brought that to 1.99, and damping the roll/pitch
+    // alignment spring brought it to 0.68. Without the damper the spring rings
+    // on every contact bump, which is what reads as the car shaking.
+    expect(chatterRms(rollRates)).toBeLessThan(1.2);
 
     physics.dispose();
   }, 60_000);

@@ -21,6 +21,7 @@ import {
   PHYSICS_STEER_ANGLE,
   PHYSICS_STICK_DAMPING,
   PHYSICS_STICK_STRENGTH,
+  PHYSICS_UP_DAMPING,
   PHYSICS_UP_ALIGNMENT,
   PHYSICS_YAW_DAMPING,
   RAIL_HEIGHT,
@@ -206,6 +207,7 @@ export async function createPhysics(
   const velocity = new THREE.Vector3();
   const desired = new THREE.Vector3();
   const axis = new THREE.Vector3();
+  const angularRate = new THREE.Vector3();
   const toSurface = new THREE.Vector3();
   const carPosition = new THREE.Vector3();
   let pendingImpact = 0;
@@ -333,6 +335,18 @@ export async function createPhysics(
         );
         if (axis.lengthSq() > 1e-6) {
           axis.normalize().multiplyScalar(upAngle * PHYSICS_UP_ALIGNMENT);
+          // Damp roll and pitch. The alignment above is a spring; without a
+          // damper any contact bump rings the body at a few hertz, which reads
+          // as the car shaking. Only the rate across the up axis is damped;
+          // yaw has its own damper above.
+          const angular = car.angvel();
+          const spin = angular.x * up.x + angular.y * up.y + angular.z * up.z;
+          angularRate.set(
+            angular.x - up.x * spin,
+            angular.y - up.y * spin,
+            angular.z - up.z * spin,
+          );
+          axis.addScaledVector(angularRate, -PHYSICS_UP_DAMPING);
           car.addTorque({ x: axis.x, y: axis.y, z: axis.z }, true);
         }
       }
