@@ -345,6 +345,14 @@ time, the total time, and the speed.
 - **THEN** the lap is not counted
 - **AND** the lap counter is unchanged
 
+#### Scenario: The car keeps moving after the finish
+
+- **GIVEN** the race has finished and the results screen is shown
+- **WHEN** the car is past the finish line
+- **THEN** it drives itself along the circuit behind the results
+- **AND** rivals keep circulating
+- **AND** the recorded time, laps, damage, and best time do not change
+
 #### Scenario: The seam is not an early finish line
 
 - **GIVEN** the car is part way around a lap
@@ -357,7 +365,9 @@ time, the total time, and the speed.
 - **GIVEN** the car is on the last lap and has passed the final checkpoint
 - **WHEN** it crosses the start line
 - **THEN** the race finishes
-- **AND** the total time and best lap are shown
+- **AND** the total time, damage, and placing are shown
+- **AND** the placing reads like "2nd of 4" and counts the rivals ahead on
+  distance covered since the grid
 
 ### Requirement: Circuits are generated deterministically from a seed
 

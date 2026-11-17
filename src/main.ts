@@ -14,6 +14,7 @@ import {
   steerFromKeys,
 } from './game/controls';
 import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
+import { placingLabel } from './game/placing';
 import { DEFAULT_PAINT, PAINTS, paintById } from './game/palette';
 import { randomSeed } from './game/seed';
 
@@ -52,6 +53,7 @@ const brakeButton = mustQuery<HTMLButtonElement>('#brake');
 const finalTime = mustQuery<HTMLElement>('#final-time');
 const finalDamage = mustQuery<HTMLElement>('#final-damage');
 const newBest = mustQuery<HTMLElement>('#new-best');
+const finalPlacing = mustQuery<HTMLElement>('#final-placing');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const paintPicker = mustQuery<HTMLElement>('#paint-picker');
 const opponentsValue = mustQuery<HTMLOutputElement>('#opponents-value');
@@ -213,9 +215,15 @@ try {
         startButton.disabled = true;
         startButton.textContent = message;
       },
-      onFinish: (totalTime: number, damage: number) => {
+      onFinish: (
+        totalTime: number,
+        damage: number,
+        placing: number,
+        fieldSize: number,
+      ) => {
         finalTime.textContent = formatTime(totalTime);
         finalDamage.textContent = `${Math.round(damage)}%`;
+        finalPlacing.textContent = placingLabel(placing, fieldSize);
         const improved = best === null || totalTime < best;
         newBest.hidden = !improved;
         if (improved) {

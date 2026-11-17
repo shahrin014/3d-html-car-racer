@@ -71,6 +71,30 @@ export function wrapDistance(distance: number, length: number): number {
   return ((distance % length) + length) % length;
 }
 
+/** Cruise pace at a point on the circuit, with the gentle breathing term. */
+export function paceAt(spec: OpponentSpec, distance: number): number {
+  return (
+    spec.speed *
+    (1 + PACE_VARIATION * Math.sin(distance * 0.05 + spec.phase))
+  );
+}
+
+/**
+ * One step of a rival: its wrapped position for sampling and its unwrapped
+ * distance since the grid. The latter is what placing compares, because rivals
+ * start ahead of the player and never cross a finish line of their own.
+ */
+export function advanceTravel(
+  spec: OpponentSpec,
+  travelled: number,
+  delta: number,
+  length: number,
+): { distance: number; travelled: number } {
+  const distance = wrapDistance(travelled, length);
+  const next = travelled + paceAt(spec, distance) * delta;
+  return { distance: wrapDistance(next, length), travelled: next };
+}
+
 /**
  * Distance after one step of a rival's pace. The sinusoidal term is a function
  * of distance, not time, so the same rival always drives the same lap the same
@@ -82,8 +106,7 @@ export function advanceDistance(
   delta: number,
   length: number,
 ): number {
-  const pace = spec.speed * (1 + PACE_VARIATION * Math.sin(distance * 0.05 + spec.phase));
-  return wrapDistance(distance + pace * delta, length);
+  return advanceTravel(spec, distance, delta, length).distance;
 }
 
 /** Index of the last frame at or before `distance`; `frames` must be sampled. */

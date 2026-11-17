@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  advanceDistance,
+  advanceTravel,
   circuitLength,
   racingPose,
   type OpponentSpec,
@@ -49,6 +49,11 @@ export interface VehicleState {
   speed: number;
 }
 
+/** A rival's pose plus the distance it has covered since the grid. */
+export interface OpponentState extends VehicleState {
+  travelled: number;
+}
+
 export interface PhysicsOptions {
   /** Rivals to drive around the circuit as kinematic bodies. */
   opponents?: OpponentSpec[];
@@ -59,7 +64,7 @@ export interface PhysicsHandle {
   step: (dt: number, input: VehicleInput, frame: TrackFrame) => void;
   read: () => VehicleState;
   /** Current poses of the opponents, in the order they were created. */
-  readOpponents: () => VehicleState[];
+  readOpponents: () => OpponentState[];
   /** Impulse-shaped impact magnitude accumulated since the last call. */
   takeImpact: () => number;
   /** Forward impulse for a boost strip, in newton-seconds. */
@@ -241,7 +246,13 @@ export async function createPhysics(
         .setCollisionGroups(groups(GROUP_OPPONENT, GROUP_CHASSIS)),
       body,
     );
-    return { spec, body, collider: collider.handle, distance: spec.start };
+    return {
+      spec,
+      body,
+      collider: collider.handle,
+      distance: spec.start,
+      travelled: spec.start,
+    };
   });
   const opponentColliders = new Set(opponents.map((racer) => racer.collider));
 
@@ -396,12 +407,14 @@ export async function createPhysics(
       }
 
       for (const racer of opponents) {
-        racer.distance = advanceDistance(
+        const advanced = advanceTravel(
           racer.spec,
-          racer.distance,
+          racer.travelled,
           dt,
           trackLength,
         );
+        racer.travelled = advanced.travelled;
+        racer.distance = advanced.distance;
         const pose = racingPose(frames, racer.distance, racer.spec.lane);
         racer.body.setNextKinematicTranslation(pose.position);
         racer.body.setNextKinematicRotation(pose.quaternion);
@@ -463,6 +476,7 @@ export async function createPhysics(
           ),
           velocity: pose.tangent.clone().multiplyScalar(racer.spec.speed),
           speed: racer.spec.speed,
+          travelled: racer.travelled,
         };
       }),
 
@@ -503,6 +517,7 @@ export async function createPhysics(
       pendingImpact = 0;
       for (const racer of opponents) {
         racer.distance = racer.spec.start;
+        racer.travelled = racer.spec.start;
         const pose = racingPose(frames, racer.distance, racer.spec.lane);
         racer.body.setTranslation(pose.position, true);
         racer.body.setRotation(pose.quaternion, true);

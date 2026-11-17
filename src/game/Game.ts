@@ -25,6 +25,7 @@ import {
 import { opponentSpecs, racingPose } from './opponents';
 import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
+import { racePlacing } from './placing';
 import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothing';
 import {
   buildFrames,
@@ -50,7 +51,12 @@ export interface RaceSnapshot {
 
 export interface GameCallbacks {
   onSnapshot: (snapshot: RaceSnapshot) => void;
-  onFinish: (totalTime: number, damage: number) => void;
+  onFinish: (
+    totalTime: number,
+    damage: number,
+    placing: number,
+    fieldSize: number,
+  ) => void;
   onPhysicsError?: (message: string) => void;
 }
 
@@ -532,7 +538,11 @@ export class Game {
         this.state = 'menu';
       }
     } else if (this.state === 'racing') {
-      this.simulatePhysics(delta);
+      this.simulatePhysics(delta, true);
+    } else if (this.state === 'finished') {
+      // The result is already recorded. Keep the car and the field moving
+      // behind the results so the finish does not freeze mid-corner.
+      this.simulatePhysics(delta, false);
     }
     this.updateCarVisuals(delta);
     this.updateOpponentVisuals(delta);
@@ -541,19 +551,39 @@ export class Game {
     this.report();
   };
 
-  private simulatePhysics(delta: number): void {
+  private simulatePhysics(delta: number, racing: boolean): void {
     const physics = this.physics;
     if (!physics) {
       return;
     }
-    this.time += delta;
-    this.totalTime += delta;
+    if (racing) {
+      this.time += delta;
+      this.totalTime += delta;
+    }
 
     const damageScale = 1 - (this.damage / 100) * 0.45;
+    let steer = this.steerTarget;
+    let brake = this.brake;
+    if (!racing) {
+      // Finished: drive the racing line on autopilot. The results are frozen,
+      // so this is presentation only.
+      const state = physics.read();
+      const guide = this.frameAt(this.s);
+      const lateral =
+        (state.position.x - guide.position.x) * guide.right.x +
+        (state.position.y - guide.position.y) * guide.right.y +
+        (state.position.z - guide.position.z) * guide.right.z;
+      const lateralSpeed =
+        state.velocity.x * guide.right.x +
+        state.velocity.y * guide.right.y +
+        state.velocity.z * guide.right.z;
+      steer = clamp(lateral / 0.9 + lateralSpeed * 0.15, -1, 1);
+      brake = false;
+    }
     const input = {
       throttle: damageScale,
-      brake: this.brake,
-      steer: this.steerTarget,
+      brake,
+      steer,
     };
 
     // A fixed step keeps the solver and the loop contact stable regardless of
@@ -577,6 +607,12 @@ export class Game {
     const frame = this.frames[index] ?? this.frameAt(this.s);
     this.s = frame.s;
 
+    if (!racing) {
+      this.lastFrameIndex = index;
+      this.keepOnTrack(physics, frame, index, delta, false);
+      return;
+    }
+
     const impact = physics.takeImpact();
     if (impact > DAMAGE_IMPULSE_FLOOR) {
       this.damage = Math.min(
@@ -595,7 +631,17 @@ export class Game {
       this.lap += 1;
       if (this.lap > LAPS) {
         this.state = 'finished';
-        this.callbacks.onFinish(this.totalTime, this.damage);
+        const opponents = physics.readOpponents();
+        const placing = racePlacing(
+          (this.lap - 1) * this.length,
+          opponents.map((opponent) => opponent.travelled),
+        );
+        this.callbacks.onFinish(
+          this.totalTime,
+          this.damage,
+          placing,
+          this.opponentCount + 1,
+        );
         return;
       }
     }
@@ -612,6 +658,21 @@ export class Game {
       }
     }
 
+    this.keepOnTrack(physics, frame, index, delta, true);
+  }
+
+  /**
+   * Rescue timer. In a race a rescue adds a time penalty; after the finish the
+   * same reset runs without touching the frozen result.
+   */
+  private keepOnTrack(
+    physics: PhysicsHandle,
+    frame: TrackFrame,
+    index: number,
+    delta: number,
+    racing: boolean,
+  ): void {
+    const state = physics.read();
     this.carUp.set(0, 1, 0).applyQuaternion(state.quaternion);
     const offTrack = state.position.distanceTo(frame.position) > TRACK_WIDTH;
     const inverted = this.carUp.dot(frame.up) < 0.2;
@@ -619,7 +680,9 @@ export class Game {
       this.stallTime += delta;
       if (this.stallTime > RESCUE_STALL_SECONDS) {
         this.stallTime = 0;
-        this.totalTime += RESCUE_PENALTY_SECONDS;
+        if (racing) {
+          this.totalTime += RESCUE_PENALTY_SECONDS;
+        }
         physics.reset(frame);
         resetChaseRig(this.chaseRig);
         resetSmoothedPose(this.visualPose);

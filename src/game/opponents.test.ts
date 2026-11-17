@@ -6,6 +6,7 @@ import {
 } from './constants';
 import {
   advanceDistance,
+  advanceTravel,
   circuitLength,
   opponentSpecs,
   racingPose,
@@ -75,9 +76,16 @@ describe('racing line', () => {
     }
     // Four seconds at a pace within 6% of cruise.
     expect(distance).toBeGreaterThan(spec.start);
-    const travelled =
-      (distance - spec.start + length) % length;
+    const travelled = (distance - spec.start + length) % length;
     expect(travelled).toBeGreaterThan(spec.speed * 4 * 0.9);
     expect(travelled).toBeLessThan(spec.speed * 4 * 1.1);
+
+    // The unwrapped total keeps growing across the seam, so placing can compare
+    // rivals that have driven different numbers of laps.
+    let total = spec.start;
+    for (let step = 0; step < 120 * 600; step += 1) {
+      total = advanceTravel(spec, total, 1 / 120, length).travelled;
+    }
+    expect(total).toBeGreaterThan(length * 2);
   });
 });

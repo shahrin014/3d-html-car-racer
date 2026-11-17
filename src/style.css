@@ -524,6 +524,10 @@ kbd {
   color: var(--muted);
 }
 
+.result--wide {
+  grid-column: 1 / -1;
+}
+
 .result dd {
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

@@ -214,6 +214,8 @@ describe('opponents', () => {
       );
       expect(distanceToTrack).toBeLessThan(TRACK_WIDTH);
       expect(current.speed).toBeGreaterThan(0);
+      // Placing compares unwrapped distance, so it must grow too.
+      expect(current.travelled).toBeGreaterThan(before.travelled);
     }
 
     physics.dispose();
