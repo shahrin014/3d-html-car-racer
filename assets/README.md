@@ -26,8 +26,10 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Hill | ![hill](track/hill-crest-2.5.png) | 16 m, crest 2.5 m | Zero slope at both ends |
 | Boost straight | ![boost](track/boost-12.png) | 12 m + armed strip | Chevrons face the driving direction |
 
-All pieces are 3.0 m wide (three car widths), 0.12 m thick, with 0.35 m guide
-rails, and start and end unbanked so any two pieces join cleanly.
+All pieces are 3.0 m wide in the catalogue (three car widths), 0.12 m thick,
+with 0.35 m guide rails, and start and end unbanked so any two pieces join
+cleanly. The game scales the catalogue by 1.5× and widens the deck to 6 m at
+runtime, so the track in play is twice the catalogue width.
 
 ## Car
 
