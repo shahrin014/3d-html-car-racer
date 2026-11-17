@@ -1,7 +1,8 @@
 # Handover — Car model rebuild (die-cast hypercar)
 
 Task-specific handover for the work of making the car in the game match the
-reference casting. Project-wide handover lives in `docs/HANDOVER.md`.
+reference casting. Project-wide behaviour and decisions live in
+`openspec/specs/` and `openspec/project.md`.
 
 | Item | Value |
 | --- | --- |

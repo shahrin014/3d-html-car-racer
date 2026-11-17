@@ -137,7 +137,7 @@ export const OPPONENT_COUNT_MAX = 5;
 export const DEFAULT_OPPONENT_COUNT = 3;
 /** Lateral offsets from the centreline, in metres. */
 export const OPPONENT_LANES = [-1.4, 0.9, -0.4, 1.4, 0.4] as const;
-export const OPPONENT_BASE_SPEED = 10.5;
+export const OPPONENT_BASE_SPEED = 12;
 export const OPPONENT_SPEED_STEP = 0.9;
 /** Metres ahead of the player on the grid for the first opponent. */
 export const OPPONENT_GRID_OFFSET = 3;

@@ -25,6 +25,7 @@ of the requirements.
 | Turn radius | 12–27 m across the level ladder |
 | Straight lengths | 12–30 m across the level ladder |
 | Design speed | 12 m/s |
+| Opponent cruise speed | 12–15.6 m/s |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
 | Fixed simulation step | 1/120 s |
@@ -344,6 +345,13 @@ time, the total time, and the speed.
 - **THEN** the lap is not counted
 - **AND** the lap counter is unchanged
 
+#### Scenario: The seam is not an early finish line
+
+- **GIVEN** the car is part way around a lap
+- **WHEN** its progress is matched to the sampled frames
+- **THEN** only frames around the last known progress are considered
+- **AND** the closing frame cannot be counted as crossing the start line early
+
 #### Scenario: Final lap finishes the race
 
 - **GIVEN** the car is on the last lap and has passed the final checkpoint
@@ -582,6 +590,55 @@ so a steered wheel spins about its own axle instead of precessing.
   teleport
 - **AND** the unfiltered rigid-body pose still drives handling, damage, and lap
   progress
+
+### Requirement: Handling stays predictable at speed
+
+The guide SHALL keep the car pointing where it travels within measurable bounds
+over a driven lap: the mean absolute slip angle SHALL stay under 10°, the maximum
+under 45°, and frames above 10° of slip SHALL be less than 45% of the lap.
+Holding full lock at racing speed SHALL NOT spin the car: after one second the
+nose SHALL stay within 45° of the tangent, slip below 25°, and speed above
+8 m/s. Positive steering SHALL move the car to the right of the screen and turn
+its nose further from the track frame's right vector than neutral
+steering does.
+
+#### Scenario: Slip stays bounded over a lap
+
+- **GIVEN** the car is driven around a lap with throttle held
+- **WHEN** its slip angle is sampled at the simulation rate
+- **THEN** the mean absolute slip stays under 10°
+- **AND** the maximum stays under 45°
+- **AND** slip above 10° covers less than 45% of the samples
+
+#### Scenario: Full lock does not spin the car
+
+- **GIVEN** the car is at racing speed on the circuit
+- **WHEN** the player holds full lock for one second
+- **THEN** the nose stays within 45° of the tangent
+- **AND** slip stays under 25°
+- **AND** speed stays above 8 m/s
+
+### Requirement: The rigid-body engine is the only simulation
+
+The rigid-body engine SHALL be the only vehicle simulation; there SHALL be no
+arcade fallback that quietly replaces it. It SHALL load lazily before the first
+race, and the countdown SHALL NOT advance until it is ready, so a slow first load
+cannot start the race without physics. If the engine cannot load, Start SHALL be
+disabled and labelled "Physics unavailable".
+
+#### Scenario: Countdown waits for the engine
+
+- **GIVEN** the player has pressed Start
+- **WHEN** the engine is still loading
+- **THEN** the countdown is held
+- **AND** it starts from its full duration once the engine is ready
+
+#### Scenario: Engine failure is reported
+
+- **GIVEN** the engine cannot load
+- **WHEN** the player tries to start
+- **THEN** Start is disabled and labelled "Physics unavailable"
+- **AND** no alternate handling model is used
 
 ### Requirement: The race can include computer opponents
 

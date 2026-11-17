@@ -71,6 +71,48 @@ runtime API calls.
   configured frame delta so returning from a stall cannot teleport the car
   through track geometry.
 
+### Simulation and rendering decisions
+
+- **Rapier is the only vehicle simulation.** It gives real CCD and a stable
+  solver for the loop, at 1.57 MB gzip in the lazy compat chunk. If it cannot
+  load, the game reports "Physics unavailable" instead of falling back to a
+  scripted car.
+- **One rounded chassis collider.** Four wheel spheres are four point contacts
+  and chatter on tiled deck colliders; a sharp box catches on every seam. One
+  `roundCuboid` with a 0.09 m edge rides on a broad contact patch, and the wheel
+  meshes are visual only. A triangle-mesh deck was tried and rejected: it has
+  the same facet slope changes every 0.4 m and contacts less stably than tiled
+  cuboids.
+- **Guide assist is intentional.** A toy car cannot hold a vertical loop on tyre
+  grip, so the guide adds surface stick, a grip-capped lateral damper, and
+  heading and roll/pitch alignment. It adds no forward energy and switches off
+  more than one track width from the frame, so a fall cannot be flung back.
+- **Steering is a heading target, not a torque.** A direct torque spins the
+  1.2 kg body far too fast; the guide turns the nose toward
+  `tangent + steer × 0.22 rad` with yaw damping. Thrust follows the racing line
+  while the guide is active, otherwise holding lock pushes the car sideways.
+- **The roll/pitch spring is damped and the drawn pose is filtered.** Damping
+  the alignment spring stops contact bumps ringing the body. The remaining
+  millimetre buzz is removed by a 0.04 s low-pass on the rendered position and
+  quaternion; physics, damage, and lap progress stay unfiltered, and the filter
+  snaps on the first frame and after a rescue.
+- **The chase camera works in the car's frame.** Lerping the world position
+  toward the car's arc cuts through the loop, so the rig slerps its own
+  orientation, filters the position, and clamps at least 0.6 m above the deck.
+- **Front wheels steer outside their roll.** The wheel groups use `YXZ` order;
+  with the default `XYZ` the spin is applied outside the steer, the axle
+  precesses with every rotation, and the fronts wobble at speed.
+- **Opponents are kinematic.** Each rival follows the same sampled frames as the
+  renderer, in its own lane and at its own pace, through a kinematic body in the
+  player's world so it feels solid. Their contacts are excluded from damage:
+  kinematic bodies can produce very large solver forces in one frame.
+- **`frame.right` is the driver's left.** The frame is right-handed but a car
+  facing `+Z` has its right toward `-X`; player steering is negated once in the
+  physics and once for the wheel visuals, pinned by tests.
+- **Supports stop under the deck.** A support whose top reaches the frame centre
+  pokes through the low side of a banked surface; supports are cut below the
+  underside across their footprint.
+
 ### Asset formats
 
 - Catalog assets live under `assets/`: PNG previews plus binary glTF (`.glb`)
@@ -90,6 +132,11 @@ runtime API calls.
   motion, landscape fit, and offline startup.
 - Browser checks run at 844×390 and 667×375 landscape, with touch emulation,
   tilt unavailable, and reduced motion enabled.
+- Playwright covers Chromium only. The iOS tilt-permission and install paths
+  still need a manual phone-sized pass before a release.
+- The browser suite is tuned for small runners: one worker, one spec per process
+  through `tools/run-e2e.mjs`, a 256 MB renderer heap cap, and no trace or
+  video.
 - Deployment checks follow `openspec/specs/deployment/spec.md`.
 
 ### Git Workflow
@@ -138,6 +185,7 @@ runtime API calls.
 | Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
+| Opponent cruise speed | 12–15.6 m/s |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
 | Fixed simulation step | 1/120 s |
