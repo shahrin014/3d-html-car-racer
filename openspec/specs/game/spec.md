@@ -479,14 +479,14 @@ rule SHALL be rejected and regenerated from the next deterministic seed offset.
 
 The track SHALL be one continuous orange surface seven car widths wide,
 with guide rails on both edges at least one car height tall. Seams, rails,
-supports, boost strips, and the start/finish gate SHALL be visually distinct.
-Supports SHALL connect raised track to the ground. The surface SHALL have no
-gaps, cracks, or steps except the intentional gap of a jump, and loops SHALL
-have distinct entrances and exits.
+boost strips, and the start/finish gate SHALL be visually distinct.
+The deck SHALL float like a plastic track piece, with no support columns beneath
+it. The surface SHALL have no gaps, cracks, or steps except the intentional gap
+of a jump, and loops SHALL have distinct entrances and exits.
 
 A jump SHALL consist of a kicker that rises to a raised lip, a deckless gap, and
 a landing ramp that returns to the deck. The kicker and landing SHALL end at the
-gap with a clear edge; no deck, rail, or support SHALL cross the gap.
+gap with a clear edge; no deck or rail SHALL cross the gap.
 
 #### Scenario: Track width
 
@@ -501,17 +501,12 @@ gap with a clear edge; no deck, rail, or support SHALL cross the gap.
 - **THEN** it is at least one car height
 - **AND** the car cannot ride over a rail at design speed
 
-#### Scenario: Supports stay under the deck
+#### Scenario: Floating deck
 
-- **GIVEN** the built track
-- **WHEN** the supports under a banked or pitched section are inspected
-- **THEN** no support reaches above the underside of the driving surface
-- **AND** no dark support face is visible on the road
-
-#### Scenario: Supported geometry
-
-- **GIVEN** any raised track section outside a loop
-- **THEN** it is connected to the ground by at least one support
+- **GIVEN** any raised or banked track section outside a loop
+- **WHEN** the space under the deck is inspected
+- **THEN** there are no support columns
+- **AND** no dark column face is visible on or beside the road
 
 #### Scenario: Continuous surface
 
@@ -537,6 +532,37 @@ gap with a clear edge; no deck, rail, or support SHALL cross the gap.
 - **AND** the ring's descending side clears the entry track
 - **AND** the car leaves down a ramp 6.8 m ahead of the entrance
 - **AND** both ends meet the straight at zero slope
+
+### Requirement: The circuit sits in a city skyline
+
+Each circuit SHALL be surrounded by deterministic scenery: low blocks and taller
+towers placed outside the track envelope. The skyline SHALL derive from the
+circuit seed, so the same circuit keeps the same skyline and a new circuit brings
+a new one. No building SHALL come within 16 m of any track frame in plan view, so
+nothing intersects the deck, rails, loop, or jump, and no building SHALL obstruct
+the chase camera. Scenery SHALL be presentation only and SHALL NOT affect
+physics, collision, timing, or damage.
+
+#### Scenario: Skyline follows the circuit
+
+- **GIVEN** a circuit seed
+- **WHEN** the circuit and its skyline are generated twice
+- **THEN** every building sits in the same place with the same size
+- **AND** a different seed produces a different skyline
+
+#### Scenario: Buildings keep clear of the track
+
+- **GIVEN** any generated skyline
+- **WHEN** each building is measured against every track frame in plan view
+- **THEN** it is at least 16 m away
+- **AND** it rises from the ground rather than from the deck
+
+#### Scenario: Scenery is presentation only
+
+- **GIVEN** a race in progress
+- **WHEN** the car drives past the buildings
+- **THEN** it never collides with them
+- **AND** they add no damage, drag, or lap progress
 
 ### Requirement: The car is simulated as a rigid body
 
@@ -900,7 +926,7 @@ loop and puts the view under the road.
 - **THEN** the car stays in frame
 - **AND** the horizon rolls with the track
 - **AND** the camera stays above the deck it is over for the whole lap
-- **AND** no road or support geometry passes between the camera and the car
+- **AND** no road geometry passes between the camera and the car
 
 #### Scenario: Cockpit camera
 

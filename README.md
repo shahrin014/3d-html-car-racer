@@ -2,7 +2,7 @@
 
 A mobile-first circuit racer inspired by orange plastic track sets. Three laps
 against the clock on a generated circuit with banked turns, a vertical loop,
-hills, and boost straights. The car is a candy-red die-cast hypercar driven by a
+crests, jumps, boost straights, and a floating deck in a generated city skyline. The car is a candy-red die-cast hypercar driven by a
 Rapier rigid-body simulation behind a small adapter.
 
 **Play:** https://shahrin014.github.io/3d-html-car-racer/

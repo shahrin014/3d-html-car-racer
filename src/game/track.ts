@@ -316,7 +316,7 @@ function assembleCircuit(
   const pieces: Piece[] = [];
 
   // Raise the whole circuit so the low edge of a banked turn never reaches
-  // the floor, then run supports from the track down to ground level.
+  // the floor. The deck floats like a plastic track piece, with no supports.
   const maxBank = (bankForRadius(radius) * Math.PI) / 180;
   const lift =
     (TRACK_WIDTH / 2) * Math.sin(maxBank) + TRACK_THICKNESS + 0.25;

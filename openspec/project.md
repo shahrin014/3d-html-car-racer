@@ -112,10 +112,15 @@ runtime API calls.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. Gap
   frames exist for progress and the camera but carry no collider and disable the
   guide assist, so the body flies ballistically and lands on the ramp. The mesh
-  skips the gap entirely: no deck, rails, or supports.
-- **Supports stop under the deck.** A support whose top reaches the frame centre
-  pokes through the low side of a banked surface; supports are cut below the
-  underside across their footprint.
+  skips the gap entirely: no deck and no rails.
+- **Scenery is deterministic and one draw call.** The skyline is a single
+  instanced box mesh with a canvas façade of lit windows, planned from the
+  circuit seed on a jittered grid. Anything within 16 m of a track frame is
+  rejected, so the city never touches the track or crowds the chase camera.
+  Buildings are presentation only: no colliders, no physics, no timing.
+- **The deck floats.** There are no support columns under the track: the layout
+  reads as an assembled plastic track, and the underside is part of the swept
+  surface rather than a separate structure.
 
 ### Asset formats
 
@@ -173,6 +178,7 @@ runtime API calls.
 | Best time | The fastest total time at a level, stored locally and kept across circuits. |
 | Paint | One of ten named car colours; the player picks one in the menu and it is stored locally. |
 | Opponent | A computer rival on the same circuit, driven along a kinematic racing line in its own paint. |
+| Scenery | Deterministic city blocks and towers around the circuit; presentation only. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
 | Cockpit camera | A driver's-eye view with a generated dashboard texture. |
 | Pause | A frozen race; simulation, timers, damage, and camera motion stop until resumed. |
@@ -191,6 +197,7 @@ runtime API calls.
 | Design speed | 12 m/s |
 | Opponent cruise speed | 12–15.6 m/s |
 | Jump | 1.6 m lip · 6 m gap · 15 m landing ramp |
+| Scenery clearance | 16 m from every track frame, in plan view |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
 | Fixed simulation step | 1/120 s |

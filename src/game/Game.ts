@@ -27,6 +27,7 @@ import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
 import { racePlacing } from './placing';
 import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothing';
+import { buildScenery, type Scenery } from './scenery';
 import {
   buildFrames,
   generateCircuit,
@@ -79,6 +80,7 @@ export class Game {
   private opponentCount: number;
   private opponents: { car: Car; spin: number }[] = [];
   private trackMesh!: TrackMesh;
+  private scenery: Scenery | null = null;
   private frames!: TrackFrame[];
   private length!: number;
   private boosts: BoostZone[] = [];
@@ -210,6 +212,13 @@ export class Game {
     const mesh = buildTrackMesh(this.splitPieces(circuit.pieces));
     this.trackMesh = mesh;
     this.scene.add(mesh.group);
+
+    if (this.scenery) {
+      this.scene.remove(this.scenery.group);
+      this.scenery.dispose();
+    }
+    this.scenery = buildScenery(this.frames, circuit.seed);
+    this.scene.add(this.scenery.group);
   }
 
   /**
@@ -404,6 +413,7 @@ export class Game {
     this.physics?.dispose();
     this.pendingPhysics?.dispose();
     this.trackMesh.dispose();
+    this.scenery?.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
