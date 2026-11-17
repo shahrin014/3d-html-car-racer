@@ -1,12 +1,34 @@
 import * as THREE from 'three';
 import {
   RAIL_HEIGHT,
+  RAIL_SCALE,
   RAIL_WIDTH,
   SEAM_LENGTH,
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
 import type { TrackFrame } from './track';
+
+/** Half the footprint of a support column, in world units. */
+export const SUPPORT_HALF = 0.15 * RAIL_SCALE;
+
+/**
+ * Top of a vertical support column under `frame`.
+ *
+ * The deck is banked, so a column whose top sits at the frame centre pokes
+ * through the low side of the surface and shows up as a dark square on the
+ * road. Cut the top below the underside across the whole footprint instead.
+ */
+export function supportTop(frame: TrackFrame): number {
+  // Height change across the footprint from bank and pitch, worst diagonal.
+  const slope = Math.abs(frame.right.y) + Math.abs(frame.tangent.y);
+  return (
+    frame.position.y -
+    TRACK_THICKNESS * frame.up.y -
+    SUPPORT_HALF * slope * Math.SQRT2 -
+    0.05
+  );
+}
 
 /** Orange plastic with seam lines and optional boost chevrons. */
 export function createTrackTexture(boost = false): THREE.CanvasTexture {
@@ -181,13 +203,20 @@ export function buildTrackMesh(
     color: 0x232a36,
     roughness: 0.9,
   });
-  const columnGeometry = new THREE.BoxGeometry(0.3, 1, 0.3);
+  const columnGeometry = new THREE.BoxGeometry(
+    0.3 * RAIL_SCALE,
+    1,
+    0.3 * RAIL_SCALE,
+  );
   for (const piece of pieces) {
     piece.frames.forEach((frame, index) => {
       if (index % 12 !== 0 || frame.position.y < 0.8 || frame.up.y < 0.3) {
         return;
       }
-      const height = frame.position.y;
+      const height = supportTop(frame);
+      if (height < 0.2) {
+        return;
+      }
       const column = new THREE.Mesh(columnGeometry, supportMaterial);
       column.scale.y = height;
       column.position.set(frame.position.x, height / 2, frame.position.z);

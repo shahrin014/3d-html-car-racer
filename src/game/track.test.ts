@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { LOOP_OFFSET, LOOP_RETURN_LENGTH, TRACK_WIDTH } from './constants';
+import {
+  CAR_HEIGHT,
+  CAR_WIDTH,
+  LOOP_OFFSET,
+  LOOP_RADIUS,
+  LOOP_RETURN_LENGTH,
+  MIN_TURN_RADIUS,
+  RAIL_HEIGHT,
+  TRACK_WIDTH,
+} from './constants';
 import { buildFrames, generateCircuit, loopPath, shiftPath, turnPath } from './track';
 
 const SEED = '2026-11-15';
@@ -62,16 +71,22 @@ describe('circuit generation', () => {
 });
 
 describe('track pieces', () => {
+  it('gives the track four or more car widths and a car-height rail', () => {
+    expect(TRACK_WIDTH).toBeGreaterThanOrEqual(CAR_WIDTH * 4);
+    expect(RAIL_HEIGHT).toBeGreaterThanOrEqual(CAR_HEIGHT);
+  });
+
   it('turns the car upside down at the top of the loop', () => {
-    const top = loopPath(7)(0.5);
+    const top = loopPath()(0.5);
     expect(top.up.y).toBeCloseTo(-1, 6);
-    expect(top.position.y).toBeGreaterThan(10);
+    expect(top.position.y).toBeGreaterThan(LOOP_RADIUS * 1.8);
   });
 
   it('swings the loop exit sideways, then the shift returns to the centreline', () => {
-    const path = loopPath(7);
+    const path = loopPath();
     const start = path(0);
     const end = path(1);
+    expect(end.position.x - start.position.x).toBeCloseTo(LOOP_OFFSET, 5);
     // The exit lane must clear the entry lane by more than a track width.
     expect(end.position.x - start.position.x).toBeGreaterThan(TRACK_WIDTH);
     expect(start.up.dot(end.up)).toBeCloseTo(1, 6);
@@ -80,7 +95,7 @@ describe('track pieces', () => {
   });
 
   it('clamps turn banking to the documented range', () => {
-    const bank = turnPath(10, 90, true)(0.5).bank;
+    const bank = turnPath(MIN_TURN_RADIUS, 90, true)(0.5).bank;
     const degrees = Math.abs((bank * 180) / Math.PI);
     expect(degrees).toBeGreaterThanOrEqual(20);
     expect(degrees).toBeLessThanOrEqual(45);

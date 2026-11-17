@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { MIN_TURN_RADIUS } from './constants';
 import {
   buildFrames,
   generateCircuit,
+  loopRadiusForLevel,
+  turnRadiusForLevel,
+  validateCircuit,
   type Circuit,
   type Piece,
 } from './track';
@@ -91,7 +95,7 @@ describe('track randomization', () => {
       expect(allowed.has(piece.kind)).toBe(true);
       expect(piece.length).toBeGreaterThan(0);
       if (piece.kind === 'straight' || piece.kind === 'boost') {
-        expect(piece.length).toBeGreaterThanOrEqual(8);
+        expect(piece.length).toBeGreaterThanOrEqual(12);
       }
     }
   });
@@ -152,8 +156,55 @@ describe('track randomization', () => {
       previousLoopRadius = loopRadius;
     }
 
-    expect(previousTurnRadius).toBeLessThan(18);
-    expect(previousLoopRadius).toBeLessThan(7);
+    expect(previousTurnRadius).toBeCloseTo(turnRadiusForLevel(12), 6);
+    expect(previousLoopRadius).toBeCloseTo(loopRadiusForLevel(12), 6);
+    expect(previousTurnRadius).toBeLessThan(turnRadiusForLevel(1));
+    expect(previousLoopRadius).toBeLessThan(loopRadiusForLevel(1));
+  });
+
+  it('validates every generated circuit independently of assembly', () => {
+    for (const seed of SEEDS) {
+      for (const level of LEVELS) {
+        const validation = validateCircuit(generateCircuit(seed, level));
+        expect(validation.reasons).toEqual([]);
+        expect(validation.ok).toBe(true);
+      }
+    }
+  });
+
+  it('rejects a candidate whose turn radius or features break the rules', () => {
+    const circuit = generateCircuit('validation', 1);
+    const tight = {
+      ...circuit,
+      pieces: circuit.pieces.map((piece): Piece =>
+        piece.kind === 'turn'
+          ? {
+              ...piece,
+              radius: MIN_TURN_RADIUS - 1,
+              length: (MIN_TURN_RADIUS - 1) * Math.PI,
+            }
+          : piece,
+      ),
+    };
+    const tightResult = validateCircuit(tight);
+    expect(tightResult.ok).toBe(false);
+    expect(tightResult.reasons.join(' ')).toContain('turn radius');
+
+    const incomplete = {
+      ...circuit,
+      pieces: circuit.pieces.filter((piece) => piece.kind !== 'loop'),
+    };
+    const incompleteResult = validateCircuit(incomplete);
+    expect(incompleteResult.ok).toBe(false);
+    expect(incompleteResult.reasons.join(' ')).toContain('vertical loop');
+  });
+
+  it('replays the same deterministic assembly offset', () => {
+    for (const level of LEVELS) {
+      expect(generateCircuit('restart', level).seedOffset).toBe(
+        generateCircuit('restart', level).seedOffset,
+      );
+    }
   });
 
   it('gives each UTC day its own seeded circuit', () => {

@@ -3,12 +3,21 @@
  * Behavior lives in openspec/specs/game/spec.md.
  */
 
-/** Track width in world units; the car is 1 wide, so this is six car widths. */
+/** Scale factor applied to the authored track catalogue. */
+export const TRACK_SCALE = 1.5;
+
+/**
+ * Track width in world units. The car is one unit wide, so this leaves six car
+ * widths of driving room: wider than the catalogue scale, because the 2.45 m
+ * long car still felt cramped on a 4.5 m deck.
+ */
 export const TRACK_WIDTH = 6;
-export const TRACK_THICKNESS = 0.12;
-export const RAIL_WIDTH = 0.12;
-export const RAIL_HEIGHT = 0.35;
-export const TRACK_CLEARANCE = 0.02;
+export const TRACK_THICKNESS = 0.12 * TRACK_SCALE;
+export const RAIL_WIDTH = 0.12 * TRACK_SCALE;
+/** Tall enough to keep the car on the surface through banks and loops. */
+export const RAIL_HEIGHT = 0.9;
+export const RAIL_SCALE = TRACK_SCALE;
+export const TRACK_CLEARANCE = 0.02 * TRACK_SCALE;
 
 /** Metres per plastic seam in the surface texture. */
 export const SEAM_LENGTH = 1.5;
@@ -89,10 +98,12 @@ export const MAX_SPEED = 24;
 export const LIMP_SPEED = 10;
 
 export const DESIGN_SPEED = 12;
-export const LOOP_RADIUS = 7;
-/** Sideways drift of the loop; must exceed the track width so the lanes clear. */
-export const LOOP_OFFSET = 8;
-export const LOOP_RETURN_LENGTH = 18;
+export const LOOP_RADIUS = 7 * TRACK_SCALE;
+/** Sideways drift of the loop; must clear the exit lane by more than a width. */
+export const LOOP_OFFSET = TRACK_WIDTH + 2;
+export const LOOP_RETURN_LENGTH = 14 * TRACK_SCALE;
+/** Smallest turn radius the seeded assembly may use. */
+export const MIN_TURN_RADIUS = 8 * TRACK_SCALE;
 
 export const BOOST_IMPULSE = 7;
 export const BOOST_COOLDOWN = 1.6;

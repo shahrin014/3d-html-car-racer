@@ -123,7 +123,9 @@ runtime API calls.
 | --- | --- |
 | Laps per race | 3 |
 | Countdown | 3 s |
+| Track scale | 1.5× the base catalogue |
 | Track width | 6 world units (six car widths) |
+| Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
@@ -131,7 +133,7 @@ runtime API calls.
 | Maximum substeps per frame | 4 |
 | Maximum frame delta | 0.1 s |
 | Turn bank | 20–45° |
-| Loop radius | 7 m at level 1, shrinking to 5.5 m |
+| Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
 | Damage per impulse | 18 |

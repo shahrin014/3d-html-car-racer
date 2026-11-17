@@ -83,6 +83,10 @@ menu, start, HUD, cameras, pause, orientation, persistence, and offline reload.
 - **Thrust follows the racing line while the guide is active.** Applying it
   along the yawed nose pushed the car sideways and was the main source of
   floaty handling.
+- **Supports stop under the deck.** A vertical column whose top sits at the
+  frame centre pokes through the low side of a banked surface and renders as a
+  dark square on the road. `supportTop` cuts it below the underside across the
+  column footprint; `src/game/trackMesh.test.ts` checks every supported frame.
 - **`frame.right` is the driver's left.** The frame is `(up × tangent, up,
   tangent)`, which is right-handed, but a car facing `+Z` has its right hand
   toward `-X`. All player-facing steering is therefore negated once in
