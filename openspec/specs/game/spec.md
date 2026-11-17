@@ -497,6 +497,9 @@ all game logic SHALL keep the unfiltered state. The body rests directly on a
 faceted deck, so contact bumps it a few millimetres at 8–14 Hz; filtering the
 rendered pose only removes that buzz without delaying handling.
 
+The front wheels SHALL steer about the vertical axis outside the rolling spin,
+so a steered wheel spins about its own axle instead of precessing.
+
 #### Scenario: Acceleration
 
 - **GIVEN** the car is on the start line at rest
@@ -533,6 +536,13 @@ rendered pose only removes that buzz without delaying handling.
 - **AND** the wheels have no colliders
 - **AND** body chatter, measured as the RMS of the roll rate above 1.6 Hz over a
   driven lap, stays below 1.2 rad/s
+
+#### Scenario: Steered wheels do not wobble
+
+- **GIVEN** the car is steering while the wheels are rolling
+- **WHEN** the front wheels are inspected
+- **THEN** each wheel spins about its own steered axle
+- **AND** the axle does not precess as the wheel turns
 
 #### Scenario: Rendered pose is filtered
 

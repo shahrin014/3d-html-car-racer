@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
+import { createCar } from './car-model.mjs';
+
+/** Axle direction of a wheel in car space: the wheel's local +X. */
+function axleOf(wheel: THREE.Object3D): THREE.Vector3 {
+  return new THREE.Vector3(1, 0, 0).applyQuaternion(wheel.quaternion);
+}
+
+describe('steered wheels', () => {
+  it('keeps the axle fixed while the wheel spins', () => {
+    const car = createCar();
+    const wheel = car.wheels[2]!;
+    car.setSteer(-0.4);
+
+    const steered = axleOf(wheel);
+    // The steer is not zero, so the axle has swung out of the car's X axis.
+    expect(Math.abs(steered.z)).toBeGreaterThan(0.1);
+
+    // Every turn of the wheel must spin the tyre about that same axle. If the
+    // spin is applied outside the steer, the axle precesses and the wheel
+    // wobbles, which reads as the fronts shaking whenever steering is held.
+    for (const spin of [0, 0.7, 1.9, 3.4, 6.1, 12.8, 25.5]) {
+      wheel.rotation.x = spin;
+      const axle = axleOf(wheel);
+      expect(axle.angleTo(steered)).toBeLessThan(1e-6);
+    }
+  });
+
+  it('steers only the front pair, and in the direction asked for', () => {
+    const car = createCar();
+    const before = car.wheels.map(axleOf);
+    car.setSteer(-0.5);
+
+    const rear = car.wheels.slice(0, 2).map(axleOf);
+    const front = car.wheels.slice(2).map(axleOf);
+    for (let index = 0; index < rear.length; index += 1) {
+      expect(rear[index]!.angleTo(before[index]!)).toBeLessThan(1e-9);
+    }
+    for (let index = 0; index < front.length; index += 1) {
+      const turned = front[index]!;
+      const straight = before[index + 2]!;
+      expect(turned.angleTo(straight)).toBeGreaterThan(0.1);
+      expect(Math.abs(turned.y)).toBeLessThan(1e-9);
+    }
+    // Right steer visibly turns the fronts one way and left steer the other.
+    const right = axleOf(car.wheels[2]!);
+    car.setSteer(0.5);
+    const left = axleOf(car.wheels[2]!);
+    expect(Math.sign(right.z)).toBe(-Math.sign(left.z));
+  });
+});

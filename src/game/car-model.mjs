@@ -680,6 +680,11 @@ function buildWheel(radius, width, face) {
   const geo = sharedGeometry();
   const wheel = new THREE.Group();
 
+  // Steer about Y outside the spin about X. With the default XYZ order the
+  // spin is applied outside the steer, so a steered wheel's axle precesses by
+  // up to the steer angle on every turn of the wheel: the fronts wobble.
+  wheel.rotation.order = 'YXZ';
+
   wheel.add(new THREE.Mesh(geo.tyre[radius], materials.tyre));
 
   const barrel = new THREE.Mesh(geo.barrel[radius], materials.trim);

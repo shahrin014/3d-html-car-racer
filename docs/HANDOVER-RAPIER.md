@@ -90,6 +90,12 @@ persistence, and offline reload.
   trimesh contact against the flat chassis bottom was less stable than the
   tiled cuboids. The chatter came from the undamped alignment spring, not the
   collider topology.
+- **The front wheels steer outside their spin**: a wheel group with the default
+  Euler order applies the spin outside the steer, so a steered wheel's axle
+  precesses by up to the steer angle on every turn: at 17 m/s that is a 10 Hz
+  wobble that reads as the fronts shaking. The wheel groups use `YXZ` order so
+  the steer is the outer rotation; `src/game/wheelSteer.test.ts` holds the axle
+  fixed across a full range of spin angles.
 - **The drawn car pose is filtered, the physics is not**: even after the
   alignment damper, the body buzzes a few millimetres at 8–14 Hz because it
   rests directly on the faceted deck. A 0.04 s low-pass on the rendered
