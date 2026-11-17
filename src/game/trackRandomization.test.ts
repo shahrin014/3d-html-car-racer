@@ -120,8 +120,16 @@ describe('track randomization', () => {
         const circuit = generateCircuit(seed, level);
         const turns = circuit.pieces.filter((piece) => piece.kind === 'turn');
         corners.add(turns.length);
+        const figureEight = circuit.pieces.some(
+          (piece) => piece.kind === 'bridge',
+        );
         for (const turn of turns) {
-          expect(turn.angleDegrees).toBeCloseTo(360 / turns.length, 6);
+          // A bowtie uses four 135 degree corners to cross itself; a polygon
+          // uses n corners of 360/n.
+          expect(turn.angleDegrees).toBeCloseTo(
+            figureEight ? 135 : 360 / turns.length,
+            6,
+          );
           expect(turn.radius ?? 0).toBeGreaterThanOrEqual(MIN_TURN_RADIUS);
         }
       }

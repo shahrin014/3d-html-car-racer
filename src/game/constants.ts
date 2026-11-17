@@ -136,12 +136,25 @@ export const CIRCUIT_BOOST_LENGTH = 12;
  */
 export const JUMP_HEIGHT = 1.6;
 export const JUMP_KICKER_LENGTH = 8;
-export const JUMP_GAP_LENGTH = 6;
-export const JUMP_LANDING_LENGTH = 16;
-/** Lip slope, dy/dz: about 11 degrees of upward launch. */
-export const JUMP_LAUNCH_SLOPE = 0.2;
+export const JUMP_GAP_LENGTH = 5;
+export const JUMP_LANDING_LENGTH = 17;
+/** Lip slope, dy/dz: about 7 degrees, gentle enough to land at top speed. */
+export const JUMP_LAUNCH_SLOPE = 0.12;
 export const JUMP_LENGTH =
   JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH;
+
+/**
+ * Bridge module: a ramp up to a raised deck, a flat crossing, and a ramp back
+ * down. The deck sits at half the loop's height so a branch can pass through
+ * the loop opening or over another leg of the circuit.
+ */
+export const BRIDGE_HEIGHT = 8;
+export const BRIDGE_RAMP_LENGTH = 20;
+export const BRIDGE_FLAT_LENGTH = 24;
+export const BRIDGE_LENGTH =
+  BRIDGE_RAMP_LENGTH * 2 + BRIDGE_FLAT_LENGTH;
+/** Minimum vertical separation allowed where two sections overlap in plan. */
+export const BRIDGE_CLEARANCE = 3.5;
 
 /**
  * Opponents on the grid. Each drives a kinematic racing line at its own pace

@@ -409,6 +409,14 @@ lengths. Rotational symmetry SHALL close the loop for any radius and leg length,
 so the player sees triangles, rectangles, pentagons, and hexagons rather than
 one oval.
 
+Some seeds SHALL instead produce a figure-eight bowtie: four 135° banked corners
+and two diagonals that cross once at their midpoints, with the vertical legs
+matching and the diagonals long enough to absorb the corner arcs. At the
+crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
+and the loop SHALL sit under the bridge so the crossing threads the loop's
+opening. The bridge SHALL rise on a ramp, cross flat, and descend on a matching
+ramp, at least 3.5 m above the lower deck.
+
 #### Scenario: Every race is randomized
 
 - **GIVEN** the player is on the menu
@@ -420,10 +428,11 @@ one oval.
 
 - **GIVEN** several seeds at one level
 - **WHEN** the circuits are generated
-- **THEN** more than one corner count appears
+- **THEN** more than one layout shape appears, including polygon circuits and
+  figure-eight bowties
 - **AND** some circuits carry a crest where others carry a jump
-- **AND** every circuit is closed with a net 360° of turning
-- **AND** adjacent corners turn the same way, so the layout stays convex
+- **AND** every circuit is closed
+- **AND** polygon layouts turn the same way at every corner, so they stay convex
 
 #### Scenario: Different seeds spread the combination
 
@@ -517,6 +526,15 @@ gap with a clear edge; no deck or rail SHALL cross the gap.
 - **THEN** it is one continuous mesh with no gap or step between sections,
   apart from a jump's intentional gap
 - **AND** seam lines come from the surface texture, not from separate pieces
+
+#### Scenario: Figure-eight crossing
+
+- **GIVEN** a figure-eight circuit
+- **WHEN** the two diagonals meet
+- **THEN** one branch is on a raised bridge at least 3.5 m above the other
+- **AND** the bridge rises and falls on ramps long enough to drive at speed
+- **AND** the loop's ring sits under the bridge at the crossing
+- **AND** no deck or rail of the two branches touches
 
 #### Scenario: Jump
 

@@ -109,6 +109,13 @@ runtime API calls.
 - **`frame.right` is the driver's left.** The frame is right-handed but a car
   facing `+Z` has its right toward `-X`; player steering is negated once in the
   physics and once for the wheel visuals, pinned by tests.
+- **Figure-eights cross on a bridge.** A bowtie of four 135° corners has two
+  diagonals that meet at their midpoints; closure needs diagonals of
+  `√2·leg + 2·radius` because the corner arcs push the path forward. One
+  diagonal rises 8 m on a 20 m ramp, crosses flat, and descends; the other keeps
+  the loop at the crossing, so the bridge threads the loop's opening. Validation
+  allows a plan-view overlap only when the decks are at least 3.5 m apart
+  vertically.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
   kicker ends on an upward launch slope and the landing ramp enters on the same
   slope before flattening out, so the two ramps and the empty gap share one
@@ -203,6 +210,7 @@ runtime API calls.
 | Opponent cruise speed | 12–15.6 m/s |
 | Jump | 1.6 m lip at a 0.2 slope · 6 m gap · 16 m landing ramp |
 | Scenery clearance | 16 m from every track frame, in plan view |
+| Bridge | 8 m raised deck · 20 m ramps · 24 m flat |
 | Maximum speed | 24 m/s |
 | Limp speed | 10 m/s |
 | Fixed simulation step | 1/120 s |

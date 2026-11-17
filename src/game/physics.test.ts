@@ -242,7 +242,7 @@ describe('jumps', () => {
     physics.reset(track[start]!);
 
     let index = start;
-    let firstGapVertical = 0;
+    let maxGapVertical = Number.NEGATIVE_INFINITY;
     let lastGapVertical = 0;
     let landedSpeed = 0;
     let sawGap = false;
@@ -269,10 +269,8 @@ describe('jumps', () => {
           after.velocity.x * frame.up.x +
           after.velocity.y * frame.up.y +
           after.velocity.z * frame.up.z;
-        if (!sawGap) {
-          firstGapVertical = vertical;
-        }
         sawGap = true;
+        maxGapVertical = Math.max(maxGapVertical, vertical);
         lastGapVertical = vertical;
       }
       if (sawGap && index > gapIndex + 30 && frame.solid && after.speed > 4) {
@@ -286,9 +284,65 @@ describe('jumps', () => {
     expect(sawGap).toBe(true);
     // The lip launches the car upward, and over the gap gravity is the only
     // vertical force: the climb decays instead of tracking the (virtual) deck.
-    expect(firstGapVertical).toBeGreaterThan(0.2);
-    expect(lastGapVertical - firstGapVertical).toBeLessThan(-1.5);
+    expect(maxGapVertical).toBeGreaterThan(0.2);
+    expect(lastGapVertical - maxGapVertical).toBeLessThan(-0.8);
     expect(hasLanded).toBe(true);
     expect(landedSpeed).toBeGreaterThan(4);
+  }, 60_000);
+});
+
+describe('bridges', () => {
+  it('drives up the ramp and across the raised deck', async () => {
+    let frames: TrackFrame[] | null = null;
+    let deckIndex = -1;
+    for (let index = 0; index < 40; index += 1) {
+      const candidate = buildFrames(generateCircuit(`bridge-run-${index}`, 1));
+      const deck = candidate.findIndex(
+        (frame) =>
+          frame.position.y > 8 &&
+          Math.abs(frame.tangent.y) < 0.2 &&
+          frame.up.y > 0.9,
+      );
+      if (deck > 60) {
+        frames = candidate;
+        deckIndex = deck;
+        break;
+      }
+    }
+    expect(frames).not.toBeNull();
+    const track = frames!;
+    const physics = await createPhysics(track);
+    const start = Math.max(0, deckIndex - 110);
+    physics.reset(track[start]!);
+
+    let index = start;
+    let peak = 0;
+    let finishedSpeed = 0;
+    for (let step = 0; step < 120 * 12; step += 1) {
+      const state = physics.read();
+      index = nextIndex(track, index, state.position);
+      const frame = track[index]!;
+      const latitude = lateralOffset(frame, state.position);
+      const lateralSpeed =
+        state.velocity.x * frame.right.x +
+        state.velocity.y * frame.right.y +
+        state.velocity.z * frame.right.z;
+      const steer = Math.max(
+        -1,
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
+      );
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer }, frame);
+      peak = Math.max(peak, physics.read().position.y);
+      if (index > deckIndex + 40) {
+        finishedSpeed = physics.read().speed;
+        break;
+      }
+    }
+
+    physics.dispose();
+    // The deck sits eight metres above the base; reaching it proves the car
+    // climbed the ramp rather than stopping at its foot.
+    expect(peak).toBeGreaterThan(8);
+    expect(finishedSpeed).toBeGreaterThan(4);
   }, 60_000);
 });

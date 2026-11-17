@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
+  BRIDGE_HEIGHT,
+  BRIDGE_RAMP_LENGTH,
   CAR_HEIGHT,
   CAR_WIDTH,
   JUMP_GAP_LENGTH,
@@ -17,6 +19,9 @@ import {
   TRACK_WIDTH,
 } from './constants';
 import {
+  bridgeDeckPath,
+  bridgeRampDownPath,
+  bridgeRampUpPath,
   buildFrames,
   gapPath,
   generateCircuit,
@@ -177,6 +182,66 @@ describe('track pieces', () => {
       return;
     }
     throw new Error('no jump circuit found');
+  });
+
+  it('joins the bridge ramps and deck into a level crossing', () => {
+    const up = bridgeRampUpPath();
+    const deck = bridgeDeckPath();
+    const down = bridgeRampDownPath();
+    expect(up(1).position.y).toBeCloseTo(BRIDGE_HEIGHT, 6);
+    expect(up(1).tangent.y).toBeCloseTo(0, 6);
+    expect(deck(0).tangent.y).toBeCloseTo(0, 6);
+    expect(down(1).position.y).toBeCloseTo(-BRIDGE_HEIGHT, 6);
+    expect(down(1).tangent.y).toBeCloseTo(0, 6);
+
+    const world = new THREE.Matrix4()
+      .multiply(endFrame(up))
+      .multiply(endFrame(deck))
+      .multiply(endFrame(down));
+    const end = new THREE.Vector3().setFromMatrixPosition(world);
+    expect(end.y).toBeCloseTo(0, 6);
+    expect(
+      new THREE.Vector3(0, 0, 1).transformDirection(world).z,
+    ).toBeCloseTo(1, 6);
+    // The ramps are long enough to keep the climb under 35 degrees.
+    const climb = Math.atan((1.5 * BRIDGE_HEIGHT) / BRIDGE_RAMP_LENGTH);
+    expect(climb).toBeLessThan((35 * Math.PI) / 180);
+  });
+
+  it('threads a bridge through the loop in a figure-eight circuit', () => {
+    let circuit: ReturnType<typeof generateCircuit> | null = null;
+    for (let index = 0; index < 40; index += 1) {
+      const candidate = generateCircuit(`figure-eight-${index}`, 1);
+      if (candidate.pieces.some((piece) => piece.kind === 'bridge')) {
+        circuit = candidate;
+        break;
+      }
+    }
+    expect(circuit).not.toBeNull();
+    const pieces = circuit!.pieces;
+    const loop = pieces.find((piece) => piece.kind === 'loop');
+    const bridge = pieces.find((piece) => piece.kind === 'bridge');
+    expect(loop).toBeDefined();
+    expect(bridge).toBeDefined();
+
+    // The loop's ring sits at the deck's midpoint in plan, under the bridge.
+    const ring = new THREE.Vector3().setFromMatrixPosition(loop!.matrix);
+    const deckStart = new THREE.Vector3().setFromMatrixPosition(
+      bridge!.matrix,
+    );
+    const ahead = new THREE.Vector3(0, 0, bridge!.length / 2)
+      .transformDirection(bridge!.matrix)
+      .multiplyScalar(bridge!.length / 2);
+    const deckMid = deckStart.clone().add(ahead);
+    expect(Math.hypot(ring.x - deckMid.x, ring.z - deckMid.z)).toBeLessThan(3);
+    expect(deckMid.y - ring.y).toBeGreaterThan(BRIDGE_HEIGHT - 1);
+
+    // The layout still closes as a whole.
+    const frames = buildFrames(circuit!);
+    const first = frames[0]!;
+    const last = frames[frames.length - 1]!;
+    expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
+    expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
   });
 
   it('clamps turn banking to the documented range', () => {

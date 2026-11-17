@@ -3,6 +3,11 @@ import {
   CAR_WIDTH,
   CIRCUIT_BOOST_LENGTH,
   CIRCUIT_CORNER_COUNTS,
+  BRIDGE_CLEARANCE,
+  BRIDGE_FLAT_LENGTH,
+  BRIDGE_HEIGHT,
+  BRIDGE_LENGTH,
+  BRIDGE_RAMP_LENGTH,
   CIRCUIT_LEAD_STRAIGHT,
   CIRCUIT_LEG_BASE,
   DESIGN_SPEED,
@@ -125,6 +130,57 @@ export function shiftPath(offset: number, length = 14): TrackPath {
       position: new THREE.Vector3(-offset * drift, 0, length * t),
       tangent: new THREE.Vector3(-offset * driftRate, 0, 1).normalize(),
       up: new THREE.Vector3(0, 1, 0),
+      bank: 0,
+    };
+  };
+}
+
+/** Ease curve with zero slope at both ends. */
+function smoothStep(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+/** Ramp up to a raised deck, flat at both ends. */
+export function bridgeRampUpPath(
+  length = BRIDGE_RAMP_LENGTH,
+  height = BRIDGE_HEIGHT,
+): TrackPath {
+  return (t) => {
+    const slope = (height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** Raised deck between the two bridge ramps. */
+export function bridgeDeckPath(length = BRIDGE_FLAT_LENGTH): TrackPath {
+  return (t) => ({
+    position: new THREE.Vector3(0, 0, length * t),
+    tangent: new THREE.Vector3(0, 0, 1),
+    up: new THREE.Vector3(0, 1, 0),
+    bank: 0,
+  });
+}
+
+/** Ramp down from a raised deck to the ground, flat at both ends. */
+export function bridgeRampDownPath(
+  length = BRIDGE_RAMP_LENGTH,
+  height = BRIDGE_HEIGHT,
+): TrackPath {
+  return (t) => {
+    const slope = (-height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, -height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
       bank: 0,
     };
   };
@@ -266,7 +322,10 @@ export interface Piece {
     | 'shift'
     | 'kicker'
     | 'gap'
-    | 'landing';
+    | 'landing'
+    | 'ramp-up'
+    | 'bridge'
+    | 'ramp-down';
   path: TrackPath;
   length: number;
   /** Matrix that places the piece's local frame in the circuit. */
@@ -340,6 +399,7 @@ export function loopRadiusForLevel(level: number): number {
 
 interface PlanPoint {
   x: number;
+  y: number;
   z: number;
   s: number;
 }
@@ -418,22 +478,70 @@ function assembleCircuit(
 
   const corners = pick(CIRCUIT_CORNER_COUNTS);
   const cornerAngle = 360 / corners;
+  const clockwise = random() < 0.5;
 
-  const addTurn = (): void => {
+  const addTurn = (angleDegrees = cornerAngle, turnClockwise = clockwise): void => {
     const last = pieces[pieces.length - 1];
     const matrix = last ? frameAt(last.matrix, last.path, 1) : identity.clone();
     pieces.push({
       kind: 'turn',
-      path: turnPath(radius, cornerAngle, clockwise),
-      length: radius * (cornerAngle * Math.PI) / 180,
+      path: turnPath(radius, angleDegrees, turnClockwise),
+      length: radius * (angleDegrees * Math.PI) / 180,
       matrix,
       radius,
-      angleDegrees: cornerAngle,
+      angleDegrees,
     });
   };
 
-  const clockwise = random() < 0.5;
+  const jump = random() < 0.5;
+  const figureEight = random() < 0.34;
 
+  if (figureEight) {
+    // A bowtie closes when the two vertical legs match and the diagonals are
+    // long enough to absorb the four 135 degree bends. The diagonals cross at
+    // their midpoints, where one carries the raised bridge and the other
+    // carries the loop, so the bridge passes through the loop's opening.
+    const legA = 48 + pick(straights);
+    const diagonal = Math.SQRT2 * legA + 2 * radius;
+    const turnAngle = 135;
+    const bridgeLead = (diagonal - BRIDGE_LENGTH) / 2;
+
+    addStraight(CIRCUIT_LEAD_STRAIGHT);
+    if (jump) {
+      addPiece('kicker', kickerPath(), JUMP_KICKER_LENGTH);
+      addPiece('gap', gapPath(), JUMP_GAP_LENGTH);
+      addPiece('landing', landingPath(), JUMP_LANDING_LENGTH);
+    } else {
+      addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
+    }
+    addStraight(legA - CIRCUIT_LEAD_STRAIGHT - HILL_LENGTH);
+    addTurn(turnAngle, true);
+
+    // The crossing leg: a boost straight, then up and over.
+    addStraight(Math.max(0, bridgeLead - CIRCUIT_BOOST_LENGTH));
+    addStraight(CIRCUIT_BOOST_LENGTH, true);
+    addPiece('ramp-up', bridgeRampUpPath(), BRIDGE_RAMP_LENGTH);
+    addPiece('bridge', bridgeDeckPath(), BRIDGE_FLAT_LENGTH);
+    addPiece('ramp-down', bridgeRampDownPath(), BRIDGE_RAMP_LENGTH);
+    addStraight(bridgeLead);
+    addTurn(turnAngle, false);
+
+    addStraight(CIRCUIT_LEAD_STRAIGHT);
+    addStraight(CIRCUIT_BOOST_LENGTH, true);
+    addStraight(legA - CIRCUIT_LEAD_STRAIGHT - CIRCUIT_BOOST_LENGTH);
+    addTurn(turnAngle, false);
+
+    // The loop sits exactly at the crossing, so the bridge threads its hole.
+    addStraight(diagonal / 2);
+    addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
+    addPiece(
+      'shift',
+      shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH),
+      LOOP_RETURN_LENGTH,
+    );
+    addStraight(diagonal / 2 - LOOP_RETURN_LENGTH);
+    addTurn(turnAngle, true);
+  } else {
   // Every leg must be long enough for a lead straight plus any single feature
   // and a boost; the smallest leg is far larger than that.
   const legBase = CIRCUIT_LEG_BASE + pick(straights);
@@ -459,7 +567,6 @@ function assembleCircuit(
   for (let step = 1; step < corners; step += 1) {
     boostCandidates.push((hillLeg + step) % corners);
   }
-  const jump = random() < 0.5;
   const boostStart = Math.floor(random() * boostCandidates.length);
   const boostLegs = new Set([
     boostCandidates[boostStart]!,
@@ -504,6 +611,7 @@ function assembleCircuit(
     }
     addTurn();
   });
+  }
 
   return {
     seed,
@@ -537,6 +645,7 @@ function planPoints(circuit: Circuit): PlanPoint[] {
       const position = sample.position.clone().applyMatrix4(piece.matrix);
       points.push({
         x: position.x,
+        y: position.y,
         z: position.z,
         s: distance + (index / count) * piece.length,
       });
@@ -618,9 +727,17 @@ export function validateCircuit(circuit: Circuit): CircuitValidation {
         continue;
       }
       const distance = Math.hypot(a.x - b.x, a.z - b.z);
+      if (distance >= clearance - 0.01) {
+        continue;
+      }
+      // Sections may overlap in plan when one is on a bridge: the vertical
+      // separation has to clear a car, a deck, and some air.
+      if (Math.abs(a.y - b.y) >= BRIDGE_CLEARANCE) {
+        continue;
+      }
       if (distance < TRACK_WIDTH - 0.01) {
         reasons.add('plan view self-intersects');
-      } else if (distance < clearance - 0.01) {
+      } else {
         reasons.add('plan view clearance is below one car width');
       }
     }
