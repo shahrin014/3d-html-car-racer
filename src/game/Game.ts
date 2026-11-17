@@ -8,6 +8,7 @@ import {
   BOOST_IMPULSE,
   COUNTDOWN_SECONDS,
   DAMAGE_IMPULSE_FLOOR,
+  DEFAULT_LEVEL,
   FIXED_STEP,
   LAPS,
   MAX_DAMAGE,
@@ -25,6 +26,7 @@ import {
   buildFrames,
   generateCircuit,
   trackLength,
+  type Circuit,
   type TrackFrame,
 } from './track';
 import { buildTrackMesh, type TrackMesh } from './trackMesh';
@@ -63,10 +65,12 @@ export class Game {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly car: Car;
-  private readonly trackMesh: TrackMesh;
-  private readonly frames: TrackFrame[];
-  private readonly length: number;
-  private readonly boosts: BoostZone[] = [];
+  private trackMesh!: TrackMesh;
+  private frames!: TrackFrame[];
+  private length!: number;
+  private boosts: BoostZone[] = [];
+  /** Seed of the circuit currently built. */
+  private seed: string;
 
   private state: RaceState = 'menu';
   private cameraMode: CameraMode = 'chase';
@@ -87,6 +91,8 @@ export class Game {
   private pendingPhysics: PhysicsHandle | null = null;
   private physicsLoad: Promise<void> | null = null;
   private physicsFailed = false;
+  /** Bumped when the circuit changes, so stale physics loads are discarded. */
+  private physicsRevision = 0;
   private physicsAccumulator = 0;
   private lastFrameIndex = 0;
   private wheelSpin = 0;
@@ -126,21 +132,8 @@ export class Game {
     this.clockLights();
     this.addGround();
 
-    const circuit = generateCircuit(seed, 1);
-    this.frames = buildFrames(circuit);
-    this.length = trackLength(this.frames);
-
-    const pieces = this.splitPieces(circuit.pieces);
-    this.trackMesh = buildTrackMesh(pieces);
-    this.scene.add(this.trackMesh.group);
-
-    let distance = 0;
-    for (const piece of circuit.pieces) {
-      if (piece.boost) {
-        this.boosts.push({ from: distance, to: distance + piece.length });
-      }
-      distance += piece.length;
-    }
+    this.seed = seed;
+    this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
 
     this.car = createCar();
     this.scene.add(this.car.group);
@@ -167,7 +160,57 @@ export class Game {
 
   private time = 0;
 
-  startRace(): void {
+  /**
+   * Build the circuit behind the menu or a new race. A different seed replaces
+   * the track mesh and resets the physics world, because the colliders were cut
+   * for the old layout.
+   */
+  private buildCircuit(circuit: Circuit): void {
+    this.seed = circuit.seed;
+    this.frames = buildFrames(circuit);
+    this.length = trackLength(this.frames);
+    this.boosts = [];
+    let distance = 0;
+    for (const piece of circuit.pieces) {
+      if (piece.boost) {
+        this.boosts.push({ from: distance, to: distance + piece.length });
+      }
+      distance += piece.length;
+    }
+    if (this.trackMesh) {
+      this.scene.remove(this.trackMesh.group);
+      this.trackMesh.dispose();
+    }
+    const mesh = buildTrackMesh(this.splitPieces(circuit.pieces));
+    this.trackMesh = mesh;
+    this.scene.add(mesh.group);
+  }
+
+  /**
+   * Swap in a freshly seeded circuit. The old physics handle is dropped and a
+   * load for the new layout starts lazily on the next step.
+   */
+  private replaceCircuit(seed: string): void {
+    this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
+    this.physicsRevision += 1;
+    this.physics?.dispose();
+    this.physics = null;
+    this.pendingPhysics?.dispose();
+    this.pendingPhysics = null;
+    this.physicsLoad = null;
+    this.physicsFailed = false;
+    this.physicsAccumulator = 0;
+  }
+
+  /**
+   * Start a race. A `seed` different from the current circuit is built first,
+   * so the caller can randomize the track on every start; the physics world is
+   * rebuilt for the new colliders.
+   */
+  startRace(seed?: string): void {
+    if (seed !== undefined && seed !== this.seed) {
+      this.replaceCircuit(seed);
+    }
     this.s = 0;
     this.speed = 0;
     this.steerTarget = 0;
@@ -263,8 +306,16 @@ export class Game {
     if (this.physicsLoad) {
       return this.physicsLoad;
     }
+    const revision = this.physicsRevision;
     this.physicsLoad = createPhysics(this.frames)
       .then((handle) => {
+        if (revision !== this.physicsRevision) {
+          // The circuit changed while Rapier was loading: this world holds the
+          // old layout, so drop it and let the caller's next load build the new
+          // one.
+          handle.dispose();
+          return;
+        }
         const first = this.frames[0];
         if (this.state === 'racing' || this.state === 'paused') {
           this.pendingPhysics = handle;
@@ -278,6 +329,9 @@ export class Game {
         this.lastFrameIndex = 0;
       })
       .catch((error: unknown) => {
+        if (revision !== this.physicsRevision) {
+          return;
+        }
         this.physicsFailed = true;
         console.error('Rapier could not start.', error);
         this.state = 'menu';

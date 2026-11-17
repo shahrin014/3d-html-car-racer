@@ -5,8 +5,8 @@ test('best time is restored from storage and corrupt values are ignored', async 
   page,
 }) => {
   test.setTimeout(90_000);
-  const seed = new Date().toISOString().slice(0, 10);
-  const key = `neon-racer.best-time.${seed}.1`;
+  // Best times are per level, because the circuit is reseeded on every load.
+  const key = 'neon-racer.best-time.1';
 
   await gotoApp(page);
   await page.evaluate(

@@ -132,6 +132,12 @@ persistence, and offline reload.
   toward `-X`. All player-facing steering is therefore negated once in
   `physics.ts` and once for the wheel visuals; the physics tests pin the sign so
   the arrow keys cannot silently invert again.
+- **A fresh random seed every load and every race.** The seed used to be the
+  UTC date, so the circuit only changed at midnight and every refresh showed
+  the same track. `src/game/seed.ts` now draws 8 random bytes per start and
+  `Game.replaceCircuit` rebuilds the mesh and the Rapier world for the new
+  colliders. Best times are keyed per level, so a new circuit on each load does
+  not strand the record. Old date-keyed best times are simply ignored.
 - **No arcade fallback**: the rigid body is the only vehicle simulation. If
   Rapier cannot initialise, the game reports the failure and disables Start
   rather than silently changing the handling.
@@ -155,8 +161,9 @@ persistence, and offline reload.
 ## Current state of the game
 
 Three-lap generated circuit on a 7 m wide deck (seven car widths, two banked 180°
-turns, an offset loop with a return shift, a crest, boost straights), continuous
-swept track mesh, chase and cockpit cameras, landscape HUD, tilt plus
-button/keyboard fallbacks, damage and rescue.
+turns, an offset loop with a return shift, a crest, boost straights), reseeded
+from 64 random bits on every load and every race start, continuous swept track
+mesh, chase and cockpit cameras, landscape HUD, tilt plus button/keyboard
+fallbacks, damage and rescue.
 Assets live in `assets/` as PNG previews plus GLB models for every track piece;
 `npm run assets` and `npm run assets:glb` regenerate them.

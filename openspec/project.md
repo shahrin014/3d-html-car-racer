@@ -55,7 +55,9 @@ runtime API calls.
 - **Seeded, catalog-based generation.** A seed selects and orders authored
   pieces; it never invents geometry. Every piece starts and ends on a known
   frame, and the two sides of the circuit are assembled to the same forward
-  length, so closure holds by construction.
+  length, so closure holds by construction. A fresh random seed is drawn on
+  every load and every race start, so the track is randomized every time; best
+  times are kept per level so the record survives the reseed.
 - **Game time, not wall-clock time.** Pausing stops the simulation, timers,
   damage, and camera motion. There is no catch-up simulation after the tab is
   hidden.
@@ -105,13 +107,13 @@ runtime API calls.
 | Race | One attempt: menu start, countdown, three laps, finish. |
 | Lap | One circuit traversal that crosses every checkpoint in order and then the start/finish line. |
 | Circuit | A closed track assembled from catalog pieces from a seed and level. |
-| Seed | The input that selects the circuit combination; the default is the current UTC date. |
+| Seed | The input that selects the circuit combination; a fresh random seed is drawn on every page load and race start. |
 | Piece | An authored catalog module: straight, banked turn, loop, hill, shift, or boost straight. |
 | Level | A difficulty rung controlling the piece pool, radii, bank angle, boost count, and damage sensitivity. |
 | Damage | Accumulated impact value that reduces acceleration and top speed; it never ends the race. |
 | Rescue | A timed return to the last checkpoint after the car is stuck, inverted, or off track. |
 | Checkpoint | An ordered gate that must be crossed before the finish line counts a lap. |
-| Best time | The fastest total time for a circuit seed and level, stored locally. |
+| Best time | The fastest total time at a level, stored locally and kept across circuits. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
 | Cockpit camera | A driver's-eye view with a generated dashboard texture. |
 | Pause | A frozen race; simulation, timers, damage, and camera motion stop until resumed. |
@@ -155,7 +157,7 @@ runtime API calls.
 - Input: tilt target, button and keyboard steering, brake, camera mode.
 - Presentation: camera position and roll, shake or rattle, reduced-motion
   preference.
-- Persistence: unlocked level and best time per circuit seed and level.
+- Persistence: unlocked level and best time per level.
 
 Exact object shapes belong in code, not in behavior specs.
 

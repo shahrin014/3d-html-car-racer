@@ -354,8 +354,11 @@ time, the total time, and the speed.
 ### Requirement: Circuits are generated deterministically from a seed
 
 Each circuit SHALL be generated from a seed. The same seed SHALL produce the
-same circuit on every device and in every session. The default seed SHALL be the
-current UTC date so the day's circuit is stable.
+same circuit on every device and in every session. The game SHALL draw a fresh
+seed on every page load and again for every race started from the menu, so
+refreshing or racing again does not deliberately replay the previous circuit.
+The seed SHALL be drawn from at least 64 bits of randomness, not from the
+calendar date.
 
 #### Scenario: Same seed, same circuit
 
@@ -363,12 +366,13 @@ current UTC date so the day's circuit is stable.
 - **WHEN** the circuit is generated twice, in separate sessions
 - **THEN** the track geometry, feature placement, and start line are identical
 
-#### Scenario: Daily circuit
+#### Scenario: Fresh circuit on every load and race
 
-- **GIVEN** the UTC date has not changed
-- **WHEN** the player starts or restarts a race
-- **THEN** the same circuit is used
-- **AND** a new UTC date produces a different circuit
+- **GIVEN** the app has just loaded, or a race has finished
+- **WHEN** the player starts a race
+- **THEN** a random seed drawn on this page load or since the last start is used
+- **AND** the next start draws another seed
+- **AND** the circuit is not tied to the calendar date
 
 ### Requirement: Track randomization is seeded and bounded
 
@@ -376,7 +380,16 @@ Randomization SHALL choose among the authored pieces in the catalog and SHALL
 NOT invent new geometry. The seed SHALL decide the combination, and the level
 SHALL decide the available piece sizes. A different seed or level SHALL be able
 to produce a different combination, and every randomized circuit SHALL still
-satisfy the closure and required-feature rules.
+satisfy the closure and required-feature rules. The game SHALL randomize the
+track every time: a new seed is drawn on each page load and on each race started
+from the menu, so the player does not see the same circuit repeatedly.
+
+#### Scenario: Every race is randomized
+
+- **GIVEN** the player is on the menu
+- **WHEN** the player starts a race
+- **THEN** a new seed is drawn before the circuit is assembled
+- **AND** the same flow after a page refresh also draws a new seed
 
 #### Scenario: Different seeds spread the combination
 
@@ -736,17 +749,19 @@ loop and puts the view under the road.
 - **THEN** the camera switches
 - **AND** the choice is kept after pausing and resuming
 
-### Requirement: The best race time persists for the circuit
+### Requirement: The best race time persists for the level
 
-The best total time SHALL be stored locally per circuit seed. A faster total
-SHALL replace it, and the menu and finish screen SHALL show it. A missing or
-corrupt value SHALL be treated as absent. Storage failure SHALL NOT prevent play.
+The best total time SHALL be stored locally per level, so the record survives
+the circuit being reseeded on every load. A faster total SHALL replace it, and
+the menu and finish screen SHALL show it. A missing or corrupt value SHALL be
+treated as absent. Storage failure SHALL NOT prevent play.
 
 #### Scenario: Best time survives a reload
 
-- **GIVEN** the player finishes with a time faster than the stored best
-- **WHEN** the page is reloaded
-- **THEN** the menu shows the new best time for the same circuit
+- **GIVEN** the player finishes with a time faster than the stored best at that
+  level
+- **WHEN** the page is reloaded and a different circuit is drawn
+- **THEN** the menu still shows the new best time
 
 #### Scenario: Slower race does not replace the best
 

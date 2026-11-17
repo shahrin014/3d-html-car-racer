@@ -6,6 +6,7 @@ import {
   steerFromKeys,
 } from './game/controls';
 import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
+import { randomSeed } from './game/seed';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -44,8 +45,12 @@ const finalDamage = mustQuery<HTMLElement>('#final-damage');
 const newBest = mustQuery<HTMLElement>('#new-best');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 
-const seed = new Date().toISOString().slice(0, 10);
-const bestKey = `${BEST_TIME_KEY_PREFIX}.${seed}.${DEFAULT_LEVEL}`;
+// A fresh circuit every load: the seed is drawn at random, never from the
+// date. This first seed builds the track behind the menu and is the one the
+// first race runs on; every later start draws another. Best times are kept per
+// level so the record survives the new track.
+let nextSeed = randomSeed();
+const bestKey = `${BEST_TIME_KEY_PREFIX}.${DEFAULT_LEVEL}`;
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -173,7 +178,7 @@ try {
           ?.focus({ preventScroll: true });
       },
     },
-    seed,
+    nextSeed,
   );
 } catch (error) {
   console.error('WebGL could not be initialised.', error);
@@ -187,7 +192,9 @@ function startRace(): void {
   }
   newBest.hidden = true;
   void enableTilt();
-  game.startRace();
+  // A new track for every race, not just every load.
+  game.startRace(nextSeed);
+  nextSeed = randomSeed();
   pointerSteer = 0;
   setScreen('countdown');
 }
