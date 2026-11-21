@@ -27,8 +27,8 @@ function combination(circuit: Circuit): string {
  * Turns are compared by radius because the seed chooses the corner count, which
  * changes the turn angle and therefore the arc length.
  */
-function authoredPieces(circuit: Circuit): string {
-  const sizes = new Set<string>();
+function authoredSizes(circuit: Circuit): Map<Piece['kind'], Set<string>> {
+  const sizes = new Map<Piece['kind'], Set<string>>();
   for (const piece of circuit.pieces) {
     if (
       piece.kind !== 'loop' &&
@@ -38,13 +38,15 @@ function authoredPieces(circuit: Circuit): string {
     ) {
       continue;
     }
-    sizes.add(
+    const value =
       piece.kind === 'turn'
-        ? `turn:${piece.radius?.toFixed(6)}`
-        : `${piece.kind}:${piece.length.toFixed(6)}`,
-    );
+        ? `${piece.radius?.toFixed(6)}`
+        : piece.length.toFixed(6);
+    const set = sizes.get(piece.kind) ?? new Set<string>();
+    set.add(value);
+    sizes.set(piece.kind, set);
   }
-  return [...sizes].sort().join('|');
+  return sizes;
 }
 
 function firstBankedTurn(circuit: Circuit): Piece {
@@ -92,7 +94,20 @@ describe('track randomization', () => {
     const first = generateCircuit('alpha', 1);
     const second = generateCircuit('charlie', 1);
 
-    expect(authoredPieces(second)).toBe(authoredPieces(first));
+    // Seeds may choose different features (hill versus jump, figure-eight
+    // versus polygon), so compare the sizes of the authored kinds both share.
+    const firstSizes = authoredSizes(first);
+    const secondSizes = authoredSizes(second);
+    let sharedKinds = 0;
+    for (const [kind, sizes] of firstSizes) {
+      const other = secondSizes.get(kind);
+      if (!other) {
+        continue;
+      }
+      expect([...other].sort()).toEqual([...sizes].sort());
+      sharedKinds += 1;
+    }
+    expect(sharedKinds).toBeGreaterThanOrEqual(3);
     expect(combination(second)).not.toBe(combination(first));
 
     const allowed = new Set([
@@ -335,6 +350,33 @@ describe('track randomization', () => {
       }
     }
     expect(mixed).toBe(true);
+  }, 20_000);
+
+  it('keeps figure-eight jump and hill variants closed', () => {
+    let jump: Circuit | null = null;
+    let hill: Circuit | null = null;
+    for (let index = 0; index < 120; index += 1) {
+      const circuit = generateCircuit(`figure-eight-feature-${index}`, 1);
+      if (!circuit.pieces.some((piece) => piece.kind === 'bridge')) {
+        continue;
+      }
+      if (circuit.pieces.some((piece) => piece.kind === 'kicker')) {
+        jump ??= circuit;
+      } else {
+        hill ??= circuit;
+      }
+    }
+    expect(jump).not.toBeNull();
+    expect(hill).not.toBeNull();
+
+    for (const circuit of [jump!, hill!]) {
+      const frames = buildFrames(circuit);
+      const first = frames[0]!;
+      const last = frames[frames.length - 1]!;
+      expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
+      expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
+      expect(validateCircuit(circuit).ok).toBe(true);
+    }
   }, 20_000);
 
   it('tightens turns and shrinks loops as the level rises', () => {

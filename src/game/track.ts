@@ -304,18 +304,26 @@ function hermiteSlope(t: number): { d00: number; d10: number; d01: number; d11: 
 /**
  * Planar forward distance of a whole jump module.
  *
- * The gap and the landing are placed on the tilted launch frame, and the
- * landing also drops a long way along that frame's up vector, which leans
- * forward. Both effects add plan distance beyond the piece lengths, so the leg
- * budget must use this figure rather than the sum of the three lengths.
+ * The gap and the landing are placed on the tilted launch frame, so their
+ * forward distance is not the sum of the three authored lengths. Compose the
+ * three placement frames exactly instead of approximating the tilt, so a leg
+ * budget built from this figure closes on the seam.
  */
 export function jumpPlanarLength(): number {
-  const angle = Math.atan(JUMP_LAUNCH_SLOPE);
-  return (
-    JUMP_KICKER_LENGTH +
-    JUMP_HEIGHT * JUMP_LAUNCH_SLOPE +
-    (JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH) / Math.cos(angle)
-  );
+  const endFrame = (matrix: THREE.Matrix4, path: TrackPath): THREE.Matrix4 => {
+    const sample = path(1);
+    const rotation = new THREE.Matrix4().makeBasis(
+      new THREE.Vector3().crossVectors(sample.up, sample.tangent).normalize(),
+      sample.up,
+      sample.tangent,
+    );
+    return matrix.clone().multiply(rotation.setPosition(sample.position));
+  };
+  let matrix = endFrame(new THREE.Matrix4(), kickerPath());
+  matrix = endFrame(matrix, gapPath());
+  matrix = endFrame(matrix, landingPath());
+  const end = new THREE.Vector3().setFromMatrixPosition(matrix);
+  return Math.hypot(end.x, end.z);
 }
 
 /** Ramp up to the lip, ending on the launch slope. */
@@ -645,7 +653,7 @@ function assembleCircuit(
   };
 
   const jump = random() < 0.5;
-  const figureEight = random() < 0.34;
+  const figureEight = random() < 0.5;
 
   if (figureEight) {
     // A bowtie closes when the two vertical legs match and the diagonals are
@@ -658,6 +666,7 @@ function assembleCircuit(
     const bridgeLead = (diagonal - BRIDGE_LENGTH) / 2;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
+    const featureLength = jump ? jumpPlanarLength() : HILL_LENGTH;
     if (jump) {
       addPiece('kicker', kickerPath(), JUMP_KICKER_LENGTH);
       addPiece('gap', gapPath(), JUMP_GAP_LENGTH);
@@ -665,7 +674,7 @@ function assembleCircuit(
     } else {
       addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
     }
-    addStraight(legA - CIRCUIT_LEAD_STRAIGHT - HILL_LENGTH);
+    addStraight(legA - CIRCUIT_LEAD_STRAIGHT - featureLength);
     addTurn(turnAngle, true);
 
     // The crossing leg: a boost straight, then a spiral up to the deck, a
@@ -1015,8 +1024,7 @@ export function validateCircuit(circuit: Circuit): CircuitValidation {
  * Build a validated circuit. Each rejected attempt advances a deterministic
  * seed offset, so the same seed and level always settle on the same circuit.
  */
-export function generateCircuit(seed: string, level: number): Circuit {
-  const failures: string[] = [];
+export function generateCircuit(seed: string, level: number): Circuit {  const failures: string[] = [];
   for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
     const circuit = assembleCircuit(seed, level, offset);
     const validation = validateCircuit(circuit);

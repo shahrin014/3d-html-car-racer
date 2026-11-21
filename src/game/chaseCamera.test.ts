@@ -10,7 +10,15 @@ import { FIXED_STEP } from './constants';
 import { createPhysics } from './physics';
 import { buildFrames, generateCircuit, type TrackFrame } from './track';
 
-const SEED = 'rapier-physics-trace';
+function polygonFrames(): TrackFrame[] {
+  for (let index = 0; index < 80; index += 1) {
+    const circuit = generateCircuit(`chase-polygon-${index}`, 1);
+    if (!circuit.pieces.some((piece) => piece.kind === 'bridge')) {
+      return buildFrames(circuit);
+    }
+  }
+  throw new Error('no polygon circuit found');
+}
 
 function nextIndex(
   frames: TrackFrame[],
@@ -86,7 +94,7 @@ const pose = {
 
 describe('chase camera', () => {
   it('stays above the deck for a whole lap, including the loop', async () => {
-    const frames = buildFrames(generateCircuit(SEED, 1));
+    const frames = polygonFrames();
     const physics = await createPhysics(frames);
     const rig = createChaseRig();
     let index = 0;

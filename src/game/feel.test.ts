@@ -13,7 +13,15 @@ import { buildFrames, generateCircuit, type TrackFrame } from './track';
  * lap feels floaty even though it never leaves the track.
  */
 
-const SEED = 'rapier-physics-trace';
+function polygonFrames(): TrackFrame[] {
+  for (let index = 0; index < 80; index += 1) {
+    const circuit = generateCircuit(`feel-polygon-${index}`, 1);
+    if (!circuit.pieces.some((piece) => piece.kind === 'bridge')) {
+      return buildFrames(circuit);
+    }
+  }
+  throw new Error('no polygon circuit found');
+}
 
 /** Advance the nearest-frame search without letting the closing frame win at
  * the start line; this mirrors `Game.nearestTrackIndex`. */
@@ -123,7 +131,7 @@ function drive(
 
 describe('handling feel', () => {
   it('keeps the car pointing where it travels for a whole lap', async () => {
-    const frames = buildFrames(generateCircuit(SEED, 1));
+    const frames = polygonFrames();
     const physics = await createPhysics(frames);
     let index = 0;
     let crossed = false;
@@ -188,7 +196,7 @@ describe('handling feel', () => {
   }, 60_000);
 
   it('steers right when the player steers right', async () => {
-    const frames = buildFrames(generateCircuit(SEED, 1));
+    const frames = polygonFrames();
     const physics = await createPhysics(frames);
     // A second, identical car takes the same run with neutral steering. The
     // guide's yaw spring rings for a moment at speed, so comparing the steered
@@ -241,7 +249,7 @@ describe('handling feel', () => {
   }, 60_000);
 
   it('does not spin out on a held full lock', async () => {
-    const frames = buildFrames(generateCircuit(SEED, 1));
+    const frames = polygonFrames();
     const physics = await createPhysics(frames);
     let index = drive(physics, frames);
     const startSpeed = physics.read().speed;

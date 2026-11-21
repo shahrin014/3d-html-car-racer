@@ -245,6 +245,7 @@ runtime API calls.
 | Opponents | 3 by default, 0–30 selectable in the menu |
 | Countdown | 3 s |
 | Track scale | 1.5× the base catalogue |
+| Figure-eight share | about half of seeds |
 | Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |

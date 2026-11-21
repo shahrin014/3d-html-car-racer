@@ -17,6 +17,7 @@ of the requirements.
 | --- | --- |
 | Circuit scale | 1.5× the base catalogue |
 | Corner counts | 3, 4, 5, or 6 |
+| Figure-eight share | about half of seeds |
 | Turn radius | 12–27 m across the level ladder |
 | Turn bank | 20–45° |
 | Straight lengths | 12–30 m across the level ladder |
@@ -75,9 +76,9 @@ lengths. Rotational symmetry SHALL close the loop for any radius and leg length,
 so the player sees triangles, rectangles, pentagons, and hexagons rather than
 one oval.
 
-Some seeds SHALL instead produce a figure-eight bowtie: four 135° banked corners
-and two diagonals that cross once at their midpoints, with the vertical legs
-matching and the diagonals long enough to absorb the corner arcs. At the
+About half of seeds SHALL instead produce a figure-eight bowtie: four 135°
+banked corners and two diagonals that cross once at their midpoints, with the
+vertical legs matching and the diagonals long enough to absorb the corner arcs. At the
 crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
 and the loop SHALL sit under the bridge so the crossing threads the loop's
 opening. The bridge SHALL rise on a spiral ramp, cross flat, and descend on a
