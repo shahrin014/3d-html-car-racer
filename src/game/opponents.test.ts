@@ -11,7 +11,9 @@ import {
   advanceDistance,
   advanceTravel,
   circuitLength,
+  gradeAt,
   opponentSpecs,
+  paceAt,
   racingPose,
   wrapDistance,
 } from './opponents';
@@ -96,5 +98,37 @@ describe('racing line', () => {
       total = advanceTravel(spec, total, 1 / 120, length).travelled;
     }
     expect(total).toBeGreaterThan(length * 2);
+  });
+});
+
+describe('terrain pace', () => {
+  it('slows on a climb and speeds up on a descent', () => {
+    const spec = opponentSpecs(1)[0]!;
+    const distance = 120;
+    const flat = paceAt(spec, distance, 0);
+    const climb = paceAt(spec, distance, 0.5);
+    const descent = paceAt(spec, distance, -0.5);
+    expect(climb).toBeLessThan(flat);
+    expect(descent).toBeGreaterThan(flat);
+  });
+
+  it('samples grade from the track tangent', () => {
+    const frame = frames[Math.floor(frames.length / 2)]!;
+    expect(gradeAt(frames, frame.s)).toBeCloseTo(frame.tangent.y, 5);
+    expect(gradeAt(frames, frame.s + circuitLength(frames))).toBeCloseTo(
+      frame.tangent.y,
+      5,
+    );
+    expect(gradeAt([], 10)).toBe(0);
+  });
+
+  it('advances further downhill than uphill in one step', () => {
+    const spec = opponentSpecs(1)[0]!;
+    const length = circuitLength(frames);
+    const start = 40;
+    const climb = advanceDistance(spec, start, 1, length, 0.4) - start;
+    const descent = advanceDistance(spec, start, 1, length, -0.4) - start;
+    expect(climb).toBeGreaterThan(0);
+    expect(descent).toBeGreaterThan(climb);
   });
 });

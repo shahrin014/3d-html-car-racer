@@ -720,9 +720,10 @@ defaulting to three, and the choice SHALL persist across reloads. Each opponent
 SHALL use a palette paint that differs from the player's paint; opponent paints
 SHALL stay distinct until every non-player paint has been used, after which they
 cycle. Opponents SHALL follow the circuit on a kinematic racing line with their
-own lane and pace, SHALL stay on the deck through banks and loops, and SHALL be
-solid: the player's car collides with them without taking damage. They SHALL NOT
-change lap counting, timing, or the three-lap race against the clock.
+own lane and pace, slowing on climbs and accelerating on descents, SHALL stay on
+the deck through banks and loops, and SHALL be solid: the player's car collides
+with them without taking damage. They SHALL NOT change lap counting, timing, or
+the three-lap race against the clock.
 
 #### Scenario: Configurable field
 
@@ -753,6 +754,13 @@ change lap counting, timing, or the three-lap race against the clock.
 - **WHEN** the field drives a lap
 - **THEN** every opponent stays on the deck
 - **AND** follows the turns, banks, and loop of the circuit
+
+#### Scenario: Rivals respond to the terrain
+
+- **GIVEN** a race with opponents
+- **WHEN** a rival climbs a ramp, hill, or loop
+- **THEN** its pace falls below its cruise speed
+- **AND** its pace rises above cruise speed on the following descent
 
 ### Requirement: The player car's paint is selectable
 
