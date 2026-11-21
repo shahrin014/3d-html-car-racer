@@ -33,6 +33,9 @@ of the requirements.
 | Maximum frame delta | 0.1 s |
 | Turn bank | 20–45° |
 | Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
+| Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
+| Spiral ramp rise | 8 m per turn; 16 m for the two-level bridge |
+| Spiral ramp levels | 2 |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
 | Damage per impulse | 18 |
@@ -414,8 +417,11 @@ and two diagonals that cross once at their midpoints, with the vertical legs
 matching and the diagonals long enough to absorb the corner arcs. At the
 crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
 and the loop SHALL sit under the bridge so the crossing threads the loop's
-opening. The bridge SHALL rise on a ramp, cross flat, and descend on a matching
-ramp, at least 3.5 m above the lower deck.
+opening. The bridge SHALL rise on a spiral ramp, cross flat, and descend on a
+matching spiral ramp, at least 3.5 m above the lower deck. Each spiral SHALL
+turn one full circle per bridge level and SHALL support climbing or dropping
+multiple levels; the figure-eight bridge SHALL use two levels. Its radius SHALL
+leave a clear opening wide enough for a landmark building in the middle.
 
 #### Scenario: Every race is randomized
 
@@ -447,6 +453,13 @@ ramp, at least 3.5 m above the lower deck.
 - **WHEN** both circuits are generated
 - **THEN** turns tighten and loops shrink as the level rises
 - **AND** both circuits are closed and contain the required features
+
+#### Scenario: Spiral bridge
+
+- **GIVEN** a figure-eight circuit
+- **WHEN** the bridge is assembled
+- **THEN** it rises on a two-level spiral and descends on a matching spiral
+- **AND** each spiral leaves an opening wide enough for a landmark building
 
 #### Scenario: Randomization never invents geometry
 
@@ -960,6 +973,13 @@ at least 0.6 m above the deck beneath it. It SHALL NOT be driven by a
 world-space lerp toward the car's arc, because that cuts the chord through the
 loop and puts the view under the road.
 
+The cockpit camera SHALL replace the exterior shell with a dashboard overlay
+drawn in camera space: a generated dashboard texture across the lower view and
+a separate steering-wheel texture in front of it. The exterior body SHALL be
+hidden while the cockpit camera is active. The steering wheel SHALL turn with
+the steering input, clockwise for a right turn, and SHALL be clamped at full
+lock.
+
 #### Scenario: Chase camera through a loop
 
 - **GIVEN** the chase camera is active
@@ -974,7 +994,17 @@ loop and puts the view under the road.
 - **GIVEN** the cockpit camera is active
 - **WHEN** the car drives and banks
 - **THEN** the view is from the driver's position
+- **AND** the exterior shell is hidden
+- **AND** the dashboard and steering wheel stay locked to the view
 - **AND** no car geometry blocks the track ahead
+
+#### Scenario: Cockpit steering wheel
+
+- **GIVEN** the cockpit camera is active
+- **WHEN** the player steers right
+- **THEN** the steering wheel turns clockwise
+- **AND** it turns counter-clockwise when the player steers left
+- **AND** it never turns past full lock
 
 #### Scenario: Camera toggle
 

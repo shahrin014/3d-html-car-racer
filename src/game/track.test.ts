@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
   BRIDGE_HEIGHT,
+  BRIDGE_LENGTH,
   BRIDGE_RAMP_LENGTH,
   CAR_HEIGHT,
   CAR_WIDTH,
@@ -17,6 +18,10 @@ import {
   LOOP_RETURN_LENGTH,
   MIN_TURN_RADIUS,
   RAIL_HEIGHT,
+  SPIRAL_HEIGHT,
+  SPIRAL_LEVELS,
+  SPIRAL_RADIUS,
+  SPIRAL_TURNS,
   TRACK_WIDTH,
 } from './constants';
 import {
@@ -31,6 +36,10 @@ import {
   landingPath,
   loopPath,
   shiftPath,
+  spiralArcLength,
+  spiralDownPath,
+  spiralInnerRadius,
+  spiralUpPath,
   turnPath,
   type TrackPath,
 } from './track';
@@ -213,6 +222,136 @@ describe('track pieces', () => {
     // The ramps are long enough to keep the climb under 35 degrees.
     const climb = Math.atan((1.5 * BRIDGE_HEIGHT) / BRIDGE_RAMP_LENGTH);
     expect(climb).toBeLessThan((35 * Math.PI) / 180);
+  });
+
+  it('spirals a full turn up one bridge level and returns overhead', () => {
+    const path = spiralUpPath(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1);
+    const start = path(0);
+    const mid = path(0.5);
+    const end = path(1);
+
+    expect(start.position.length()).toBeCloseTo(0, 6);
+    expect(end.position.x).toBeCloseTo(0, 6);
+    expect(end.position.z).toBeCloseTo(0, 6);
+    expect(end.position.y).toBeCloseTo(BRIDGE_HEIGHT, 6);
+    expect(start.tangent.dot(end.tangent)).toBeCloseTo(1, 6);
+    expect(start.up.dot(end.up)).toBeCloseTo(1, 6);
+    // The entry and exit are flat, so the spiral joins a straight cleanly.
+    expect(start.tangent.y).toBeCloseTo(0, 6);
+    expect(end.tangent.y).toBeCloseTo(0, 6);
+    // Halfway round is the far side of the circle, halfway up.
+    expect(mid.position.x).toBeCloseTo(SPIRAL_RADIUS * 2, 6);
+    expect(mid.position.y).toBeCloseTo(BRIDGE_HEIGHT / 2, 6);
+    expect(mid.tangent.z).toBeLessThan(-0.9);
+    // Every plan point sits on the circle whose centre is one radius to the
+    // right of the approach.
+    for (let index = 0; index <= 20; index += 1) {
+      const point = path(index / 20).position;
+      expect(
+        Math.hypot(point.x - SPIRAL_RADIUS, point.z),
+      ).toBeCloseTo(SPIRAL_RADIUS, 5);
+    }
+  });
+
+  it('climbs several levels in one continuous spiral', () => {
+    const path = spiralUpPath();
+    const start = path(0);
+    const end = path(1);
+
+    expect(SPIRAL_TURNS).toBe(SPIRAL_LEVELS);
+    expect(SPIRAL_HEIGHT).toBe(BRIDGE_HEIGHT * SPIRAL_LEVELS);
+    expect(end.position.x).toBeCloseTo(0, 6);
+    expect(end.position.z).toBeCloseTo(0, 6);
+    expect(end.position.y).toBeCloseTo(SPIRAL_HEIGHT, 6);
+    expect(start.tangent.dot(end.tangent)).toBeCloseTo(1, 6);
+    // One full turn returns to the entry point, one bridge level higher.
+    for (let turn = 1; turn <= SPIRAL_TURNS; turn += 1) {
+      const point = path(turn / SPIRAL_TURNS).position;
+      expect(point.x).toBeCloseTo(0, 6);
+      expect(point.z).toBeCloseTo(0, 6);
+      expect(point.y).toBeCloseTo(BRIDGE_HEIGHT * turn, 6);
+    }
+  });
+
+  it('drops every level back to the deck', () => {
+    const path = spiralDownPath();
+    expect(path(0).position.y).toBeCloseTo(0, 6);
+    expect(path(1).position.y).toBeCloseTo(-SPIRAL_HEIGHT, 6);
+    expect(path(1).position.x).toBeCloseTo(0, 6);
+    expect(path(1).position.z).toBeCloseTo(0, 6);
+    expect(path(0).tangent.y).toBeCloseTo(0, 6);
+    expect(path(1).tangent.y).toBeCloseTo(0, 6);
+    expect(spiralArcLength()).toBeGreaterThan(
+      SPIRAL_RADIUS * Math.PI * 2 * SPIRAL_TURNS,
+    );
+  });
+
+  it('leaves a building-sized opening inside the spiral', () => {
+    // A square landmark needs a half-diagonal of 8.5 m; keep 2 m of air
+    // between it and the inner rail.
+    expect(spiralInnerRadius()).toBeGreaterThan(Math.hypot(6, 6) + 2);
+    expect(spiralInnerRadius()).toBeGreaterThan(TRACK_WIDTH);
+  });
+
+  it('joins the spiral ramps and deck into a level crossing', () => {
+    const up = spiralUpPath();
+    const deck = bridgeDeckPath(BRIDGE_LENGTH);
+    const down = spiralDownPath();
+    const world = new THREE.Matrix4()
+      .multiply(endFrame(up))
+      .multiply(endFrame(deck))
+      .multiply(endFrame(down));
+    const end = new THREE.Vector3().setFromMatrixPosition(world);
+    expect(end.y).toBeCloseTo(0, 6);
+    expect(
+      new THREE.Vector3(0, 0, 1).transformDirection(world).z,
+    ).toBeCloseTo(1, 6);
+    expect(
+      new THREE.Vector3(0, 1, 0).transformDirection(world).y,
+    ).toBeCloseTo(1, 6);
+    // The deck is the only part that advances in plan; the spirals return to
+    // their own footprint.
+    expect(Math.hypot(end.x, end.z)).toBeCloseTo(BRIDGE_LENGTH, 4);
+  });
+
+  it('builds the figure-eight bridge from spiral ramps', () => {
+    let circuit: ReturnType<typeof generateCircuit> | null = null;
+    for (let index = 0; index < 60; index += 1) {
+      const candidate = generateCircuit(`spiral-bridge-${index}`, 1);
+      if (candidate.pieces.some((piece) => piece.kind === 'spiral-up')) {
+        circuit = candidate;
+        break;
+      }
+    }
+    expect(circuit).not.toBeNull();
+    const pieces = circuit!.pieces;
+    const up = pieces.find((piece) => piece.kind === 'spiral-up');
+    const down = pieces.find((piece) => piece.kind === 'spiral-down');
+    const bridge = pieces.find((piece) => piece.kind === 'bridge');
+    expect(up).toBeDefined();
+    expect(down).toBeDefined();
+    expect(bridge).toBeDefined();
+    expect(bridge!.length).toBe(BRIDGE_LENGTH);
+    expect(up!.length).toBeCloseTo(spiralArcLength(), 3);
+
+    const upStart = up!.path(0).position.clone().applyMatrix4(up!.matrix);
+    const upEnd = up!.path(1).position.clone().applyMatrix4(up!.matrix);
+    expect(upEnd.y - upStart.y).toBeCloseTo(SPIRAL_HEIGHT, 6);
+    expect(Math.hypot(upEnd.x - upStart.x, upEnd.z - upStart.z)).toBeLessThan(
+      1e-6,
+    );
+    expect(up!.spiralCenter).toBeDefined();
+
+    const downStart = down!.path(0).position.clone().applyMatrix4(down!.matrix);
+    const downEnd = down!.path(1).position.clone().applyMatrix4(down!.matrix);
+    expect(downStart.y - downEnd.y).toBeCloseTo(SPIRAL_HEIGHT, 6);
+
+    // The whole circuit still closes with the taller bridge module.
+    const frames = buildFrames(circuit!);
+    const first = frames[0]!;
+    const last = frames[frames.length - 1]!;
+    expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
+    expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
   });
 
   it('threads a bridge through the loop in a figure-eight circuit', () => {

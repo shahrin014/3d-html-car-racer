@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { FIXED_STEP, TRACK_WIDTH } from './constants';
+import { FIXED_STEP, SPIRAL_HEIGHT, TRACK_WIDTH } from './constants';
 import { opponentSpecs } from './opponents';
 import { createPhysics } from './physics';
 import { buildFrames, generateCircuit, type TrackFrame } from './track';
@@ -185,6 +185,60 @@ describe('Rapier vehicle', () => {
     // ground between contacts.
     expect(chatterRms(rollRates)).toBeLessThan(1.6);
 
+    physics.dispose();
+  }, 60_000);
+
+  it('climbs a spiral ramp without leaving the deck', async () => {
+    let circuit: ReturnType<typeof generateCircuit> | null = null;
+    for (let candidateIndex = 0; candidateIndex < 60; candidateIndex += 1) {
+      const candidate = generateCircuit(`spiral-drive-${candidateIndex}`, 1);
+      if (candidate.pieces.some((piece) => piece.kind === 'spiral-up')) {
+        circuit = candidate;
+        break;
+      }
+    }
+    expect(circuit).not.toBeNull();
+
+    const frames = buildFrames(circuit!);
+    let distance = 0;
+    let entryS = 0;
+    for (const piece of circuit!.pieces) {
+      if (piece.kind === 'spiral-up') {
+        entryS = distance;
+        break;
+      }
+      distance += piece.length;
+    }
+    let index = frames.findIndex((frame) => frame.s >= entryS);
+    if (index < 0) {
+      index = 0;
+    }
+    const entry = frames[index]!;
+    const physics = await createPhysics(frames);
+    physics.reset(entry);
+
+    let maxGap = 0;
+    let maxHeight = entry.position.y;
+    for (let step = 0; step < 120 * 12; step += 1) {
+      const state = physics.read();
+      index = nextIndex(frames, index, state.position);
+      const frame = frames[index]!;
+      const latitude = lateralOffset(frame, state.position);
+      const lateralSpeed =
+        state.velocity.x * frame.right.x +
+        state.velocity.y * frame.right.y +
+        state.velocity.z * frame.right.z;
+      const steer = Math.max(
+        -1,
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
+      );
+      maxGap = Math.max(maxGap, state.position.distanceTo(frame.position));
+      maxHeight = Math.max(maxHeight, state.position.y);
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer }, frame);
+    }
+
+    expect(maxGap).toBeLessThan(TRACK_WIDTH);
+    expect(maxHeight - entry.position.y).toBeGreaterThan(SPIRAL_HEIGHT - 1);
     physics.dispose();
   }, 60_000);
 });

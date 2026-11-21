@@ -3,7 +3,8 @@
 A mobile-first circuit racer inspired by orange plastic track sets. Three laps
 against the clock on a generated circuit with banked turns, a vertical loop,
 crests, jumps, boost straights, figure-eight layouts with bridges over the
-track, and a floating deck in a generated city skyline. The car is a candy-red die-cast hypercar driven by a
+track, and spiral ramps that climb two levels around a landmark tower in a
+generated city skyline. The car is a candy-red die-cast hypercar driven by a
 Rapier rigid-body simulation behind a small adapter.
 
 **Play:** https://shahrin014.github.io/3d-html-car-racer/
@@ -112,6 +113,7 @@ src/game/
   Car.ts             player car wrapper around the shared die-cast model
   car-model.mjs      parametric car geometry shared with the asset catalog
   cockpitCamera.ts   driver's-eye camera pose
+  cockpit.ts         generated dashboard and steering-wheel overlay
   constants.ts       all tuning values
 public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCar, WHEEL_RADIUS, type Car } from './Car';
 import { chasePose, createChaseRig, resetChaseRig } from './chaseCamera';
+import { createCockpit, type Cockpit } from './cockpit';
 import { cockpitPose } from './cockpitCamera';
 import {
   BOOST_COOLDOWN,
@@ -35,7 +36,13 @@ import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
 import { racePlacing } from './placing';
 import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothing';
-import { buildScenery, type Scenery } from './scenery';
+import {
+  buildScenery,
+  clearsTrack,
+  SCENERY_LANDMARK_CLEARANCE,
+  type Building,
+  type Scenery,
+} from './scenery';
 import { buildSkybox, disposeSkyboxes } from './skybox';
 import {
   buildFrames,
@@ -84,6 +91,7 @@ export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
+  private readonly cockpit: Cockpit;
   private car: Car;
   private playerPaint: Paint;
   private opponentCount: number;
@@ -162,6 +170,12 @@ export class Game {
     this.renderer.domElement.setAttribute('role', 'img');
 
     this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 400);
+    // The cockpit is parented to the camera so it rides the driver's view
+    // through banks and loops. A camera has to be in the scene graph for its
+    // children to be drawn.
+    this.cockpit = createCockpit();
+    this.camera.add(this.cockpit.group);
+    this.scene.add(this.camera);
     this.scene.fog = new THREE.Fog(0x07101a, 60, 220);
     this.scene.background = new THREE.Color(0x07101a);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -231,7 +245,37 @@ export class Game {
       this.scene.remove(this.scenery.group);
       this.scenery.dispose();
     }
-    this.scenery = buildScenery(this.frames, circuit.seed);
+    // Each spiral ramp wraps around a landmark tower. Keep the tower only when
+    // its 12 m footprint stays clear of every other part of the circuit.
+    const landmarks = circuit.pieces
+      .filter(
+        (piece) => piece.kind === 'spiral-up' && piece.spiralCenter !== undefined,
+      )
+      .map((piece): Building => {
+        const center = piece.spiralCenter!;
+        return {
+          x: center.x,
+          z: center.z,
+          width: 12,
+          depth: 12,
+          height: 26,
+          rotation: 0,
+        };
+      })
+      .filter((building) =>
+        clearsTrack(
+          this.frames,
+          building.x,
+          building.z,
+          SCENERY_LANDMARK_CLEARANCE,
+        ),
+      );
+    this.scenery = buildScenery(
+      this.frames,
+      circuit.seed,
+      undefined,
+      landmarks,
+    );
     this.scene.add(this.scenery.group);
 
     this.applySkybox(circuit.seed);
@@ -458,6 +502,7 @@ export class Game {
     this.scenery?.dispose();
     this.skyboxRevision += 1;
     disposeSkyboxes();
+    this.cockpit.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -906,6 +951,15 @@ export class Game {
     const shake = this.reducedMotion.matches ? 0 : Math.min(0.06, this.speed / 400);
     const position = this.car.group.position;
     const orientation = this.car.group.quaternion;
+    // The driver's-eye view shows its own interior instead of the shell: the
+    // body would sit between the eye and the road, and the dashboard and wheel
+    // are attached to the camera. The wheel follows the steering input.
+    const cockpitMode = this.cameraMode === 'cockpit';
+    this.car.group.visible = !cockpitMode;
+    this.cockpit.setVisible(cockpitMode);
+    if (cockpitMode) {
+      this.cockpit.turn(this.steerTarget, delta);
+    }
     if (this.cameraMode === 'chase') {
       // The rig smooths its own orientation and stays clear of the deck, so the
       // view follows the loop instead of cutting through it.
@@ -947,5 +1001,6 @@ export class Game {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
+    this.cockpit.resize(this.camera);
   }
 }

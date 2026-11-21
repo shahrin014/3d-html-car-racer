@@ -15,6 +15,10 @@ export const SCENERY_MAX_HEIGHT = 34;
 export const SCENERY_MARGIN = 70;
 export const SCENERY_GRID = 16;
 export const SCENERY_DENSITY = 0.72;
+/** Minimum distance from a spiral landmark's centre to the racing line. */
+export const SCENERY_LANDMARK_CLEARANCE = 14;
+/** Keep ordinary grid buildings out of a spiral's central opening. */
+export const SCENERY_LANDMARK_SPACING = 18;
 
 export interface Building {
   x: number;
@@ -129,7 +133,11 @@ export function clearsTrack(
 }
 
 /** Deterministic building plan for a circuit; no rendering involved. */
-export function planSkyline(frames: TrackFrame[], seed: string): Building[] {
+export function planSkyline(
+  frames: TrackFrame[],
+  seed: string,
+  landmarks: readonly Building[] = [],
+): Building[] {
   const random = seededRandom(`${seed}:scenery`);
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
@@ -156,6 +164,15 @@ export function planSkyline(frames: TrackFrame[], seed: string): Building[] {
       if (!clearsTrack(frames, offsetX, offsetZ)) {
         continue;
       }
+      if (
+        landmarks.some(
+          (landmark) =>
+            Math.hypot(offsetX - landmark.x, offsetZ - landmark.z) <
+            SCENERY_LANDMARK_SPACING,
+        )
+      ) {
+        continue;
+      }
       const tower = random() < 0.2;
       const height = tower
         ? SCENERY_MAX_HEIGHT * (0.55 + random() * 0.45)
@@ -170,6 +187,9 @@ export function planSkyline(frames: TrackFrame[], seed: string): Building[] {
       });
     }
   }
+  // A landmark fills the middle of a spiral ramp, so the opening is not an
+  // empty hole in the skyline.
+  buildings.push(...landmarks);
   return buildings;
 }
 
@@ -181,8 +201,9 @@ export function buildScenery(
   frames: TrackFrame[],
   seed: string,
   texture?: THREE.Texture,
+  landmarks: readonly Building[] = [],
 ): Scenery {
-  const buildings = planSkyline(frames, seed);
+  const buildings = planSkyline(frames, seed, landmarks);
   const map = texture ?? createWindowTexture(seed);
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const material = new THREE.MeshStandardMaterial({
