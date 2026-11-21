@@ -2,8 +2,9 @@
  * Selectable paints for the player car and the opponents.
  *
  * Ids are stable because the chosen paint is persisted; names double as the
- * accessible label on each swatch. The palette is capped at ten paints so a
- * full grid of opponents can each take a distinct colour without repeating.
+ * accessible label on each swatch. The palette is capped at ten paints for the
+ * player picker. A full field of opponents can be larger than the palette, so
+ * rival paints cycle once every non-player colour has been used.
  */
 export interface Paint {
   readonly id: string;
@@ -32,17 +33,22 @@ export function paintById(id: string | null | undefined): Paint {
 }
 
 /**
- * Paints for `count` opponents: always distinct, and never the player's own
- * paint. Walking from the player's slot keeps the assignment deterministic, so
- * the same player paint always produces the same opponent grid.
+ * Paints for `count` opponents: never the player's own paint. Walking from the
+ * player's slot keeps the assignment deterministic, so the same player paint
+ * always produces the same opponent grid. The walk cycles when the field is
+ * larger than the remaining palette, so every rival still gets a paint.
  */
 export function opponentPaints(player: Paint, count: number): Paint[] {
   const total = PAINTS.length;
   const start = Math.max(0, PAINTS.indexOf(player));
-  const wanted = Math.min(Math.max(0, Math.floor(count)), total - 1);
+  const wanted = Math.max(0, Math.floor(count));
+  const perCycle = Math.max(0, total - 1);
   const paints: Paint[] = [];
-  for (let step = 1; step <= wanted; step += 1) {
-    paints.push(PAINTS[(start + step) % total]!);
+  if (perCycle === 0) {
+    return paints;
+  }
+  for (let step = 0; step < wanted; step += 1) {
+    paints.push(PAINTS[(start + 1 + (step % perCycle)) % total]!);
   }
   return paints;
 }
