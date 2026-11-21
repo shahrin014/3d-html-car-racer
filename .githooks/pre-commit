@@ -1,0 +1,37 @@
+#!/bin/sh
+# Git pre-commit hook: run the unit test suite before a commit is created.
+#
+# `npm install` / `npm ci` installs this hook automatically by pointing
+# core.hooksPath at .githooks (see scripts/install-git-hooks.mjs). To reinstall
+# by hand run `npm run hooks:install`.
+#
+# Bypass it for one commit with `git commit --no-verify`, or for one command
+# with SKIP_UNIT_TESTS=1, e.g. SKIP_UNIT_TESTS=1 git commit -m "wip".
+
+if [ "${SKIP_UNIT_TESTS:-0}" = "1" ]; then
+  echo "pre-commit: SKIP_UNIT_TESTS=1, skipping unit tests."
+  exit 0
+fi
+
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-commit: npm is not on PATH (Node.js 26 LTS is required, see .nvmrc)." >&2
+  echo "pre-commit: fix your PATH, or skip the tests with: git commit --no-verify" >&2
+  exit 1
+fi
+
+if [ ! -d node_modules ]; then
+  echo "pre-commit: node_modules is missing; run 'npm ci' first." >&2
+  echo "pre-commit: or skip the tests with: git commit --no-verify" >&2
+  exit 1
+fi
+
+echo "pre-commit: running unit tests (npm test)..."
+if ! npm test; then
+  echo >&2
+  echo "pre-commit: unit tests failed; commit aborted." >&2
+  echo "pre-commit: fix the failures, or bypass once with: git commit --no-verify" >&2
+  exit 1
+fi
