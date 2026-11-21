@@ -14,6 +14,7 @@ import {
   JUMP_GAP_LENGTH,
   JUMP_HEIGHT,
   JUMP_KICKER_LENGTH,
+  JUMP_LANDING_HEIGHT,
   JUMP_LANDING_LENGTH,
   JUMP_LAUNCH_SLOPE,
   LOOP_OFFSET,
@@ -267,24 +268,39 @@ export function gapPath(length = JUMP_GAP_LENGTH): TrackPath {
  * Landing ramp: enters along the launch line and sinks back to a flat deck.
  *
  * The piece is placed on the launch frame, so its local +Z is already tilted
- * up by the launch angle and its local +Y is the lip's up. It therefore starts
- * with zero local slope, ends with the opposite slope so the world tangent is
- * flat again, and drops far enough along the tilted local Y to reach height 0.
+ * up by the launch angle and its local +Y is the lip's up. Its top edge sits at
+ * `entryHeight`, below the kicker lip, so the car drops onto a lower ramp. The
+ * deck starts with zero local slope (the launch line), ends with the opposite
+ * slope so the world tangent is flat again, and drops far enough along the
+ * tilted local Y to reach height 0.
  */
 export function landingPath(
   length = JUMP_LANDING_LENGTH,
   height = JUMP_HEIGHT,
   slope = JUMP_LAUNCH_SLOPE,
   gapLength = JUMP_GAP_LENGTH,
+  entryHeight = JUMP_LANDING_HEIGHT,
 ): TrackPath {
   const angle = Math.atan(slope);
-  const drop = -(height / Math.cos(angle) + (gapLength + length) * slope);
+  const cosine = Math.cos(angle);
+  // The placement origin is the end of the gap on the launch line. Convert the
+  // wanted world heights back into the tilted local frame: the deck starts at
+  // the lower landing height and finishes at the module's base.
+  const lipHeight = height + gapLength * Math.sin(angle);
+  const start = (entryHeight - lipHeight) / cosine;
+  const end = -(height / cosine + (gapLength + length) * slope);
   return (t) => {
     const basis = hermite(t);
     const derivative = hermiteSlope(t);
-    const y = basis.h01 * drop + basis.h11 * (length * -slope);
+    const y =
+      basis.h00 * start +
+      basis.h01 * end +
+      basis.h11 * (length * -slope);
     const dy =
-      (derivative.d01 * drop + derivative.d11 * (length * -slope)) / length;
+      (derivative.d00 * start +
+        derivative.d01 * end +
+        derivative.d11 * (length * -slope)) /
+      length;
     const tangent = new THREE.Vector3(0, dy, 1).normalize();
     const right = new THREE.Vector3(1, 0, 0);
     return {

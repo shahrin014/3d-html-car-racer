@@ -147,6 +147,11 @@ export const JUMP_KICKER_LENGTH = 8;
 export const JUMP_GAP_LENGTH = 5;
 export const JUMP_LANDING_LENGTH = 17;
 /**
+ * World height of the landing ramp's top edge. It sits below the kicker lip,
+ * so the car drops onto a lower ramp instead of landing level with the launch.
+ */
+export const JUMP_LANDING_HEIGHT = 0.9;
+/**
  * Lip slope, dy/dz. The kicker is convex at the lip, so a fast car leaves it
  * early at a steeper effective angle; this nominal slope is what keeps the
  * flight short enough to reach the landing ramp at doubled speed.

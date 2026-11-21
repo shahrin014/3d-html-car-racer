@@ -494,10 +494,11 @@ it. The surface SHALL have no gaps, cracks, or steps except the intentional gap
 of a jump, and loops SHALL have distinct entrances and exits.
 
 A jump SHALL consist of a kicker that rises to a raised lip and ends on an
-upward launch angle, a deckless gap, and a landing ramp that enters on the same
-line and sinks back to the deck. The car SHALL leave the lip, fly over the empty
-space, and land on the down-ramp. The kicker and landing SHALL end at the
-gap with a clear edge; no deck or rail SHALL cross the gap.
+upward launch angle, a deckless gap, and a lower landing ramp that enters along
+the launch line below the lip and sinks back to the deck. The car SHALL leave
+the lip, fly over the empty space, and land on the down-ramp. The kicker and
+landing SHALL end at the gap with a clear edge; no deck or rail SHALL cross the
+gap.
 
 #### Scenario: Track width
 
@@ -542,6 +543,7 @@ gap with a clear edge; no deck or rail SHALL cross the gap.
 - **WHEN** it reaches the kicker
 - **THEN** it leaves the lip and crosses the gap unsupported
 - **AND** it lands on the landing ramp
+- **AND** the landing ramp sits lower than the kicker lip
 - **AND** it keeps racing without a rescue
 
 #### Scenario: Loop entrance and exit
