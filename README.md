@@ -106,19 +106,16 @@ e2e/                 Playwright browser smoke tests
 openspec/            behavior and deployment specs
 ```
 
-## Handover
+## Specs and handover
 
-Behaviour lives in the OpenSpec specs and engineering decisions live in
-[`openspec/project.md`](openspec/project.md); task-specific modelling notes stay
-under `docs/`.
+Behaviour specs and engineering decisions live in
+[OpenSpec](https://github.com/shahrin014/3d-html-car-racer/tree/main/openspec):
 
-## Specs
+- [Game spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/game/spec.md)
+- [Deployment spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/deployment/spec.md)
+- [Project decisions and conventions](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/project.md)
 
-Behavior and deployment are specified in OpenSpec format:
-
-- `openspec/specs/game/spec.md`
-- `openspec/specs/deployment/spec.md`
-- `openspec/project.md`
+Task-specific modelling notes stay under `docs/`.
 
 Validate them with:
 
