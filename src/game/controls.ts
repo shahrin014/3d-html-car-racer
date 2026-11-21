@@ -3,7 +3,7 @@
  *
  * Steering is screen-relative: a right input turns the car toward the right of
  * the screen. The `left`/`right` keys and `A`/`D` must agree, and both must
- * agree with the on-screen buttons and the tilt control.
+ * agree with the tilt control used on touch devices.
  */
 export const STEER_LEFT_KEYS = ['arrowleft', 'a'] as const;
 export const STEER_RIGHT_KEYS = ['arrowright', 'd'] as const;

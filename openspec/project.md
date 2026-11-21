@@ -271,7 +271,7 @@ runtime API calls.
 - Car: track position, velocity, lateral offset, heading, damage, last
   checkpoint.
 - Circuit: seed, level, pieces, sampled frames, checkpoints, boost zones.
-- Input: tilt target, button and keyboard steering, brake, camera mode.
+- Input: tilt target, keyboard steering, brake, camera mode.
 - Presentation: camera position and roll, shake or rattle, reduced-motion
   preference.
 - Persistence: unlocked level, best time per level, chosen paint, and opponent
@@ -285,8 +285,9 @@ Exact object shapes belong in code, not in behavior specs.
   viewport shows a rotate prompt and pauses the race.
 - **Touch without page gestures.** Swipes, drags, taps, and button presses must
   not scroll, zoom, select text, or trigger the browser's back gesture.
-- **Tilt is optional.** Tilt steers by default, but buttons and keyboard must
-  always work; no platform permission prompt may block play.
+- **Tilt is the touch steering input.** Touch steering uses the phone's tilt and
+  there are no on-screen steering buttons. Keyboard steering must always work;
+  no platform permission prompt may block play.
 - **Local-only.** No account, backend, multiplayer, ads, analytics, or
   third-party runtime calls. Clearing browser storage resets the best time and
   unlocked level.

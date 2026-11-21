@@ -13,12 +13,15 @@ test('menu boots in landscape and starts a race', async ({ page }) => {
   await expect(page.locator('[data-overlay="menu"]')).toBeVisible();
   await expect(page.locator('#time')).toHaveText('--:--.-');
   await expect(page.locator('#lap')).toHaveText('1 / 3');
+  await expect(page.getByRole('button', { name: 'Steer left' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Steer right' })).toHaveCount(0);
   await expect(page.locator('#app canvas')).toHaveAttribute(
     'aria-label',
     '3D race circuit',
   );
 
   await startRace(page);
+  await expect(page.getByRole('button', { name: 'Brake' })).toBeVisible();
   await expect(page.locator('#speed')).not.toHaveText('0', {
     timeout: 10_000,
   });

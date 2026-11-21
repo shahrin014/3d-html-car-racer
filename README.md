@@ -14,13 +14,14 @@ Rapier rigid-body simulation behind a small adapter.
 | Input | Action |
 | --- | --- |
 | Tilt the phone | Steer (permission requested from Start) |
-| On-screen arrows | Steer |
 | `←` / `→` or `A` / `D` | Steer |
 | Hold brake button / `Space` / `↓` | Brake |
 | Camera button / `C` | Toggle chase and cockpit views |
 | `Esc` / `P` | Pause or resume |
 
-Throttle is automatic. The HUD shows level, lap, lap time, total time, speed,
+Touch steering uses the phone's tilt; there are no on-screen left/right
+buttons. Starting or resuming a race switches the browser to fullscreen, and
+pausing leaves fullscreen. Throttle is automatic. The HUD shows level, lap, lap time, total time, speed,
 and damage. Damage reduces acceleration and top speed but never ends the race.
 Being stuck or off the track triggers a timed rescue at the last checkpoint.
 

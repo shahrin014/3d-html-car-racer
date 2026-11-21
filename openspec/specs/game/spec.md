@@ -293,8 +293,9 @@ SHALL pause the race. The pixel ratio SHALL be capped at 2.
 ### Requirement: Accessibility and reduced motion
 
 The game SHALL respect `prefers-reduced-motion`. Controls SHALL be keyboard
-reachable with visible focus and accessible names. Steering SHALL NOT depend on
-tilt alone. Damage, speed, and time SHALL be conveyed as text, not colour alone.
+reachable with visible focus and accessible names. Steering SHALL be available
+from the keyboard as well as the tilt control. Damage, speed, and time SHALL be
+conveyed as text, not colour alone.
 The canvas SHALL have an accessible name. Dialogs SHALL focus their primary
 action when opened.
 
@@ -308,7 +309,8 @@ action when opened.
 
 - **GIVEN** the device has no orientation sensor or permission was refused
 - **WHEN** the player starts a race
-- **THEN** the on-screen buttons and keyboard steer the car
+- **THEN** the race still starts
+- **AND** a connected keyboard steers the car
 - **AND** no blocking prompt is shown after the start gesture
 
 #### Scenario: Keyboard-only play
@@ -710,8 +712,8 @@ and a refusal SHALL NOT block play.
 
 Every steering input SHALL be screen-relative: a right input SHALL turn the car
 toward the right of the screen, and a left input toward the left, whatever the
-source. Tilt, the on-screen buttons, the arrow keys, and `A`/`D` SHALL all share
-one sign convention, and the front wheels SHALL visibly point into the turn.
+source. Tilt, the arrow keys, and `A`/`D` SHALL all share one sign convention,
+and the front wheels SHALL visibly point into the turn.
 
 The car SHALL be tuned so that steering turns its nose into the corner instead of
 sliding it across the track. Holding full lock at racing speed SHALL NOT spin the
@@ -724,7 +726,7 @@ velocity of its own.
 - **WHEN** the player presses the right arrow key or `D`
 - **THEN** the car moves toward the right of the screen
 - **AND** the left arrow key and `A` move it toward the left
-- **AND** the on-screen buttons and tilt agree with the same directions
+- **AND** tilt agrees with the same directions
 
 #### Scenario: Full lock at speed
 
@@ -734,20 +736,19 @@ velocity of its own.
 - **AND** its nose stays within 45° of the direction of the track
 - **AND** it does not spin out or stop
 
-### Requirement: Fallback controls always work
+### Requirement: Touch and keyboard controls
 
-On-screen left and right buttons, a brake control, the `←`/`→` and `A`/`D` keys,
-`Escape`/`P` for pause, and a camera toggle SHALL be available during a race.
-Each control SHALL have an accessible name, SHALL meet the minimum touch target,
-and SHALL remain reachable in landscape. Tilt SHALL never be the only way to
-play.
+A brake control, the `←`/`→` and `A`/`D` keys, `Escape`/`P` for pause, and a
+camera toggle SHALL be available during a race. Touch steering SHALL use the
+device's tilt; there SHALL be no on-screen left/right steering buttons. Each
+control SHALL have an accessible name, SHALL meet the minimum touch target, and
+SHALL remain reachable in landscape.
 
-#### Scenario: Button steering
+#### Scenario: Tilt steering
 
-- **GIVEN** a race is in progress
-- **WHEN** the player presses the on-screen left button
-- **THEN** the car steers left
-- **AND** the button is announced as “Steer left”
+- **GIVEN** a race is in progress on a touch device
+- **WHEN** the player rolls the device to the right
+- **THEN** the car steers right
 
 #### Scenario: Keyboard steering
 

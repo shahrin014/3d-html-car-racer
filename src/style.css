@@ -227,7 +227,7 @@ body {
   bottom: calc(var(--safe-bottom) + 18px);
   z-index: 6;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 0 calc(var(--safe-right) + 20px) 0 calc(var(--safe-left) + 20px);
   pointer-events: none;
   transition: opacity 220ms ease;
@@ -252,16 +252,6 @@ body {
     0 12px 32px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: transform 90ms ease, background 90ms ease;
-}
-
-.control svg {
-  width: 34px;
-  height: 34px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .control:active {
