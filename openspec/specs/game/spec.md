@@ -952,6 +952,13 @@ at least 0.6 m above the deck beneath it. It SHALL NOT be driven by a
 world-space lerp toward the car's arc, because that cuts the chord through the
 loop and puts the view under the road.
 
+The cockpit camera SHALL replace the exterior shell with a dashboard overlay
+drawn in camera space: a generated dashboard texture across the lower view and
+a separate steering-wheel texture in front of it. The exterior body SHALL be
+hidden while the cockpit camera is active. The steering wheel SHALL turn with
+the steering input, clockwise for a right turn, and SHALL be clamped at full
+lock.
+
 #### Scenario: Chase camera through a loop
 
 - **GIVEN** the chase camera is active
@@ -966,7 +973,17 @@ loop and puts the view under the road.
 - **GIVEN** the cockpit camera is active
 - **WHEN** the car drives and banks
 - **THEN** the view is from the driver's position
+- **AND** the exterior shell is hidden
+- **AND** the dashboard and steering wheel stay locked to the view
 - **AND** no car geometry blocks the track ahead
+
+#### Scenario: Cockpit steering wheel
+
+- **GIVEN** the cockpit camera is active
+- **WHEN** the player steers right
+- **THEN** the steering wheel turns clockwise
+- **AND** it turns counter-clockwise when the player steers left
+- **AND** it never turns past full lock
 
 #### Scenario: Camera toggle
 

@@ -74,8 +74,9 @@ render both use, so the catalog image is always the car you drive.
 
 Driver's-eye view: a generated dashboard texture (speed, damage, lap, timer) on a
 single plane, a simple steering wheel, and the hood. No modelled interior, no
-downloaded art. In the game the rig is attached to the cockpit camera, and the
-exterior shell is hidden to keep the view clear.
+downloaded art. In the game the interior is drawn in camera space, the exterior
+shell is hidden to keep the view clear, and the steering wheel turns with the
+player's steering input.
 
 ## Adding a piece
 
