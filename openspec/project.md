@@ -192,9 +192,10 @@ runtime API calls.
 
 - `main` is the default branch, the source of truth, and the only branch that
   deploys. Every merge to `main` is a release.
-- Work happens on short-lived branches (`feat/…`, `fix/…`, `spec/…`) merged
-  into `main` through a pull request.
-- `main` rejects force pushes and direct feature commits.
+- Work happens on short-lived branches (`feat/…`, `fix/…`, `spec/…`). A branch
+  is pushed when a remote exists, merged into `main` from a checkout, and `main`
+  is pushed. A pull request is optional and runs the same checks.
+- `main` history is append-only: force pushes and deletion are not used.
 - Every worktree works on its own branch. A worktree never commits to `main`
   directly; its branch is merged into `main` when the task is done. The primary
   checkout stays on `main` and is fast-forwarded before a task starts.

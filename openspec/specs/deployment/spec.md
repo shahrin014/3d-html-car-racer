@@ -25,7 +25,7 @@ receives the built `dist/` directory as a workflow artifact.
 
 ## Branch Model
 
-The branch model, worktree workflow, and `main` protection are defined in
+The branch model, worktree workflow, and `main` history rules are defined in
 `openspec/specs/project/spec.md`. Deployment depends on one rule from that
 model: `main` is the only branch that deploys.
 
@@ -52,8 +52,9 @@ browser pass.
 
 1. Open **Settings → Pages**.
 2. Set **Source** to **GitHub Actions**.
-3. Protect `main` as described in the project spec: block force pushes and
-   deletion, require a pull request, and require the **Checks** workflow.
+3. Optionally add a `main` ruleset that blocks force pushes and deletion,
+   requires a pull request, and requires the **Checks** workflow. The project
+   does not depend on repository-side enforcement: the gates also run locally.
 4. Run the deployment workflow and confirm the `github-pages` environment is
    created.
 5. Open the published URL and run the verification checklist.
@@ -63,12 +64,12 @@ browser pass.
 ### Requirement: Deployment runs from `main`
 
 `main` SHALL be the only branch that deploys. Every merge to `main` SHALL be a
-release. Work SHALL arrive through a pull request on a short-lived branch, as
+release. Work SHALL arrive from a short-lived branch merged into `main`, as
 defined in the project spec.
 
 #### Scenario: Merge reaches production
 
-- **GIVEN** a feature branch has passed review and its checks
+- **GIVEN** a feature branch has passed its local checks
 - **WHEN** it is merged into `main`
 - **THEN** the workflow runs for the merge commit
 - **AND** the public site serves that build after the workflow succeeds
@@ -89,7 +90,7 @@ defined in the project spec.
 - **GIVEN** production needs an urgent fix
 - **WHEN** a `fix/` branch is merged into `main`
 - **THEN** the same workflow deploys it
-- **AND** no direct push bypasses review or checks
+- **AND** the local checks pass before the merge
 
 ### Requirement: Pages uses artifact deployment
 
@@ -141,14 +142,14 @@ refuse to deploy any ref other than `main` and SHALL use concurrency group
 - **THEN** deployments do not overlap
 - **AND** the newest commit is left serving production
 
-### Requirement: Pull requests are checked before merge
+### Requirement: Pull requests run the same checks
 
-A `pull_request` workflow SHALL run the quality gate without deploy
-permissions. It SHALL run type checking, unit tests, the production build
-(including the transfer budget), and the browser smoke suite. The browser suite
-SHALL run at a landscape phone viewport and SHALL cover orientation handling and
-the input fallbacks. The workflow SHALL request only `contents: read` and SHALL
-NOT deploy.
+When a pull request is used, a `pull_request` workflow SHALL run the quality gate
+without deploy permissions. It SHALL run type checking, unit tests, the
+production build (including the transfer budget), and the browser smoke suite.
+The browser suite SHALL run at a landscape phone viewport and SHALL cover
+orientation handling and the input fallbacks. The workflow SHALL request only
+`contents: read` and SHALL NOT deploy.
 
 #### Scenario: Pull request runs the gate
 
@@ -171,11 +172,12 @@ NOT deploy.
 - **THEN** it completes with read-only permissions
 - **AND** it cannot reach the deployment environment
 
-#### Scenario: Branch protection requires the gate
+#### Scenario: Direct merge is gated locally
 
-- **GIVEN** `main` is protected
-- **THEN** the checks workflow result is a required status check
-- **AND** a failing run blocks the merge
+- **GIVEN** a branch is merged into `main` without a pull request
+- **WHEN** the contributor follows the project workflow
+- **THEN** `npm run check` has passed before the merge
+- **AND** the deployment workflow runs the gate again on `main`
 
 ### Requirement: The workflow builds with the pinned toolchain
 
