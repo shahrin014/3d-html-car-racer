@@ -246,6 +246,7 @@ runtime API calls.
 | Bridge | 8 m per level · 20 m ramps · 24 m flat · 3.5 m overpass clearance |
 | Spiral | 18 m radius · 8 m per turn · up to 2 levels |
 | Maximum speed | 56 m/s |
+| Player engine force | 60 N, with 0.01875 quadratic drag |
 | Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |

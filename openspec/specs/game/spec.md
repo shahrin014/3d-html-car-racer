@@ -25,6 +25,7 @@ of the requirements.
 | Design speed | 12 m/s |
 | Opponent cruise speed | 24–31.2 m/s |
 | Maximum speed | 56 m/s |
+| Player engine force | 60 N, with 0.01875 quadratic drag |
 | Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |

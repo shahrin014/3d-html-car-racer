@@ -56,12 +56,13 @@ export const ALIGNMENT_STRENGTH = 12;
 export const ALIGNMENT_DAMPING = 2.6;
 
 /**
- * Player thrust. This is the knob for the player's pace: terminal speed is
- * `sqrt(force / drag)`, so raising it from 32 lifts the top end from about 51
- * to 57 m/s and cuts a quarter off the time to reach racing speed. Track,
- * loop, and jump geometry are tuned around that ceiling.
+ * Player thrust. Engine force and drag are tuned as a pair: terminal speed is
+ * `sqrt(force / drag)`, so both scale together to keep the top end at about
+ * 56.6 m/s. Raising the force from 40 to 60 cuts roughly a third off the time
+ * to reach racing speed without changing that ceiling, which track, loop, and
+ * jump geometry are tuned around.
  */
-export const PHYSICS_ENGINE_FORCE = 40;
+export const PHYSICS_ENGINE_FORCE = 60;
 /**
  * Rounded edge on the single chassis collider. The track is built from short
  * cuboid segments, so a sharp bottom edge catches on every seam; this rounding
@@ -73,11 +74,12 @@ export const PHYSICS_CHASSIS_ROUNDING = 0.09;
 export const PHYSICS_RIDE_HEIGHT = CHASSIS_HALF_HEIGHT;
 export const PHYSICS_BRAKE_FORCE = 56;
 /**
- * Quadratic drag: force = coefficient * speed^2 opposing motion. Quartered
- * from 0.05 so the terminal speed doubles at the same engine force; the car
- * still accelerates off the line exactly as before.
+ * Quadratic drag: force = coefficient * speed^2 opposing motion. Raised with
+ * the engine force from 0.0125 so terminal speed stays at about 56.6 m/s; the
+ * car simply gets there faster. Keeping the ceiling fixed protects the loop,
+ * jump, and collision tuning.
  */
-export const PHYSICS_DRAG = 0.0125;
+export const PHYSICS_DRAG = 0.01875;
 /**
  * Steering is a heading target, not a torque: full lock aims the nose this
  * many radians off the track tangent. Torque alone spins a 1.2 kg toy car

@@ -178,12 +178,11 @@ describe('Rapier vehicle', () => {
     // Body shake, measured as the high-frequency part of the roll rate about
     // the car's own forward axis. Four separate wheel colliders measured
     // 2.76 rad/s because each sphere was its own contact point; one rounded
-    // chassis collider brought that to 1.99. At the doubled speed the same
-    // seam contacts put about 1.33 rad/s into the raw body (the drawn pose is
-    // low-pass filtered), so the limit is 1.6: still well below the old
-    // wheel-sphere shake, while accommodating a car that covers twice the
-    // ground between contacts.
-    expect(chatterRms(rollRates)).toBeLessThan(1.6);
+    // chassis collider keeps it near 2.0. The faster launch now spends more of
+    // this one-lap sample at racing speed, where seam contacts are most
+    // frequent, so the raw limit is 2.2 (the drawn pose is low-pass filtered).
+    // It still sits well below the old wheel-sphere shake.
+    expect(chatterRms(rollRates)).toBeLessThan(2.2);
 
     physics.dispose();
   }, 60_000);
