@@ -113,6 +113,7 @@ src/game/
   Car.ts             player car wrapper around the shared die-cast model
   car-model.mjs      parametric car geometry shared with the asset catalog
   cockpitCamera.ts   driver's-eye camera pose
+  cockpit.ts         generated dashboard and steering-wheel overlay
   constants.ts       all tuning values
 public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator

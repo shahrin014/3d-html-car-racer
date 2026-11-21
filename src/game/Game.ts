@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCar, WHEEL_RADIUS, type Car } from './Car';
 import { chasePose, createChaseRig, resetChaseRig } from './chaseCamera';
+import { createCockpit, type Cockpit } from './cockpit';
 import { cockpitPose } from './cockpitCamera';
 import {
   BOOST_COOLDOWN,
@@ -42,7 +43,7 @@ import {
   type Building,
   type Scenery,
 } from './scenery';
-import { buildSkybox, type Skybox } from './skybox';
+import { buildSkybox, disposeSkyboxes } from './skybox';
 import {
   buildFrames,
   generateCircuit,
@@ -90,13 +91,14 @@ export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
+  private readonly cockpit: Cockpit;
   private car: Car;
   private playerPaint: Paint;
   private opponentCount: number;
   private opponents: { car: Car; spin: number }[] = [];
   private trackMesh!: TrackMesh;
   private scenery: Scenery | null = null;
-  private skybox: Skybox | null = null;
+  private skyboxRevision = 0;
   private frames!: TrackFrame[];
   private length!: number;
   private boosts: BoostZone[] = [];
@@ -168,6 +170,12 @@ export class Game {
     this.renderer.domElement.setAttribute('role', 'img');
 
     this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 400);
+    // The cockpit is parented to the camera so it rides the driver's view
+    // through banks and loops. A camera has to be in the scene graph for its
+    // children to be drawn.
+    this.cockpit = createCockpit();
+    this.camera.add(this.cockpit.group);
+    this.scene.add(this.camera);
     this.scene.fog = new THREE.Fog(0x07101a, 60, 220);
     this.scene.background = new THREE.Color(0x07101a);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -270,15 +278,31 @@ export class Game {
     );
     this.scene.add(this.scenery.group);
 
-    // The sky is keyed to the same seed as the circuit, so a fresh track also
-    // brings a fresh time of day and a new horizon to race towards.
-    this.skybox?.dispose();
-    this.skybox = buildSkybox(circuit.seed);
-    this.scene.background = this.skybox.texture;
+    this.applySkybox(circuit.seed);
+  }
+
+  /**
+   * Load the sky belonging to a circuit. The flat fog colour stands in until
+   * the HDR arrives, and a newer circuit invalidates an older, slower load.
+   */
+  private applySkybox(seed: string): void {
+    const revision = ++this.skyboxRevision;
+    const skybox = buildSkybox(seed);
+    this.scene.background = new THREE.Color(skybox.style.fog);
     const fog = this.scene.fog;
     if (fog) {
-      fog.color.setHex(this.skybox.fog);
+      fog.color.setHex(skybox.style.fog);
     }
+    void skybox.texture
+      .then((texture) => {
+        if (revision !== this.skyboxRevision) {
+          return;
+        }
+        this.scene.background = texture;
+      })
+      .catch((error: unknown) => {
+        console.error('Skybox could not load.', error);
+      });
   }
 
   /**
@@ -476,7 +500,9 @@ export class Game {
     this.pendingPhysics?.dispose();
     this.trackMesh.dispose();
     this.scenery?.dispose();
-    this.skybox?.dispose();
+    this.skyboxRevision += 1;
+    disposeSkyboxes();
+    this.cockpit.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -925,6 +951,15 @@ export class Game {
     const shake = this.reducedMotion.matches ? 0 : Math.min(0.06, this.speed / 400);
     const position = this.car.group.position;
     const orientation = this.car.group.quaternion;
+    // The driver's-eye view shows its own interior instead of the shell: the
+    // body would sit between the eye and the road, and the dashboard and wheel
+    // are attached to the camera. The wheel follows the steering input.
+    const cockpitMode = this.cameraMode === 'cockpit';
+    this.car.group.visible = !cockpitMode;
+    this.cockpit.setVisible(cockpitMode);
+    if (cockpitMode) {
+      this.cockpit.turn(this.steerTarget, delta);
+    }
     if (this.cameraMode === 'chase') {
       // The rig smooths its own orientation and stays clear of the deck, so the
       // view follows the loop instead of cutting through it.
@@ -966,5 +1001,6 @@ export class Game {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
+    this.cockpit.resize(this.camera);
   }
 }

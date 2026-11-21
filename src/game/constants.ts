@@ -54,8 +54,13 @@ export const STEER_FORCE = 26;
 export const ALIGNMENT_STRENGTH = 12;
 export const ALIGNMENT_DAMPING = 2.6;
 
-/** Rigid-body vehicle tuning. Forces are newtons, torques newton-metres. */
-export const PHYSICS_ENGINE_FORCE = 32;
+/**
+ * Player thrust. This is the knob for the player's pace: terminal speed is
+ * `sqrt(force / drag)`, so raising it from 32 lifts the top end from about 51
+ * to 57 m/s and cuts a quarter off the time to reach racing speed. Track,
+ * loop, and jump geometry are tuned around that ceiling.
+ */
+export const PHYSICS_ENGINE_FORCE = 40;
 /**
  * Rounded edge on the single chassis collider. The track is built from short
  * cuboid segments, so a sharp bottom edge catches on every seam; this rounding
@@ -65,7 +70,7 @@ export const PHYSICS_ENGINE_FORCE = 32;
 export const PHYSICS_CHASSIS_ROUNDING = 0.09;
 /** Height of the body centre above the track when the chassis rests on it. */
 export const PHYSICS_RIDE_HEIGHT = CHASSIS_HALF_HEIGHT;
-export const PHYSICS_BRAKE_FORCE = 48;
+export const PHYSICS_BRAKE_FORCE = 56;
 /**
  * Quadratic drag: force = coefficient * speed^2 opposing motion. Quartered
  * from 0.05 so the terminal speed doubles at the same engine force; the car
@@ -109,13 +114,13 @@ export const PHYSICS_CENTRE_GAIN = 5;
 export const IMPACT_THRESHOLD = 40;
 
 /**
- * Speed ceiling at zero damage. The car is twice as fast as the original
- * 24 m/s top speed; the drag and assist constants scale with the square of
- * that speed.
+ * Speed ceiling at zero damage. The car is more than twice as fast as the
+ * original 24 m/s top speed; the drag and assist constants scale with the
+ * square of that speed.
  */
-export const MAX_SPEED = 48;
+export const MAX_SPEED = 56;
 /** Limp ceiling at maximum damage. */
-export const LIMP_SPEED = 20;
+export const LIMP_SPEED = 24;
 
 export const DESIGN_SPEED = 12;
 export const LOOP_RADIUS = 7 * TRACK_SCALE;
