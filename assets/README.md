@@ -39,7 +39,9 @@ are no support columns under elevated track. The game scales the catalogue by
 the catalogue. The spiral ramp follows the same rule: its R12 catalogue ring
 becomes an R18 ring that climbs 8 m per turn and leaves a 29 m opening for a
 landmark building. The figure-eight bridge uses two turns, so it rises 16 m
-before the flat crossing.
+before the flat crossing. Elevated sections are not limited to the figure-eight:
+a seed may keep the route aloft after the climb and bring it back down on a
+ramp or spiral in another section, crossing over lower track.
 
 ## Buildings
 
@@ -90,8 +92,8 @@ hidden. Both PNGs are generated art with no downloaded photos.
 1. Add a path function and an entry in `PIECES` in `tools/preview/preview.mjs`.
 2. Add the piece to `PIECES` in `tools/render-assets.mjs`.
 3. Run `npm run assets`.
-4. Copy the render into this table and update `openspec/specs/game/spec.md` for
-   the new geometry.
+4. Copy the render into this table and update
+   `openspec/specs/track-randomization/spec.md` for the new geometry.
 
 ## Track models
 

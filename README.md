@@ -148,6 +148,7 @@ Behaviour specs and engineering decisions live in
 [OpenSpec](https://github.com/shahrin014/3d-html-car-racer/tree/main/openspec):
 
 - [Game spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/game/spec.md)
+- [Track randomization spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/track-randomization/spec.md)
 - [Project spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/project/spec.md)
 - [Deployment spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/deployment/spec.md)
 - [Project decisions and conventions](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/project.md)

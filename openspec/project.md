@@ -63,9 +63,11 @@ runtime API calls.
   (three to six banked corners of 360°/n, with alternating leg lengths allowed
   when the count is even); rotational symmetry makes every layout close for any
   radius or leg length, so the seed can choose the shape and not just the piece
-  order. Every piece starts at a known frame. A fresh random seed is drawn on
-  every load and every race start, so the track is randomized every time; best
-  times are kept per level so the record survives the reseed.
+  order. Every piece starts at a known frame. A seed may also carry the route up
+  a spiral or ramp, along an elevated stretch, and back down in a different
+  section, crossing over lower track. A fresh random seed is drawn on every load
+  and every race start, so the track is randomized every time; best times are
+  kept per level so the record survives the reseed.
 - **Game time, not wall-clock time.** Pausing stops the simulation, timers,
   damage, and camera motion. There is no catch-up simulation after the tab is
   hidden.
@@ -116,10 +118,15 @@ runtime API calls.
 - **Figure-eights cross on a bridge.** A bowtie of four 135° corners has two
   diagonals that meet at their midpoints; closure needs diagonals of
   `√2·leg + 2·radius` because the corner arcs push the path forward. One
-  diagonal rises 8 m on a 20 m ramp, crosses flat, and descends; the other keeps
-  the loop at the crossing, so the bridge threads the loop's opening. Validation
-  allows a plan-view overlap only when the decks are at least 3.5 m apart
-  vertically.
+  diagonal climbs two bridge levels on a spiral, crosses flat, and descends; the
+  other keeps the loop at the crossing, so the bridge threads the loop's opening.
+  Validation allows a plan-view overlap only when the decks are at least 3.5 m
+  apart vertically.
+- **Elevated sections can carry the route.** Beyond the figure-eight crossing, a
+  seed may send the circuit up a spiral or ramp, along an elevated stretch, and
+  back down on a spiral or ramp in a different section. The elevated deck may
+  cross over lower track, provided the decks stay at least 3.5 m apart and no
+  support touches either deck.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
   kicker ends on an upward launch slope and the landing ramp enters along the
   same launch line, but its top edge sits below the lip, so the car drops onto
@@ -153,7 +160,8 @@ runtime API calls.
 
 ### Testing Strategy
 
-- Every scenario in `openspec/specs/game/spec.md` should map to at least one
+- Every scenario in `openspec/specs/game/spec.md` and
+  `openspec/specs/track-randomization/spec.md` should map to at least one
   automated test, or to a documented manual browser check where WebGL is
   required.
 - Pure rules (track randomization, frame continuity, level scaling, damage,
@@ -205,8 +213,9 @@ runtime API calls.
 | Race | One attempt: menu start, countdown, three laps, finish. |
 | Lap | One circuit traversal that crosses every checkpoint in order and then the start/finish line. |
 | Circuit | A closed track assembled from catalog pieces from a seed and level. |
+| Elevated section | A stretch where the deck is held one or more bridge levels above the lower route, entered on a spiral or ramp and left on a spiral or ramp in a different section. |
 | Seed | The input that selects the circuit combination; a fresh random seed is drawn on every page load and race start. |
-| Piece | An authored catalog module: straight, banked turn, loop, hill, shift, or boost straight. |
+| Piece | An authored catalog module: straight, banked turn, loop, hill, jump, shift, boost straight, spiral, or bridge. |
 | Level | A difficulty rung controlling the piece pool, radii, bank angle, boost count, and damage sensitivity. |
 | Damage | Accumulated impact value that reduces acceleration and top speed; it never ends the race. |
 | Rescue | A timed return to the last checkpoint after the car is stuck, inverted, or off track. |
@@ -234,7 +243,8 @@ runtime API calls.
 | Opponent cruise speed | 24–31.2 m/s, modulated by track grade |
 | Jump | 1.6 m lip at a 0.03 slope · 5 m gap · 17 m landing ramp, top at 0.9 m |
 | Scenery clearance | 16 m from every track frame, in plan view |
-| Bridge | 8 m raised deck · 20 m ramps · 24 m flat |
+| Bridge | 8 m per level · 20 m ramps · 24 m flat · 3.5 m overpass clearance |
+| Spiral | 18 m radius · 8 m per turn · up to 2 levels |
 | Maximum speed | 56 m/s |
 | Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |

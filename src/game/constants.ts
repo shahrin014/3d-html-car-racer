@@ -1,6 +1,7 @@
 /**
  * Central tuning values for the circuit racer.
- * Behavior lives in openspec/specs/game/spec.md.
+ * Behavior lives in openspec/specs/game/spec.md and
+ * openspec/specs/track-randomization/spec.md.
  */
 
 /** Scale factor applied to the authored track catalogue. */
