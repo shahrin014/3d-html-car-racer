@@ -38,32 +38,27 @@ branch is used. Every merge to `main` is a release.
 
 ## Requirements
 
-### Requirement: `main` is protected and work arrives through pull requests
+### Requirement: `main` is the source of truth and work lands through short-lived branches
 
 `main` SHALL be the default branch and the source of truth. Work SHALL happen on
-short-lived `feat/`, `fix/`, or `spec/` branches merged into `main` through a
-pull request. Force pushes and deletion on `main` SHALL be blocked, and merged
-branches SHALL be deleted.
+short-lived `feat/`, `fix/`, or `spec/` branches. A branch SHALL be pushed when a
+remote is configured, merged into `main` from a checkout, and `main` SHALL then
+be pushed. Every merge to `main` SHALL be a release. `main` history SHALL be
+append-only: force pushes and deletion SHALL NOT be used.
 
-#### Scenario: Feature branch merges through a pull request
+#### Scenario: Feature branch merges into `main`
 
-- **GIVEN** a feature branch has passed review and its checks
-- **WHEN** it is merged into `main`
+- **GIVEN** a feature branch has passed its local checks
+- **WHEN** it is merged into `main` from a checkout
 - **THEN** the merge commit lands on `main`
-- **AND** the branch is deleted
+- **AND** `main` is pushed to the remote
 
-#### Scenario: Direct push is rejected
+#### Scenario: History is append-only
 
-- **GIVEN** `main` is protected
-- **WHEN** a contributor pushes directly to `main` without a pull request
-- **THEN** the push is rejected
-
-#### Scenario: Force push is rejected
-
-- **GIVEN** `main` is protected
-- **WHEN** a contributor attempts a force push
-- **THEN** the push is rejected
-- **AND** the existing history is unchanged
+- **GIVEN** `main` has published history
+- **WHEN** a mistake must be corrected
+- **THEN** a new commit is added, or the bad commit is reverted
+- **AND** `main` is not force-pushed or deleted
 
 #### Scenario: Branch names follow the model
 
