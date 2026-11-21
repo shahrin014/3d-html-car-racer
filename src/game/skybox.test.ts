@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { SKYBOX_STYLES, skyboxStyleForSeed } from './skybox';
 
 describe('skybox selection', () => {
-  it('offers five distinct skies', () => {
-    expect(SKYBOX_STYLES).toHaveLength(5);
-    expect(new Set(SKYBOX_STYLES.map((style) => style.id)).size).toBe(5);
-    expect(new Set(SKYBOX_STYLES.map((style) => style.name)).size).toBe(5);
+  it('offers six distinct skies', () => {
+    expect(SKYBOX_STYLES).toHaveLength(6);
+    expect(new Set(SKYBOX_STYLES.map((style) => style.id)).size).toBe(6);
+    expect(new Set(SKYBOX_STYLES.map((style) => style.name)).size).toBe(6);
   });
 
   it('points every sky at an HDR texture', () => {
@@ -27,6 +27,6 @@ describe('skybox selection', () => {
     for (let index = 0; index < 200; index += 1) {
       seen.add(skyboxStyleForSeed(`circuit-${index.toString(16)}`).id);
     }
-    expect(seen.size).toBe(5);
+    expect(seen.size).toBe(6);
   });
 });
