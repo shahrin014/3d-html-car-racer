@@ -38,6 +38,22 @@ npm run preview    # serve the production build on :4173
 
 `npm run test:e2e` needs Chromium once per machine: `npm run test:e2e:install`.
 
+### Git hooks
+
+`npm ci` / `npm install` points `core.hooksPath` at the checked-in
+`.githooks/` directory, so every commit runs `npm test` first and is aborted if
+the unit tests fail. Escape hatches for work-in-progress commits:
+
+```bash
+git commit --no-verify            # skip the hook once
+SKIP_UNIT_TESTS=1 git commit -m … # same, via the environment
+npm run hooks:uninstall           # stop running tests on commit
+npm run hooks:install             # turn it back on
+```
+
+The hook only runs the unit suite; `npm run check` (typecheck, tests, build
+with the gzip budget) still runs in CI.
+
 ## Deployment
 
 Publishing is continuous from `main`:
