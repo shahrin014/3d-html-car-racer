@@ -26,8 +26,8 @@ of the requirements.
 | Straight lengths | 12–30 m across the level ladder |
 | Design speed | 12 m/s |
 | Opponent cruise speed | 24–31.2 m/s |
-| Maximum speed | 48 m/s |
-| Limp speed | 20 m/s |
+| Maximum speed | 56 m/s |
+| Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
 | Maximum frame delta | 0.1 s |
