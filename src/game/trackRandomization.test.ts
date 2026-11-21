@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { MIN_TURN_RADIUS, TRACK_WIDTH } from './constants';
+import { BRIDGE_HEIGHT, MIN_TURN_RADIUS, SPIRAL_RADIUS, TRACK_WIDTH } from './constants';
 import {
   buildFrames,
   generateCircuit,
   loopRadiusForLevel,
+  spiralArcLength,
   turnRadiusForLevel,
   validateCircuit,
   type Circuit,
@@ -223,6 +224,32 @@ describe('track randomization', () => {
     expect(elevated).toBeGreaterThan(0);
     expect(descents.has('ramp-down')).toBe(true);
     expect(descents.has('spiral-down')).toBe(true);
+  }, 20_000);
+
+  it('uses both one-level and two-level spirals across seeds', () => {
+    const oneLevel = spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1);
+    const twoLevel = spiralArcLength(
+      SPIRAL_RADIUS,
+      BRIDGE_HEIGHT * 2,
+      2,
+    );
+    const levels = new Set<number>();
+    for (const seed of SEEDS) {
+      for (const level of LEVELS) {
+        for (const piece of generateCircuit(seed, level).pieces) {
+          if (piece.kind !== 'spiral-up' && piece.kind !== 'spiral-down') {
+            continue;
+          }
+          if (Math.abs(piece.length - oneLevel) < 0.01) {
+            levels.add(1);
+          } else if (Math.abs(piece.length - twoLevel) < 0.01) {
+            levels.add(2);
+          }
+        }
+      }
+    }
+    expect(levels.has(1)).toBe(true);
+    expect(levels.has(2)).toBe(true);
   }, 20_000);
 
   it('tightens turns and shrinks loops as the level rises', () => {

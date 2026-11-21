@@ -748,7 +748,7 @@ function assembleCircuit(
   // features keep their usual slot. Leg 0 is always free, so a four-corner
   // circuit has exactly two free legs; three-corner circuits have only one and
   // stay at ground.
-  const elevated = corners >= 4 && random() < 0.5;
+  const elevated = corners >= 4 && random() < 0.75;
   const levels = elevated && random() < 0.35 ? 2 : 1;
   const reservedLegs = new Set([loopLeg, hillLeg]);
   const freeLegs = legs
@@ -783,7 +783,7 @@ function assembleCircuit(
       // too long for the authored leg budget. One level prefers a ramp when
       // there is room, which keeps both transition shapes in the catalogue.
       const canRamp = levels === 1 && available >= BRIDGE_RAMP_LENGTH;
-      if (canRamp && random() < 0.55) {
+      if (canRamp && random() < 0.45) {
         return {
           kind: direction === 'up' ? 'ramp-up' : 'ramp-down',
           path: direction === 'up' ? bridgeRampUpPath() : bridgeRampDownPath(),
