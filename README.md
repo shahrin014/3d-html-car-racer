@@ -38,6 +38,22 @@ npm run preview    # serve the production build on :4173
 
 `npm run test:e2e` needs Chromium once per machine: `npm run test:e2e:install`.
 
+### Worktrees and concurrent test runs
+
+Git worktrees isolate files but share machine resources. Each worktree needs
+its own `node_modules` (`npm ci --prefer-offline`); a symlink to another
+checkout is only safe while the lockfile is identical. Dev servers in different
+worktrees need explicit ports, for example `npm run dev -- --port 5174`.
+
+`npm test` and `npm run test:e2e` queue across every worktree of the repository:
+the first run starts immediately and later runs wait behind a lock in the shared
+Git directory. A crashed run's lock is reclaimed automatically. Use
+`npm run test:raw` or `npm run test:e2e:raw` to bypass the queue; `npm run
+test:watch` is never locked. A waiter gives up after 30 minutes by default; set
+`NEON_LOCK_TIMEOUT_MS` to change that. See the
+[project spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/project/spec.md)
+for the full rules.
+
 ### Git hooks
 
 `npm ci` / `npm install` points `core.hooksPath` at the checked-in
@@ -52,7 +68,8 @@ npm run hooks:install             # turn it back on
 ```
 
 The hook only runs the unit suite; `npm run check` (typecheck, tests, build
-with the gzip budget) still runs in CI.
+with the gzip budget) still runs in CI. Because the hook goes through `npm
+test`, it also waits for a test run already in progress in another worktree.
 
 ## Deployment
 
@@ -120,7 +137,7 @@ assets/              rendered catalog: track pieces, car, cockpit, GLB models
 build/               bundle budgets, service worker cache stamping
 tools/               asset preview renderer (three.js in headless Chromium)
 e2e/                 Playwright browser smoke tests
-openspec/            behavior and deployment specs
+openspec/            behavior, project, and deployment specs
 ```
 
 ## Specs and handover
@@ -129,6 +146,7 @@ Behaviour specs and engineering decisions live in
 [OpenSpec](https://github.com/shahrin014/3d-html-car-racer/tree/main/openspec):
 
 - [Game spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/game/spec.md)
+- [Project spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/project/spec.md)
 - [Deployment spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/deployment/spec.md)
 - [Project decisions and conventions](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/project.md)
 

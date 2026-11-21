@@ -164,7 +164,12 @@ runtime API calls.
 - The browser suite is tuned for small runners: one worker, one spec per process
   through `tools/run-e2e.mjs`, a 256 MB renderer heap cap, and no trace or
   video.
-- Deployment checks follow `openspec/specs/deployment/spec.md`.
+- Unit and browser runs take a repository-wide lock (`build/run-locked.ts`), so
+  runs in different worktrees queue instead of colliding on the preview port or
+  exhausting memory. The lock lives in the shared Git directory and is released
+  on exit, failure, or signal.
+- Project and worktree conventions follow `openspec/specs/project/spec.md`.
+  Deployment checks follow `openspec/specs/deployment/spec.md`.
 
 ### Git Workflow
 
@@ -173,6 +178,15 @@ runtime API calls.
 - Work happens on short-lived branches (`feat/…`, `fix/…`, `spec/…`) merged
   into `main` through a pull request.
 - `main` rejects force pushes and direct feature commits.
+- Every worktree works on its own branch. A worktree never commits to `main`
+  directly; its branch is merged into `main` when the task is done. The primary
+  checkout stays on `main` and is fast-forwarded before a task starts.
+- Each worktree installs its own dependencies (`npm ci --prefer-offline`); a
+  `node_modules` symlink is only safe while the lockfile is identical. Dev
+  servers use explicit ports when more than one runs at a time.
+- Unit and browser tests queue behind a repository-wide lock in the shared Git
+  directory, so concurrent worktrees never run them at the same time. See
+  `openspec/specs/project/spec.md` for the branch, worktree, and lock rules.
 - `openspec/specs/` is the source of truth for current behavior. Spec changes
   land directly in the baseline specs; no active change folder is kept.
 - Build output is never committed; GitHub Pages receives a workflow artifact.
