@@ -5,8 +5,9 @@
 Defines how Neon Racer is worked on: the branch model, Git worktrees, how each
 worktree is set up, how local test runs are serialized across worktrees, and
 the local gates that protect `main`. Game behavior lives in
-`openspec/specs/game/spec.md`; publishing lives in
-`openspec/specs/deployment/spec.md`.
+`openspec/specs/game/spec.md`; seeded circuit generation, elevation, and
+validation live in `openspec/specs/track-randomization/spec.md`; publishing
+lives in `openspec/specs/deployment/spec.md`.
 
 ## Target
 

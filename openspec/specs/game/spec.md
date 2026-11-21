@@ -5,9 +5,10 @@
 Defines the player-facing behavior of Neon Racer: an orange-loop circuit racer
 for mobile browsers. A race is three laps against the clock on a seeded,
 randomly assembled circuit built from a fixed piece catalog. It covers the race
-lifecycle, track generation, controls, damage and rescue, cameras, timing,
-persistence, landscape presentation, accessibility, installability, and the
-runtime budget.
+lifecycle, track surface and features, controls, damage and rescue, cameras,
+timing, persistence, landscape presentation, accessibility, installability, and
+the runtime budget. Seeded circuit generation, elevation, and validation live in
+`openspec/specs/track-randomization/spec.md`.
 
 ## Default Values
 
@@ -19,11 +20,8 @@ of the requirements.
 | Laps per race | 3 |
 | Race states | 5 (menu, countdown, racing, paused, finished) |
 | Countdown | 3 s |
-| Track scale | 1.5× the base catalogue |
 | Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
-| Turn radius | 12–27 m across the level ladder |
-| Straight lengths | 12–30 m across the level ladder |
 | Design speed | 12 m/s |
 | Opponent cruise speed | 24–31.2 m/s |
 | Maximum speed | 56 m/s |
@@ -32,11 +30,6 @@ of the requirements.
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
 | Maximum frame delta | 0.1 s |
-| Turn bank | 20–45° |
-| Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
-| Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
-| Spiral ramp rise | 8 m per turn; 16 m for the two-level bridge |
-| Spiral ramp levels | 2 |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
 | Damage per impulse | 18 |
@@ -50,6 +43,9 @@ of the requirements.
 | Device pixel ratio cap | 2 |
 | App-shell JavaScript budget | 250 KB gzip |
 | Physics chunk budget | 1.75 MB gzip |
+
+Circuit generation, elevation, and validation rules live in
+`openspec/specs/track-randomization/spec.md`.
 
 ## Requirements
 
@@ -373,131 +369,6 @@ time, the total time, and the speed.
 - **AND** the placing reads like "2nd of 4" and counts the rivals ahead on
   distance covered since the grid
 
-### Requirement: Circuits are generated deterministically from a seed
-
-Each circuit SHALL be generated from a seed. The same seed SHALL produce the
-same circuit on every device and in every session. The game SHALL draw a fresh
-seed on every page load and again for every race started from the menu, so
-refreshing or racing again does not deliberately replay the previous circuit.
-The seed SHALL be drawn from at least 64 bits of randomness, not from the
-calendar date.
-
-#### Scenario: Same seed, same circuit
-
-- **GIVEN** a seed
-- **WHEN** the circuit is generated twice, in separate sessions
-- **THEN** the track geometry, feature placement, and start line are identical
-
-#### Scenario: Fresh circuit on every load and race
-
-- **GIVEN** the app has just loaded, or a race has finished
-- **WHEN** the player starts a race
-- **THEN** a random seed drawn on this page load or since the last start is used
-- **AND** the next start draws another seed
-- **AND** the circuit is not tied to the calendar date
-
-### Requirement: Track randomization is seeded and bounded
-
-Randomization SHALL choose among the authored pieces in the catalog and SHALL
-NOT invent new geometry. The seed SHALL decide the combination, and the level
-SHALL decide the available piece sizes. A different seed or level SHALL be able
-to produce a different combination, and every randomized circuit SHALL still
-satisfy the closure and required-feature rules. The game SHALL randomize the
-track every time: a new seed is drawn on each page load and on each race started
-from the menu, so the player does not see the same circuit repeatedly.
-
-The seed SHALL also choose the circuit's shape from a closed-polygon family:
-three, four, five, or six banked corners of 360°/n each, joined by legs that all
-carry the same forward length or, for an even corner count, two alternating
-lengths. Rotational symmetry SHALL close the loop for any radius and leg length,
-so the player sees triangles, rectangles, pentagons, and hexagons rather than
-one oval.
-
-Some seeds SHALL instead produce a figure-eight bowtie: four 135° banked corners
-and two diagonals that cross once at their midpoints, with the vertical legs
-matching and the diagonals long enough to absorb the corner arcs. At the
-crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
-and the loop SHALL sit under the bridge so the crossing threads the loop's
-opening. The bridge SHALL rise on a spiral ramp, cross flat, and descend on a
-matching spiral ramp, at least 3.5 m above the lower deck. Each spiral SHALL
-turn one full circle per bridge level and SHALL support climbing or dropping
-multiple levels; the figure-eight bridge SHALL use two levels. Its radius SHALL
-leave a clear opening wide enough for a landmark building in the middle.
-
-#### Scenario: Every race is randomized
-
-- **GIVEN** the player is on the menu
-- **WHEN** the player starts a race
-- **THEN** a new seed is drawn before the circuit is assembled
-- **AND** the same flow after a page refresh also draws a new seed
-
-#### Scenario: Shapes vary across seeds
-
-- **GIVEN** several seeds at one level
-- **WHEN** the circuits are generated
-- **THEN** more than one layout shape appears, including polygon circuits and
-  figure-eight bowties
-- **AND** some circuits carry a crest where others carry a jump
-- **AND** every circuit is closed
-- **AND** polygon layouts turn the same way at every corner, so they stay convex
-
-#### Scenario: Different seeds spread the combination
-
-- **GIVEN** several different seeds at the same level
-- **WHEN** the circuits are generated
-- **THEN** more than one combination appears
-- **AND** every piece still comes from the fixed catalog
-
-#### Scenario: Levels scale the combination
-
-- **GIVEN** one seed and two different levels
-- **WHEN** both circuits are generated
-- **THEN** turns tighten and loops shrink as the level rises
-- **AND** both circuits are closed and contain the required features
-
-#### Scenario: Spiral bridge
-
-- **GIVEN** a figure-eight circuit
-- **WHEN** the bridge is assembled
-- **THEN** it rises on a two-level spiral and descends on a matching spiral
-- **AND** each spiral leaves an opening wide enough for a landmark building
-
-#### Scenario: Randomization never invents geometry
-
-- **GIVEN** one level and two different seeds
-- **WHEN** both circuits are generated
-- **THEN** every loop, hill, and shift keeps its authored size
-- **AND** every turn keeps the level's authored radius
-- **AND** only the combination, corner count, and straight lengths differ
-
-### Requirement: Every generated circuit is closed and playable
-
-A generated circuit SHALL be a closed loop: position and heading SHALL match at
-the seam. It SHALL contain at least one vertical loop, at least two banked turns,
-and at least two boost strips. It SHALL NOT self-intersect in plan view, SHALL
-keep at least one car width of clearance between non-adjacent sections, and SHALL
-keep every turn radius above the configured minimum. A circuit that violates a
-rule SHALL be rejected and regenerated from the next deterministic seed offset.
-
-#### Scenario: Closure
-
-- **GIVEN** any accepted circuit
-- **WHEN** the seam is inspected
-- **THEN** the position and tangent match within tolerance
-
-#### Scenario: Required features
-
-- **GIVEN** any accepted circuit
-- **THEN** it contains at least one loop, two banked turns, and two boost strips
-
-#### Scenario: Unplayable layout is rejected
-
-- **GIVEN** a candidate layout whose turn radius is below the minimum or whose
-  sections overlap
-- **WHEN** generation validates it
-- **THEN** it is rejected
-- **AND** generation continues with a different deterministic offset
-
 ### Requirement: The track is an orange surface with tall guide rails
 
 The track SHALL be one continuous orange surface seven car widths wide,
@@ -547,7 +418,10 @@ gap.
 - **GIVEN** a figure-eight circuit
 - **WHEN** the two diagonals meet
 - **THEN** one branch is on a raised bridge at least 3.5 m above the other
-- **AND** the bridge rises and falls on ramps long enough to drive at speed
+- **AND** the bridge rises and falls on a spiral or ramp long enough to drive at
+  speed
+- **AND** the crossing satisfies the overpass clearance rules in
+  `openspec/specs/track-randomization/spec.md`
 - **AND** the loop's ring sits under the bridge at the crossing
 - **AND** no deck or rail of the two branches touches
 
@@ -974,12 +848,13 @@ at least 0.6 m above the deck beneath it. It SHALL NOT be driven by a
 world-space lerp toward the car's arc, because that cuts the chord through the
 loop and puts the view under the road.
 
-The cockpit camera SHALL replace the exterior shell with a dashboard overlay
-drawn in camera space: a generated dashboard texture across the lower view and
-a separate steering-wheel texture in front of it. The exterior body SHALL be
-hidden while the cockpit camera is active. The steering wheel SHALL turn with
-the steering input, clockwise for a right turn, and SHALL be clamped at full
-lock.
+The cockpit camera SHALL replace the exterior shell with a PNG cockpit frame
+drawn in camera space. The frame SHALL carry the dashboard, A-pillars, and roof
+header, with a transparent windscreen so the live track is visible through the
+middle. A separate transparent steering-wheel PNG SHALL sit in front of the
+frame. The exterior body SHALL be hidden while the cockpit camera is active.
+The steering wheel SHALL turn with the steering input, clockwise for a right
+turn, and SHALL be clamped at 70 degrees of lock.
 
 #### Scenario: Chase camera through a loop
 
@@ -996,6 +871,7 @@ lock.
 - **WHEN** the car drives and banks
 - **THEN** the view is from the driver's position
 - **AND** the exterior shell is hidden
+- **AND** the track is visible through the transparent windscreen
 - **AND** the dashboard and steering wheel stay locked to the view
 - **AND** no car geometry blocks the track ahead
 
@@ -1005,7 +881,7 @@ lock.
 - **WHEN** the player steers right
 - **THEN** the steering wheel turns clockwise
 - **AND** it turns counter-clockwise when the player steers left
-- **AND** it never turns past full lock
+- **AND** it never turns past 70 degrees of lock
 
 #### Scenario: Camera toggle
 

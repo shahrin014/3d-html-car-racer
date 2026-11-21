@@ -130,7 +130,8 @@ src/game/
   Car.ts             player car wrapper around the shared die-cast model
   car-model.mjs      parametric car geometry shared with the asset catalog
   cockpitCamera.ts   driver's-eye camera pose
-  cockpit.ts         generated dashboard and steering-wheel overlay
+  cockpit.ts         PNG cockpit frame and rotating steering wheel
+  assets/            cockpit frame and wheel PNGs
   constants.ts       all tuning values
 public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator
@@ -147,6 +148,7 @@ Behaviour specs and engineering decisions live in
 [OpenSpec](https://github.com/shahrin014/3d-html-car-racer/tree/main/openspec):
 
 - [Game spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/game/spec.md)
+- [Track randomization spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/track-randomization/spec.md)
 - [Project spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/project/spec.md)
 - [Deployment spec](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/specs/deployment/spec.md)
 - [Project decisions and conventions](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/project.md)

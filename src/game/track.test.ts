@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
+  BRIDGE_CLEARANCE,
   BRIDGE_HEIGHT,
   BRIDGE_LENGTH,
   BRIDGE_RAMP_LENGTH,
@@ -41,6 +42,7 @@ import {
   spiralInnerRadius,
   spiralUpPath,
   turnPath,
+  validateCircuit,
   type TrackPath,
 } from './track';
 
@@ -318,7 +320,10 @@ describe('track pieces', () => {
     let circuit: ReturnType<typeof generateCircuit> | null = null;
     for (let index = 0; index < 60; index += 1) {
       const candidate = generateCircuit(`spiral-bridge-${index}`, 1);
-      if (candidate.pieces.some((piece) => piece.kind === 'spiral-up')) {
+      if (
+        candidate.pieces.some((piece) => piece.kind === 'bridge') &&
+        candidate.pieces.some((piece) => piece.kind === 'spiral-up')
+      ) {
         circuit = candidate;
         break;
       }
@@ -352,6 +357,111 @@ describe('track pieces', () => {
     const last = frames[frames.length - 1]!;
     expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
     expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
+  });
+
+  it('keeps a polygon route elevated between a climb and a descent', () => {
+    let circuit: ReturnType<typeof generateCircuit> | null = null;
+    for (let index = 0; index < 80; index += 1) {
+      const candidate = generateCircuit(`elevated-${index}`, 1);
+      const hasBridge = candidate.pieces.some((piece) => piece.kind === 'bridge');
+      const hasClimb = candidate.pieces.some(
+        (piece) => piece.kind === 'spiral-up' || piece.kind === 'ramp-up',
+      );
+      const hasDescent = candidate.pieces.some(
+        (piece) => piece.kind === 'spiral-down' || piece.kind === 'ramp-down',
+      );
+      if (!hasBridge && hasClimb && hasDescent) {
+        circuit = candidate;
+        break;
+      }
+    }
+    expect(circuit).not.toBeNull();
+    const pieces = circuit!.pieces;
+    const climbIndex = pieces.findIndex(
+      (piece) => piece.kind === 'spiral-up' || piece.kind === 'ramp-up',
+    );
+    const descentIndex = pieces.findIndex(
+      (piece) => piece.kind === 'spiral-down' || piece.kind === 'ramp-down',
+    );
+    expect(climbIndex).toBeGreaterThanOrEqual(0);
+    expect(descentIndex).toBeGreaterThan(climbIndex);
+
+    const climb = pieces[climbIndex]!;
+    const descent = pieces[descentIndex]!;
+    const climbStart = new THREE.Vector3().setFromMatrixPosition(climb.matrix);
+    const descentStart = new THREE.Vector3().setFromMatrixPosition(
+      descent.matrix,
+    );
+    // The descent sits on a different part of the plan.
+    expect(
+      Math.hypot(
+        descentStart.x - climbStart.x,
+        descentStart.z - climbStart.z,
+      ),
+    ).toBeGreaterThan(TRACK_WIDTH);
+
+    // Both joins are flat, so the car is not launched.
+    for (const piece of [climb, descent]) {
+      expect(Math.abs(piece.path(0).tangent.y)).toBeLessThan(1e-6);
+      expect(Math.abs(piece.path(1).tangent.y)).toBeLessThan(1e-6);
+    }
+
+    const climbEnd = climb.path(1).position
+      .clone()
+      .applyMatrix4(climb.matrix);
+    const rise = climbEnd.y - climbStart.y;
+    expect(rise).toBeGreaterThanOrEqual(BRIDGE_HEIGHT - 1e-3);
+    expect(rise).toBeLessThanOrEqual(SPIRAL_HEIGHT + 1e-3);
+
+    // Every piece between the climb and the descent starts at the elevated
+    // height; the loop, hill, and jump are relative features on that deck.
+    for (let index = climbIndex + 1; index <= descentIndex; index += 1) {
+      const piece = pieces[index]!;
+      // A jump's gap and landing sit on the launch line above the deck, not on
+      // the deck itself.
+      if (piece.kind === 'gap' || piece.kind === 'landing') {
+        continue;
+      }
+      const position = new THREE.Vector3().setFromMatrixPosition(piece.matrix);
+      expect(position.y - climbStart.y).toBeCloseTo(rise, 3);
+    }
+    const after = pieces[descentIndex + 1];
+    if (after) {
+      const position = new THREE.Vector3().setFromMatrixPosition(after.matrix);
+      expect(position.y - climbStart.y).toBeCloseTo(0, 3);
+    }
+
+    const frames = buildFrames(circuit!);
+    const first = frames[0]!;
+    const last = frames[frames.length - 1]!;
+    expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
+    expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
+  });
+
+  it('crosses a lower approach on a polygon spiral climb', () => {
+    for (let index = 0; index < 80; index += 1) {
+      const candidate = generateCircuit(`elevated-cross-${index}`, 1);
+      if (candidate.pieces.some((piece) => piece.kind === 'bridge')) {
+        continue;
+      }
+      const spiral = candidate.pieces.find(
+        (piece) => piece.kind === 'spiral-up',
+      );
+      if (!spiral) {
+        continue;
+      }
+      const entry = spiral.path(0).position
+        .clone()
+        .applyMatrix4(spiral.matrix);
+      const exit = spiral.path(1).position.clone().applyMatrix4(spiral.matrix);
+      // The spiral returns over its own entry, so a polygon circuit can carry
+      // an elevated deck across a lower approach without a figure-eight.
+      expect(Math.hypot(exit.x - entry.x, exit.z - entry.z)).toBeLessThan(1e-6);
+      expect(exit.y - entry.y).toBeGreaterThanOrEqual(BRIDGE_CLEARANCE);
+      expect(validateCircuit(candidate).ok).toBe(true);
+      return;
+    }
+    throw new Error('no polygon spiral crossing found');
   });
 
   it('threads a bridge through the loop in a figure-eight circuit', () => {
