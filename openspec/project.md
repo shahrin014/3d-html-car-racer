@@ -195,7 +195,7 @@ runtime API calls.
 | Checkpoint | An ordered gate that must be crossed before the finish line counts a lap. |
 | Best time | The fastest total time at a level, stored locally and kept across circuits. |
 | Paint | One of ten named car colours; the player picks one in the menu and it is stored locally. |
-| Opponent | A computer rival on the same circuit, driven along a kinematic racing line in its own paint. |
+| Opponent | A computer rival on the same circuit, driven along a kinematic racing line in a palette paint. |
 | Scenery | Deterministic city blocks and towers around the circuit; presentation only. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
 | Cockpit camera | A driver's-eye view with a generated dashboard texture. |
@@ -207,7 +207,7 @@ runtime API calls.
 | Setting | Default |
 | --- | --- |
 | Laps per race | 3 |
-| Opponents | 3 by default, 0–5 selectable in the menu |
+| Opponents | 3 by default, 0–30 selectable in the menu |
 | Countdown | 3 s |
 | Track scale | 1.5× the base catalogue |
 | Track width | 7 world units (seven car widths) |

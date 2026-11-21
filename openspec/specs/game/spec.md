@@ -715,19 +715,20 @@ disabled and labelled "Physics unavailable".
 
 ### Requirement: The race can include computer opponents
 
-The menu SHALL let the player choose a field of zero to five opponents, defaulting
-to three, and the choice SHALL persist across reloads. Each opponent SHALL use a
-palette paint that differs from the player's paint and from every other
-opponent's. Opponents SHALL follow the circuit on a kinematic racing line with
-their own lane and pace, SHALL stay on the deck through banks and loops, and
-SHALL be solid: the player's car collides with them without taking damage. They
-SHALL NOT change lap counting, timing, or the three-lap race against the clock.
+The menu SHALL let the player choose a field of zero to thirty opponents,
+defaulting to three, and the choice SHALL persist across reloads. Each opponent
+SHALL use a palette paint that differs from the player's paint; opponent paints
+SHALL stay distinct until every non-player paint has been used, after which they
+cycle. Opponents SHALL follow the circuit on a kinematic racing line with their
+own lane and pace, SHALL stay on the deck through banks and loops, and SHALL be
+solid: the player's car collides with them without taking damage. They SHALL NOT
+change lap counting, timing, or the three-lap race against the clock.
 
 #### Scenario: Configurable field
 
 - **GIVEN** the menu is shown
 - **WHEN** the player raises or lowers the opponent count
-- **THEN** the count moves within zero to five and is shown as a number
+- **THEN** the count moves within zero to thirty and is shown as a number
 - **AND** the same count is used on the next race
 - **AND** the count is restored after a reload
 
@@ -736,7 +737,8 @@ SHALL NOT change lap counting, timing, or the three-lap race against the clock.
 - **GIVEN** a race with opponents
 - **WHEN** the cars are inspected
 - **THEN** every opponent has a paint different from the player's
-- **AND** no two opponents share a paint
+- **AND** opponents take distinct paints until every non-player paint is used
+- **AND** a field larger than the palette cycles through those paints in order
 
 #### Scenario: Rivals are solid
 

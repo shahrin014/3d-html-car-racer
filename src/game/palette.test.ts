@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { OPPONENT_COUNT_MAX } from './constants';
 import {
   DEFAULT_PAINT,
   PAINTS,
@@ -22,16 +23,24 @@ describe('car paints', () => {
 
   it('gives every opponent a distinct paint that is not the player’s own', () => {
     for (const player of PAINTS) {
-      const opponents = opponentPaints(player, 5);
-      expect(opponents).toHaveLength(5);
+      const opponents = opponentPaints(player, PAINTS.length - 1);
+      expect(opponents).toHaveLength(PAINTS.length - 1);
       expect(opponents).not.toContain(player);
-      expect(new Set(opponents.map((paint) => paint.id)).size).toBe(5);
+      expect(new Set(opponents.map((paint) => paint.id)).size).toBe(
+        PAINTS.length - 1,
+      );
     }
   });
 
-  it('handles zero and oversized opponent counts', () => {
+  it('cycles paints once the non-player palette is exhausted', () => {
     expect(opponentPaints(DEFAULT_PAINT, 0)).toHaveLength(0);
     expect(opponentPaints(DEFAULT_PAINT, -3)).toHaveLength(0);
-    expect(opponentPaints(DEFAULT_PAINT, 12)).toHaveLength(PAINTS.length - 1);
+    const full = opponentPaints(DEFAULT_PAINT, OPPONENT_COUNT_MAX);
+    expect(full).toHaveLength(OPPONENT_COUNT_MAX);
+    expect(full).not.toContain(DEFAULT_PAINT);
+    const perCycle = PAINTS.length - 1;
+    for (let index = 0; index < full.length; index += 1) {
+      expect(full[index]).toBe(full[index % perCycle]);
+    }
   });
 });

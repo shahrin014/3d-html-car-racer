@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  OPPONENT_BASE_SPEED,
   OPPONENT_COUNT_MAX,
+  OPPONENT_LANES,
+  OPPONENT_TOP_SPEED,
   PHYSICS_RIDE_HEIGHT,
   TRACK_WIDTH,
 } from './constants';
@@ -17,15 +20,21 @@ import { buildFrames, generateCircuit } from './track';
 const frames = buildFrames(generateCircuit('opponents', 1));
 
 describe('opponent grid', () => {
-  it('builds up to five rivals with distinct lanes and speeds', () => {
+  it('builds a full field with cycled lanes and distinct speeds', () => {
     const specs = opponentSpecs(OPPONENT_COUNT_MAX);
+    expect(OPPONENT_COUNT_MAX).toBe(30);
     expect(specs).toHaveLength(OPPONENT_COUNT_MAX);
     expect(new Set(specs.map((spec) => spec.lane)).size).toBe(
-      OPPONENT_COUNT_MAX,
+      Math.min(OPPONENT_COUNT_MAX, OPPONENT_LANES.length),
     );
     expect(new Set(specs.map((spec) => spec.speed)).size).toBe(
       OPPONENT_COUNT_MAX,
     );
+    for (const spec of specs) {
+      expect(Math.abs(spec.lane)).toBeLessThan(TRACK_WIDTH / 2);
+      expect(spec.speed).toBeGreaterThanOrEqual(OPPONENT_BASE_SPEED);
+      expect(spec.speed).toBeLessThanOrEqual(OPPONENT_TOP_SPEED + 1e-9);
+    }
     for (let index = 1; index < specs.length; index += 1) {
       expect(specs[index]!.start).toBeGreaterThan(specs[index - 1]!.start);
     }

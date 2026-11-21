@@ -5,7 +5,7 @@ import {
   OPPONENT_GRID_OFFSET,
   OPPONENT_GRID_SPACING,
   OPPONENT_LANES,
-  OPPONENT_SPEED_STEP,
+  OPPONENT_TOP_SPEED,
   PHYSICS_RIDE_HEIGHT,
 } from './constants';
 import type { TrackFrame } from './track';
@@ -38,19 +38,24 @@ const PACE_VARIATION = 0.06;
  * Deterministic grid for `count` rivals: each gets a lane, a start slot ahead of
  * the player, and a cruise speed. Values are fixed rather than drawn from a
  * seed, so the field around the player is the same on every reload until the
- * count changes.
+ * count changes. Lanes repeat once the lane set is exhausted, but grid spacing
+ * keeps cars in the same lane apart. Speeds are spread across the full pace
+ * range so a larger field does not produce rivals faster than the documented
+ * ceiling.
  */
 export function opponentSpecs(count: number): OpponentSpec[] {
   const wanted = Math.min(
     OPPONENT_COUNT_MAX,
     Math.max(0, Math.floor(count)),
   );
+  const span = OPPONENT_TOP_SPEED - OPPONENT_BASE_SPEED;
+  const last = Math.max(1, wanted - 1);
   const specs: OpponentSpec[] = [];
   for (let index = 0; index < wanted; index += 1) {
     specs.push({
       start: OPPONENT_GRID_OFFSET + index * OPPONENT_GRID_SPACING,
       lane: OPPONENT_LANES[index % OPPONENT_LANES.length]!,
-      speed: OPPONENT_BASE_SPEED + index * OPPONENT_SPEED_STEP,
+      speed: OPPONENT_BASE_SPEED + (span * index) / last,
       phase: index * 1.7,
     });
   }
