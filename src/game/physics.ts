@@ -19,6 +19,7 @@ import {
   PHYSICS_BRAKE_FORCE,
   PHYSICS_CENTRE_GAIN,
   PHYSICS_CHASSIS_ROUNDING,
+  PHYSICS_DESCENT_BOOST,
   PHYSICS_DRAG,
   PHYSICS_DRIFT_SPEED,
   PHYSICS_ENGINE_FORCE,
@@ -305,8 +306,19 @@ export async function createPhysics(
       const engine = input.brake
         ? -PHYSICS_BRAKE_FORCE
         : PHYSICS_ENGINE_FORCE * input.throttle;
+      // Gravity alone adds only a modest amount on a descent. Add a downhill
+      // share of the engine force so the player surges through the loop as
+      // much as rivals do, but never while braking or flying over a gap.
+      const descent =
+        onTrack && !input.brake
+          ? Math.max(0, -thrust.y) *
+            PHYSICS_ENGINE_FORCE *
+            input.throttle *
+            PHYSICS_DESCENT_BOOST
+          : 0;
+      const drive = engine + descent;
       car.addForce(
-        { x: thrust.x * engine, y: thrust.y * engine, z: thrust.z * engine },
+        { x: thrust.x * drive, y: thrust.y * drive, z: thrust.z * drive },
         true,
       );
 

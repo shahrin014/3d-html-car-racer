@@ -24,8 +24,9 @@ of the requirements.
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
 | Opponent cruise speed | 24–31.2 m/s |
-| Maximum speed | 56 m/s |
-| Player engine force | 60 N, with 0.01875 quadratic drag |
+| Maximum speed (flat) | 72 m/s |
+| Player engine force | 80 N, with 0.015432 quadratic drag |
+| Descent boost | 50% extra engine force while pointing downhill |
 | Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
@@ -506,6 +507,13 @@ so a steered wheel spins about its own axle instead of precessing.
 - **WHEN** the race starts
 - **THEN** motor torque accelerates it without input
 - **AND** speed approaches the maximum speed
+
+#### Scenario: Descent surge
+
+- **GIVEN** the car holds throttle on a downhill section or the loop
+- **WHEN** the track falls away beneath it
+- **THEN** its engine force rises by half
+- **AND** it gains speed faster than on the flat
 
 #### Scenario: Loop
 

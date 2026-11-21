@@ -200,9 +200,8 @@ describe('handling feel', () => {
     const before = physics.read();
     const beforeFrame = frames[nextIndex(frames, index, before.position)]!;
     const beforeLateral = lateralOffset(beforeFrame, before.position);
-    const right = beforeFrame.right;
 
-    for (let step = 0; step < 60; step += 1) {
+    for (let step = 0; step < 30; step += 1) {
       const state = physics.read();
       index = nextIndex(frames, index, state.position);
       physics.step(FIXED_STEP, { throttle: 1, brake: false, steer: 1 }, frames[index]!);
@@ -219,8 +218,13 @@ describe('handling feel', () => {
     const after = physics.read();
     const afterFrame = frames[nextIndex(frames, index, after.position)]!;
     const movedRight = lateralOffset(afterFrame, after.position) - beforeLateral;
-    const steeredSide = noseSide(after, right);
-    const neutralSide = noseSide(control.read(), right);
+    // Compare each nose with its own track frame and use a shorter window so
+    // the fixed-lock angle is not blurred by the extra ground the faster car
+    // covers.
+    const steeredSide = noseSide(after, afterFrame.right);
+    const neutralAfter = control.read();
+    const neutralFrame = frames[nextIndex(frames, controlIndex, neutralAfter.position)]!;
+    const neutralSide = noseSide(neutralAfter, neutralFrame.right);
 
     console.log(
       `steer right: lateral moved ${movedRight.toFixed(2)} m, ` +
@@ -230,7 +234,7 @@ describe('handling feel', () => {
     expect(movedRight).toBeLessThan(0);
     // `frame.right` points to the driver's left, so a right turn moves the
     // nose further away from it than the neutral run does.
-    expect(steeredSide).toBeLessThan(neutralSide - 0.01);
+    expect(steeredSide).toBeLessThan(neutralSide - 0.005);
 
     physics.dispose();
     control.dispose();

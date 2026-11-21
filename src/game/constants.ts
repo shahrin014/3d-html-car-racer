@@ -57,12 +57,18 @@ export const ALIGNMENT_DAMPING = 2.6;
 
 /**
  * Player thrust. Engine force and drag are tuned as a pair: terminal speed is
- * `sqrt(force / drag)`, so both scale together to keep the top end at about
- * 56.6 m/s. Raising the force from 40 to 60 cuts roughly a third off the time
- * to reach racing speed without changing that ceiling, which track, loop, and
- * jump geometry are tuned around.
+ * `sqrt(force / drag)`, so both scale together to keep the flat top end at
+ * about 72 m/s. The stronger engine shortens the launch, and the lower drag
+ * than the old 56 m/s tune leaves room for gravity to add speed on descents.
+ * Track, loop, and jump geometry are still checked against this ceiling.
  */
-export const PHYSICS_ENGINE_FORCE = 60;
+export const PHYSICS_ENGINE_FORCE = 80;
+/**
+ * Extra engine force as a fraction of thrust while pointing downhill. Gravity
+ * alone gives the player a smaller relative surge than the rivals' grade-based
+ * pacing, so matching the rivals takes this assist on the loop's descent.
+ */
+export const PHYSICS_DESCENT_BOOST = 0.5;
 /**
  * Rounded edge on the single chassis collider. The track is built from short
  * cuboid segments, so a sharp bottom edge catches on every seam; this rounding
@@ -74,12 +80,12 @@ export const PHYSICS_CHASSIS_ROUNDING = 0.09;
 export const PHYSICS_RIDE_HEIGHT = CHASSIS_HALF_HEIGHT;
 export const PHYSICS_BRAKE_FORCE = 56;
 /**
- * Quadratic drag: force = coefficient * speed^2 opposing motion. Raised with
- * the engine force from 0.0125 so terminal speed stays at about 56.6 m/s; the
- * car simply gets there faster. Keeping the ceiling fixed protects the loop,
- * jump, and collision tuning.
+ * Quadratic drag: force = coefficient * speed^2 opposing motion. Tuned with
+ * the engine force for a terminal speed of about 72 m/s on the flat. Lowering
+ * it from the old 56 m/s tune lets gravity add more speed downhill, which the
+ * loop descent needs.
  */
-export const PHYSICS_DRAG = 0.01875;
+export const PHYSICS_DRAG = 0.015432;
 /**
  * Steering is a heading target, not a torque: full lock aims the nose this
  * many radians off the track tangent. Torque alone spins a 1.2 kg toy car
@@ -117,11 +123,11 @@ export const PHYSICS_CENTRE_GAIN = 5;
 export const IMPACT_THRESHOLD = 40;
 
 /**
- * Speed ceiling at zero damage. The car is more than twice as fast as the
- * original 24 m/s top speed; the drag and assist constants scale with the
- * square of that speed.
+ * Speed ceiling at zero damage. The car is three times as fast as the original
+ * 24 m/s top speed; the drag and assist constants scale with the square of
+ * that speed.
  */
-export const MAX_SPEED = 56;
+export const MAX_SPEED = 72;
 /** Limp ceiling at maximum damage. */
 export const LIMP_SPEED = 24;
 

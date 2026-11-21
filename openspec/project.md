@@ -91,6 +91,11 @@ runtime API calls.
   grip, so the guide adds surface stick, a grip-capped lateral damper, and
   heading and roll/pitch alignment. It adds no forward energy and switches off
   more than one track width from the frame, so a fall cannot be flung back.
+- **The player gets a downhill assist.** While the track tangent points
+  downhill, engine force rises by half so the player surges through the loop's
+  descent as much as the grade-paced rivals do; gravity alone gives only a
+  modest gain at the top of the speed range. The assist is off while braking and
+  over jump gaps.
 - **Steering is a heading target, not a torque.** A direct torque spins the
   1.2 kg body far too fast; the guide turns the nose toward
   `tangent + steer × 0.22 rad` with yaw damping. Thrust follows the racing line
@@ -245,8 +250,9 @@ runtime API calls.
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m per level · 20 m ramps · 24 m flat · 3.5 m overpass clearance |
 | Spiral | 18 m radius · 8 m per turn · up to 2 levels |
-| Maximum speed | 56 m/s |
-| Player engine force | 60 N, with 0.01875 quadratic drag |
+| Maximum speed (flat) | 72 m/s |
+| Player engine force | 80 N, with 0.015432 quadratic drag |
+| Descent boost | 50% extra engine force while pointing downhill |
 | Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
