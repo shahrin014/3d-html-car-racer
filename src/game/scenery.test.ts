@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
   SCENERY_CLEARANCE,
+  SCENERY_LANDMARK_CLEARANCE,
+  SCENERY_LANDMARK_SPACING,
   SCENERY_MAX_HEIGHT,
   SCENERY_MIN_HEIGHT,
   buildScenery,
@@ -34,6 +36,50 @@ describe('city skyline', () => {
           clearsTrack(frames, building.x, building.z, SCENERY_CLEARANCE),
         ).toBe(true);
       }
+    }
+  });
+
+  it('puts a landmark inside the spiral opening and keeps it clear', () => {
+    let circuit: ReturnType<typeof generateCircuit> | null = null;
+    for (let index = 0; index < 60; index += 1) {
+      const candidate = generateCircuit(`landmark-${index}`, 1);
+      if (candidate.pieces.some((piece) => piece.kind === 'spiral-up')) {
+        circuit = candidate;
+        break;
+      }
+    }
+    expect(circuit).not.toBeNull();
+    const spiral = circuit!.pieces.find((piece) => piece.kind === 'spiral-up');
+    const center = spiral?.spiralCenter;
+    expect(center).toBeDefined();
+
+    const circuitFrames = buildFrames(circuit!);
+    expect(
+      clearsTrack(
+        circuitFrames,
+        center!.x,
+        center!.z,
+        SCENERY_LANDMARK_CLEARANCE,
+      ),
+    ).toBe(true);
+
+    const landmark = {
+      x: center!.x,
+      z: center!.z,
+      width: 12,
+      depth: 12,
+      height: 26,
+      rotation: 0,
+    };
+    const buildings = planSkyline(circuitFrames, circuit!.seed, [landmark]);
+    expect(buildings).toContainEqual(landmark);
+    for (const building of buildings) {
+      if (building === landmark) {
+        continue;
+      }
+      expect(
+        Math.hypot(building.x - landmark.x, building.z - landmark.z),
+      ).toBeGreaterThanOrEqual(SCENERY_LANDMARK_SPACING);
     }
   });
 

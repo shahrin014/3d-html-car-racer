@@ -5,8 +5,9 @@ context: |
   as an installable web app. Races are three laps against the clock on a seeded
   circuit assembled from a fixed piece catalog. See openspec/project.md for
   purpose, stack, conventions, and scope. Current behavior specs live in
-  openspec/specs/: one for the game and one for deployment. GitHub Pages is
-  published from the `main` branch on every merge.
+  openspec/specs/: one for the game, one for the project and worktrees, and one
+  for deployment. GitHub Pages is published from the `main` branch on every
+  merge.
 
   Numeric values in the specs (speed, damage, timing, tilt, track size) are
   provisional defaults chosen for testability. Tune them by updating the game

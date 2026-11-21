@@ -36,7 +36,13 @@ import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
 import { racePlacing } from './placing';
 import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothing';
-import { buildScenery, type Scenery } from './scenery';
+import {
+  buildScenery,
+  clearsTrack,
+  SCENERY_LANDMARK_CLEARANCE,
+  type Building,
+  type Scenery,
+} from './scenery';
 import { buildSkybox, disposeSkyboxes } from './skybox';
 import {
   buildFrames,
@@ -239,7 +245,37 @@ export class Game {
       this.scene.remove(this.scenery.group);
       this.scenery.dispose();
     }
-    this.scenery = buildScenery(this.frames, circuit.seed);
+    // Each spiral ramp wraps around a landmark tower. Keep the tower only when
+    // its 12 m footprint stays clear of every other part of the circuit.
+    const landmarks = circuit.pieces
+      .filter(
+        (piece) => piece.kind === 'spiral-up' && piece.spiralCenter !== undefined,
+      )
+      .map((piece): Building => {
+        const center = piece.spiralCenter!;
+        return {
+          x: center.x,
+          z: center.z,
+          width: 12,
+          depth: 12,
+          height: 26,
+          rotation: 0,
+        };
+      })
+      .filter((building) =>
+        clearsTrack(
+          this.frames,
+          building.x,
+          building.z,
+          SCENERY_LANDMARK_CLEARANCE,
+        ),
+      );
+    this.scenery = buildScenery(
+      this.frames,
+      circuit.seed,
+      undefined,
+      landmarks,
+    );
     this.scene.add(this.scenery.group);
 
     this.applySkybox(circuit.seed);

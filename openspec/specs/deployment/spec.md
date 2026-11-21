@@ -2,9 +2,10 @@
 
 ## Purpose
 
-Defines how Neon Racer gets from source to the public site: the branch model,
-GitHub Pages configuration, deployment workflow, quality gate, subpath
-handling, verification, rollback, and credentials.
+Defines how Neon Racer gets from source to the public site: GitHub Pages
+configuration, deployment workflow, quality gate, subpath handling,
+verification, rollback, and credentials. The branch model, worktree workflow,
+and local gates live in `openspec/specs/project/spec.md`.
 
 ## Target
 
@@ -24,16 +25,9 @@ receives the built `dist/` directory as a workflow artifact.
 
 ## Branch Model
 
-| Branch | Purpose | Deploys |
-| --- | --- | --- |
-| `main` | Production source of truth | Yes |
-| `feat/<slug>` | New behavior or UI | No |
-| `fix/<slug>` | Bug fixes | No |
-| `spec/<slug>` | Spec-only changes | No |
-| `gh-pages` | Reserved; not used | No |
-
-There is one environment. No `develop`, `staging`, `nightly`, or `production`
-branch is used. Every merge to `main` is a release.
+The branch model, worktree workflow, and `main` protection are defined in
+`openspec/specs/project/spec.md`. Deployment depends on one rule from that
+model: `main` is the only branch that deploys.
 
 ## Verification Checklist
 
@@ -58,19 +52,19 @@ browser pass.
 
 1. Open **Settings → Pages**.
 2. Set **Source** to **GitHub Actions**.
-3. Protect `main`: block force pushes and deletion, require a pull request, and
-   require the **Checks** workflow.
+3. Protect `main` as described in the project spec: block force pushes and
+   deletion, require a pull request, and require the **Checks** workflow.
 4. Run the deployment workflow and confirm the `github-pages` environment is
    created.
 5. Open the published URL and run the verification checklist.
 
 ## Requirements
 
-### Requirement: `main` is the production branch
+### Requirement: Deployment runs from `main`
 
-`main` SHALL be the default branch and the only branch that deploys. Work SHALL
-happen on short-lived branches merged through a pull request. Force pushes and
-deletion on `main` SHALL be blocked, and merged branches SHALL be deleted.
+`main` SHALL be the only branch that deploys. Every merge to `main` SHALL be a
+release. Work SHALL arrive through a pull request on a short-lived branch, as
+defined in the project spec.
 
 #### Scenario: Merge reaches production
 
@@ -96,12 +90,6 @@ deletion on `main` SHALL be blocked, and merged branches SHALL be deleted.
 - **WHEN** a `fix/` branch is merged into `main`
 - **THEN** the same workflow deploys it
 - **AND** no direct push bypasses review or checks
-
-#### Scenario: Main protection
-
-- **GIVEN** `main` is protected
-- **WHEN** a contributor attempts a force push or a direct push that skips checks
-- **THEN** the push is rejected
 
 ### Requirement: Pages uses artifact deployment
 

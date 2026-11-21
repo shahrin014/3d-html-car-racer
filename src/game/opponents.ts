@@ -33,6 +33,11 @@ export interface RacingPose {
 
 /** How strongly a rival's pace breathes around its cruise speed. */
 const PACE_VARIATION = 0.06;
+/** How much a climb or descent changes pace per unit of track grade. */
+const GRADE_EFFECT = 0.5;
+/** Keep the terrain factor bounded so a loop cannot stop or rocket a rival. */
+const GRADE_FACTOR_MIN = 0.4;
+const GRADE_FACTOR_MAX = 1.5;
 
 /**
  * Deterministic grid for `count` rivals: each gets a lane, a start slot ahead of
@@ -76,11 +81,26 @@ export function wrapDistance(distance: number, length: number): number {
   return ((distance % length) + length) % length;
 }
 
-/** Cruise pace at a point on the circuit, with the gentle breathing term. */
-export function paceAt(spec: OpponentSpec, distance: number): number {
+/**
+ * Cruise pace at a point on the circuit, with the gentle breathing term. The
+ * grade is the tangent's vertical component: positive uphill, negative
+ * downhill. Climbing therefore slows a rival and descending speeds it up,
+ * cheaply approximating the energy a real car would trade for height.
+ */
+export function paceAt(
+  spec: OpponentSpec,
+  distance: number,
+  grade = 0,
+): number {
+  const terrain = THREE.MathUtils.clamp(
+    1 - grade * GRADE_EFFECT,
+    GRADE_FACTOR_MIN,
+    GRADE_FACTOR_MAX,
+  );
   return (
     spec.speed *
-    (1 + PACE_VARIATION * Math.sin(distance * 0.05 + spec.phase))
+    (1 + PACE_VARIATION * Math.sin(distance * 0.05 + spec.phase)) *
+    terrain
   );
 }
 
@@ -94,9 +114,10 @@ export function advanceTravel(
   travelled: number,
   delta: number,
   length: number,
+  grade = 0,
 ): { distance: number; travelled: number } {
   const distance = wrapDistance(travelled, length);
-  const next = travelled + paceAt(spec, distance) * delta;
+  const next = travelled + paceAt(spec, distance, grade) * delta;
   return { distance: wrapDistance(next, length), travelled: next };
 }
 
@@ -110,8 +131,9 @@ export function advanceDistance(
   distance: number,
   delta: number,
   length: number,
+  grade = 0,
 ): number {
-  return advanceTravel(spec, distance, delta, length).distance;
+  return advanceTravel(spec, distance, delta, length, grade).distance;
 }
 
 /** Index of the last frame at or before `distance`; `frames` must be sampled. */
@@ -128,6 +150,26 @@ function frameIndexAt(frames: TrackFrame[], distance: number): number {
     }
   }
   return low;
+}
+
+/**
+ * Vertical component of the track tangent at `distance`: positive on a climb,
+ * negative on a descent. Interpolated between sampled frames, and allocation
+ * free because the simulation samples it for every rival each step.
+ */
+export function gradeAt(frames: TrackFrame[], distance: number): number {
+  const first = frames[0];
+  if (!first) {
+    return 0;
+  }
+  const length = circuitLength(frames);
+  const along = wrapDistance(distance, length);
+  const index = frameIndexAt(frames, along);
+  const a = frames[index] ?? first;
+  const b = frames[index + 1] ?? a;
+  const span = b.s - a.s;
+  const t = span > 1e-9 ? THREE.MathUtils.clamp((along - a.s) / span, 0, 1) : 0;
+  return a.tangent.y + (b.tangent.y - a.tangent.y) * t;
 }
 
 /**
