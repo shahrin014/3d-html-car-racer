@@ -14,6 +14,18 @@ npm run assets -- car car-side cockpit  # only the named ones
 Rendering is deterministic: `tools/preview/` rebuilds each asset from the same
 parametric definitions the game uses, in headless Chromium with three.js.
 
+## Featured: spiral ramp
+
+The multi-level spiral ramp lives in [`track/`](track/):
+
+| Preview | Model | Plan view |
+| --- | --- | --- |
+| [spiral-r12.png](track/spiral-r12.png) | [spiral-r12.glb](track/spiral-r12.glb) | [spiral-r12-plan.png](track/spiral-r12-plan.png) |
+
+![Spiral ramp](track/spiral-r12.png)
+
+![Spiral ramp plan view with a landmark building](track/spiral-r12-plan.png)
+
 ## Track pieces
 
 | Piece | Image | Geometry | Notes |
