@@ -72,11 +72,13 @@ render both use, so the catalog image is always the car you drive.
 
 ![cockpit](cockpit/cockpit-view.png)
 
-Driver's-eye view: a generated dashboard texture (speed, damage, lap, timer) on a
-single plane, a simple steering wheel, and the hood. No modelled interior, no
-downloaded art. In the game the interior is drawn in camera space, the exterior
-shell is hidden to keep the view clear, and the steering wheel turns with the
-player's steering input.
+Driver's-eye view. In the game the cockpit is a PNG frame
+(`src/game/assets/cockpit-frame.png`) with a transparent windscreen, so the live
+track shows through the middle while the dashboard, A-pillars, and roof header
+sit on top. A separate transparent steering-wheel PNG
+(`src/game/assets/cockpit-wheel.png`) sits in front of the frame and turns with
+the player's steering input, up to 70 degrees of lock. The exterior shell is
+hidden. Both PNGs are generated art with no downloaded photos.
 
 ## Adding a piece
 
