@@ -8,6 +8,13 @@ describe('skybox selection', () => {
     expect(new Set(SKYBOX_STYLES.map((style) => style.name)).size).toBe(5);
   });
 
+  it('points every sky at an HDR texture', () => {
+    for (const style of SKYBOX_STYLES) {
+      expect(style.url).toMatch(/\.hdr(?:\?.*)?$/);
+      expect(style.fog).toBeGreaterThan(0);
+    }
+  });
+
   it('keys the sky to the circuit seed', () => {
     expect(skyboxStyleForSeed('alpha')).toBe(skyboxStyleForSeed('alpha'));
     expect(skyboxStyleForSeed('alpha').id).toBe(
@@ -21,14 +28,5 @@ describe('skybox selection', () => {
       seen.add(skyboxStyleForSeed(`circuit-${index.toString(16)}`).id);
     }
     expect(seen.size).toBe(5);
-  });
-
-  it('gives every sky a fog colour, haze, and three mountain ranges', () => {
-    for (const style of SKYBOX_STYLES) {
-      expect(style.fog).toBeGreaterThan(0);
-      expect(style.haze).toMatch(/^#[0-9a-f]{6}$/);
-      expect(style.mountains).toHaveLength(3);
-      expect(style.cloud).toHaveLength(2);
-    }
   });
 });
