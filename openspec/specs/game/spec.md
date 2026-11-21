@@ -25,9 +25,9 @@ of the requirements.
 | Turn radius | 12–27 m across the level ladder |
 | Straight lengths | 12–30 m across the level ladder |
 | Design speed | 12 m/s |
-| Opponent cruise speed | 12–15.6 m/s |
-| Maximum speed | 24 m/s |
-| Limp speed | 10 m/s |
+| Opponent cruise speed | 24–31.2 m/s |
+| Maximum speed | 48 m/s |
+| Limp speed | 20 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
 | Maximum frame delta | 0.1 s |
@@ -613,7 +613,7 @@ so a steered wheel spins about its own axle instead of precessing.
 - **GIVEN** the car is on the start line at rest
 - **WHEN** the race starts
 - **THEN** motor torque accelerates it without input
-- **AND** speed approaches the design speed
+- **AND** speed approaches the maximum speed
 
 #### Scenario: Loop
 
