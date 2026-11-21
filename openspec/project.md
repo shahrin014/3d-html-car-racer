@@ -207,12 +207,12 @@ runtime API calls.
 | Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
-| Opponent cruise speed | 12–15.6 m/s |
-| Jump | 1.6 m lip at a 0.2 slope · 6 m gap · 16 m landing ramp |
+| Opponent cruise speed | 24–31.2 m/s |
+| Jump | 1.6 m lip at a 0.03 slope · 5 m gap · 17 m landing ramp |
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m raised deck · 20 m ramps · 24 m flat |
-| Maximum speed | 24 m/s |
-| Limp speed | 10 m/s |
+| Maximum speed | 48 m/s |
+| Limp speed | 20 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
 | Maximum frame delta | 0.1 s |

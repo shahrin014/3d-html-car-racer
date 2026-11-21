@@ -65,9 +65,13 @@ export const PHYSICS_ENGINE_FORCE = 32;
 export const PHYSICS_CHASSIS_ROUNDING = 0.09;
 /** Height of the body centre above the track when the chassis rests on it. */
 export const PHYSICS_RIDE_HEIGHT = CHASSIS_HALF_HEIGHT;
-export const PHYSICS_BRAKE_FORCE = 24;
-/** Quadratic drag: force = coefficient * speed^2 opposing motion. */
-export const PHYSICS_DRAG = 0.05;
+export const PHYSICS_BRAKE_FORCE = 48;
+/**
+ * Quadratic drag: force = coefficient * speed^2 opposing motion. Quartered
+ * from 0.05 so the terminal speed doubles at the same engine force; the car
+ * still accelerates off the line exactly as before.
+ */
+export const PHYSICS_DRAG = 0.0125;
 /**
  * Steering is a heading target, not a torque: full lock aims the nose this
  * many radians off the track tangent. Torque alone spins a 1.2 kg toy car
@@ -75,34 +79,38 @@ export const PHYSICS_DRAG = 0.05;
  */
 export const PHYSICS_STEER_ANGLE = 0.12;
 /** Assist that pulls the body onto the track surface and its tangent. */
-export const PHYSICS_STICK_STRENGTH = 80;
-export const PHYSICS_STICK_DAMPING = 14;
-export const PHYSICS_HEADING_ASSIST = 20;
+export const PHYSICS_STICK_STRENGTH = 320;
+export const PHYSICS_STICK_DAMPING = 28;
+export const PHYSICS_HEADING_ASSIST = 80;
 /** Damps the spring above so the nose settles without oscillating. */
-export const PHYSICS_YAW_DAMPING = 6;
+export const PHYSICS_YAW_DAMPING = 12;
 /** Torque that rolls and pitches the body onto the track surface. */
-export const PHYSICS_UP_ALIGNMENT = 20;
+export const PHYSICS_UP_ALIGNMENT = 80;
 /** Damps that spring so a contact bump does not ring the body. */
-export const PHYSICS_UP_DAMPING = 6;
+export const PHYSICS_UP_DAMPING = 12;
 /**
  * Lateral grip budget, in multiples of the car's weight. The assist may never
  * push sideways harder than this, so steering cannot slide the car further
  * than a tyre could.
  */
-export const PHYSICS_GRIP = 3;
+export const PHYSICS_GRIP = 12;
 /** Lateral speed the car is allowed to drift at, in m/s at full lock. */
-export const PHYSICS_DRIFT_SPEED = 1.4;
+export const PHYSICS_DRIFT_SPEED = 2.8;
 /** How fast the assist cancels sideways velocity, per second. */
-export const PHYSICS_LATERAL_GAIN = 8;
+export const PHYSICS_LATERAL_GAIN = 16;
 /** Gentle pull back to the centreline once the player releases steering. */
-export const PHYSICS_CENTRE_GAIN = 2.5;
+export const PHYSICS_CENTRE_GAIN = 5;
 /** Contact force above this is treated as a crash. */
 export const IMPACT_THRESHOLD = 40;
 
-/** Speed ceiling at zero damage. */
-export const MAX_SPEED = 24;
+/**
+ * Speed ceiling at zero damage. The car is twice as fast as the original
+ * 24 m/s top speed; the drag and assist constants scale with the square of
+ * that speed.
+ */
+export const MAX_SPEED = 48;
 /** Limp ceiling at maximum damage. */
-export const LIMP_SPEED = 10;
+export const LIMP_SPEED = 20;
 
 export const DESIGN_SPEED = 12;
 export const LOOP_RADIUS = 7 * TRACK_SCALE;
@@ -138,8 +146,12 @@ export const JUMP_HEIGHT = 1.6;
 export const JUMP_KICKER_LENGTH = 8;
 export const JUMP_GAP_LENGTH = 5;
 export const JUMP_LANDING_LENGTH = 17;
-/** Lip slope, dy/dz: about 7 degrees, gentle enough to land at top speed. */
-export const JUMP_LAUNCH_SLOPE = 0.12;
+/**
+ * Lip slope, dy/dz. The kicker is convex at the lip, so a fast car leaves it
+ * early at a steeper effective angle; this nominal slope is what keeps the
+ * flight short enough to reach the landing ramp at doubled speed.
+ */
+export const JUMP_LAUNCH_SLOPE = 0.03;
 export const JUMP_LENGTH =
   JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH;
 
@@ -159,18 +171,19 @@ export const BRIDGE_CLEARANCE = 3.5;
 /**
  * Opponents on the grid. Each drives a kinematic racing line at its own pace
  * and lane, so the field is deterministic and the player can bump into them.
+ * Their cruise speed matches the doubled player pace.
  */
 export const OPPONENT_COUNT_MAX = 5;
 export const DEFAULT_OPPONENT_COUNT = 3;
 /** Lateral offsets from the centreline, in metres. */
 export const OPPONENT_LANES = [-1.4, 0.9, -0.4, 1.4, 0.4] as const;
-export const OPPONENT_BASE_SPEED = 12;
-export const OPPONENT_SPEED_STEP = 0.9;
+export const OPPONENT_BASE_SPEED = 24;
+export const OPPONENT_SPEED_STEP = 1.8;
 /** Metres ahead of the player on the grid for the first opponent. */
 export const OPPONENT_GRID_OFFSET = 3;
 export const OPPONENT_GRID_SPACING = 2.6;
 
-export const BOOST_IMPULSE = 7;
+export const BOOST_IMPULSE = 14;
 export const BOOST_COOLDOWN = 1.6;
 
 /** Damage per unit of impact impulse, before the level factor. */
