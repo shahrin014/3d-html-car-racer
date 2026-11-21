@@ -1,6 +1,6 @@
 # Skybox textures
 
-The game uses one of five equirectangular HDR skies, chosen from the circuit
+The game uses one of six equirectangular HDR skies, chosen from the circuit
 seed. They are 1k Radiance HDR files from [Poly Haven](https://polyhaven.com/)
 and are released under the [CC0 1.0 Universal](https://polyhaven.com/license)
 public-domain dedication.
@@ -10,6 +10,7 @@ public-domain dedication.
 | `dawn-hdr.hdr` | Qwantani Dawn | https://polyhaven.com/a/qwantani_dawn_puresky |
 | `noon-hdr.hdr` | Kloofendal 48d Partly Cloudy | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky |
 | `sunset-hdr.hdr` | Qwantani Sunset | https://polyhaven.com/a/qwantani_sunset_puresky |
+| `scythian-hdr.hdr` | Scythian Tombs | https://polyhaven.com/a/scythian_tombs_puresky |
 | `night-hdr.hdr` | Qwantani Night | https://polyhaven.com/a/qwantani_night_puresky |
 | `mist-hdr.hdr` | Kloofendal 28d Misty | https://polyhaven.com/a/kloofendal_28d_misty_puresky |
 

@@ -4,6 +4,7 @@ import dawnUrl from '../../assets/skyboxes/dawn-hdr.hdr?url';
 import mistUrl from '../../assets/skyboxes/mist-hdr.hdr?url';
 import nightUrl from '../../assets/skyboxes/night-hdr.hdr?url';
 import noonUrl from '../../assets/skyboxes/noon-hdr.hdr?url';
+import scythianUrl from '../../assets/skyboxes/scythian-hdr.hdr?url';
 import sunsetUrl from '../../assets/skyboxes/sunset-hdr.hdr?url';
 
 /**
@@ -14,7 +15,13 @@ import sunsetUrl from '../../assets/skyboxes/sunset-hdr.hdr?url';
  * cached for the session; the source pages and licence are listed in
  * `assets/skyboxes/README.md`.
  */
-export type SkyboxId = 'dawn' | 'noon' | 'sunset' | 'night' | 'mist';
+export type SkyboxId =
+  | 'dawn'
+  | 'noon'
+  | 'sunset'
+  | 'scythian'
+  | 'night'
+  | 'mist';
 
 export interface SkyboxStyle {
   readonly id: SkyboxId;
@@ -42,6 +49,12 @@ export const SKYBOX_STYLES: readonly SkyboxStyle[] = [
     name: 'Sunset haze',
     fog: 0xb0bbc8,
     url: sunsetUrl,
+  },
+  {
+    id: 'scythian',
+    name: 'Scythian sunset',
+    fog: 0xb2bdc6,
+    url: scythianUrl,
   },
   {
     id: 'night',
