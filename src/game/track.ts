@@ -596,6 +596,29 @@ function assembleCircuit(
     pieces.push({ kind, path, length, matrix, spiralCenter: center });
   };
 
+  /** A climb or descent between the lower deck and the elevated stretch. */
+  type Transition = {
+    kind: 'spiral-up' | 'spiral-down' | 'ramp-up' | 'ramp-down';
+    path: TrackPath;
+    length: number;
+    /** Forward distance consumed in plan view; a spiral consumes none. */
+    plan: number;
+  };
+
+  const addTransition = (transition: Transition): void => {
+    if (transition.kind === 'spiral-up' || transition.kind === 'spiral-down') {
+      addSpiral(
+        transition.kind,
+        transition.path,
+        transition.length,
+        SPIRAL_RADIUS,
+        true,
+      );
+    } else {
+      addPiece(transition.kind, transition.path, transition.length);
+    }
+  };
+
   const pick = <T,>(values: readonly T[]): T => {
     const value = values[Math.floor(random() * values.length)];
     if (value === undefined) {
@@ -710,6 +733,71 @@ function assembleCircuit(
     boostCandidates[(boostStart + 1) % boostCandidates.length]!,
   ]);
 
+  // Some polygon seeds leave the lower deck: a climb on one free leg, an
+  // elevated stretch through the rest of the circuit, and a descent on a
+  // different free leg. The loop and hill legs stay reserved so their authored
+  // features keep their usual slot. Leg 0 is always free, so a four-corner
+  // circuit has exactly two free legs; three-corner circuits have only one and
+  // stay at ground.
+  const elevated = corners >= 4 && random() < 0.5;
+  const levels = elevated && random() < 0.35 ? 2 : 1;
+  const reservedLegs = new Set([loopLeg, hillLeg]);
+  const freeLegs = legs
+    .map((_, index) => index)
+    .filter((index) => !reservedLegs.has(index));
+  let climbLeg = -1;
+  let descentLeg = -1;
+  let climb: Transition | null = null;
+  let descent: Transition | null = null;
+
+  if (elevated && freeLegs.length >= 2) {
+    const first = Math.floor(random() * freeLegs.length);
+    let second = Math.floor(random() * (freeLegs.length - 1));
+    if (second >= first) {
+      second += 1;
+    }
+    const a = freeLegs[first]!;
+    const b = freeLegs[second]!;
+    // Keep the climb earlier than the descent so the elevated stretch never
+    // wraps around the seam.
+    climbLeg = Math.min(a, b);
+    descentLeg = Math.max(a, b);
+
+    const makeTransition = (
+      direction: 'up' | 'down',
+      legIndex: number,
+    ): Transition => {
+      const boost = boostLegs.has(legIndex) ? CIRCUIT_BOOST_LENGTH : 0;
+      const available =
+        (legs[legIndex] ?? 0) - CIRCUIT_LEAD_STRAIGHT - boost;
+      // Two levels always use the spiral: a matching straight ramp would be
+      // too long for the authored leg budget. One level prefers a ramp when
+      // there is room, which keeps both transition shapes in the catalogue.
+      const canRamp = levels === 1 && available >= BRIDGE_RAMP_LENGTH;
+      if (canRamp && random() < 0.55) {
+        return {
+          kind: direction === 'up' ? 'ramp-up' : 'ramp-down',
+          path: direction === 'up' ? bridgeRampUpPath() : bridgeRampDownPath(),
+          length: BRIDGE_RAMP_LENGTH,
+          plan: BRIDGE_RAMP_LENGTH,
+        };
+      }
+      const height = BRIDGE_HEIGHT * levels;
+      return {
+        kind: direction === 'up' ? 'spiral-up' : 'spiral-down',
+        path:
+          direction === 'up'
+            ? spiralUpPath(SPIRAL_RADIUS, height, levels)
+            : spiralDownPath(SPIRAL_RADIUS, height, levels),
+        length: spiralArcLength(SPIRAL_RADIUS, height, levels),
+        plan: 0,
+      };
+    };
+
+    climb = makeTransition('up', climbLeg);
+    descent = makeTransition('down', descentLeg);
+  }
+
   legs.forEach((leg, index) => {
     const feature =
       index === loopLeg
@@ -720,9 +808,23 @@ function assembleCircuit(
             : HILL_LENGTH
           : 0;
     const boost = boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0;
-    const pad = leg - CIRCUIT_LEAD_STRAIGHT - feature - boost;
+    const climbPlan = index === climbLeg && climb ? climb.plan : 0;
+    const descentPlan = index === descentLeg && descent ? descent.plan : 0;
+    const pad =
+      leg -
+      CIRCUIT_LEAD_STRAIGHT -
+      feature -
+      boost -
+      climbPlan -
+      descentPlan;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
+    if (index === climbLeg && climb) {
+      addTransition(climb);
+    }
+    if (index === descentLeg && descent) {
+      addTransition(descent);
+    }
     if (index === loopLeg) {
       addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
       addPiece(

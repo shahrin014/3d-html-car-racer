@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_TURN_RADIUS } from './constants';
+import * as THREE from 'three';
+import { MIN_TURN_RADIUS, TRACK_WIDTH } from './constants';
 import {
   buildFrames,
   generateCircuit,
@@ -181,6 +182,47 @@ describe('track randomization', () => {
         ).toBeGreaterThanOrEqual(2);
       }
     }
+  }, 20_000);
+
+  it('sends some polygon seeds up a climb and back down elsewhere', () => {
+    let elevated = 0;
+    const descents = new Set<string>();
+    for (const seed of SEEDS) {
+      for (const level of LEVELS) {
+        const circuit = generateCircuit(seed, level);
+        if (circuit.pieces.some((piece) => piece.kind === 'bridge')) {
+          continue;
+        }
+        const climbIndex = circuit.pieces.findIndex(
+          (piece) => piece.kind === 'spiral-up' || piece.kind === 'ramp-up',
+        );
+        const descentIndex = circuit.pieces.findIndex(
+          (piece) => piece.kind === 'spiral-down' || piece.kind === 'ramp-down',
+        );
+        if (climbIndex < 0 || descentIndex <= climbIndex) {
+          continue;
+        }
+        elevated += 1;
+        descents.add(circuit.pieces[descentIndex]!.kind);
+        const climb = circuit.pieces[climbIndex]!;
+        const descent = circuit.pieces[descentIndex]!;
+        const climbStart = new THREE.Vector3().setFromMatrixPosition(
+          climb.matrix,
+        );
+        const descentStart = new THREE.Vector3().setFromMatrixPosition(
+          descent.matrix,
+        );
+        expect(
+          Math.hypot(
+            descentStart.x - climbStart.x,
+            descentStart.z - climbStart.z,
+          ),
+        ).toBeGreaterThan(TRACK_WIDTH);
+      }
+    }
+    expect(elevated).toBeGreaterThan(0);
+    expect(descents.has('ramp-down')).toBe(true);
+    expect(descents.has('spiral-down')).toBe(true);
   }, 20_000);
 
   it('tightens turns and shrinks loops as the level rises', () => {
