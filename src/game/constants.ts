@@ -84,8 +84,13 @@ export const PHYSICS_STICK_DAMPING = 28;
 export const PHYSICS_HEADING_ASSIST = 80;
 /** Damps the spring above so the nose settles without oscillating. */
 export const PHYSICS_YAW_DAMPING = 12;
-/** Torque that rolls and pitches the body onto the track surface. */
-export const PHYSICS_UP_ALIGNMENT = 80;
+/**
+ * Torque that rolls and pitches the body onto the track surface. Kept at twice
+ * the original value rather than four times: at the doubled speed a stiffer
+ * spring rings against the faceted deck and the roll chatter exceeds the
+ * measured shake limit, while 40 still holds every bank and the loop.
+ */
+export const PHYSICS_UP_ALIGNMENT = 40;
 /** Damps that spring so a contact bump does not ring the body. */
 export const PHYSICS_UP_DAMPING = 12;
 /**
