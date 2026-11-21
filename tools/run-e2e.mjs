@@ -18,6 +18,7 @@ const specs = [
   'opponents.spec.ts',
   'opponents-limit.spec.ts',
   'camera-pause.spec.ts',
+  'fullscreen.spec.ts',
   'storage.spec.ts',
   'orientation.spec.ts',
   'offline.spec.ts',

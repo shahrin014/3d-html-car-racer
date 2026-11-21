@@ -17,6 +17,7 @@ import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
 import { placingLabel } from './game/placing';
 import { DEFAULT_PAINT, PAINTS, paintById } from './game/palette';
 import { randomSeed } from './game/seed';
+import { steerFromTilt, tiltDegrees } from './game/tilt';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -47,8 +48,6 @@ const pauseButton = mustQuery<HTMLButtonElement>('#pause');
 const cameraButton = mustQuery<HTMLButtonElement>('#camera');
 const startButton = mustQuery<HTMLButtonElement>('#start');
 const installButton = mustQuery<HTMLButtonElement>('#install');
-const steerLeft = mustQuery<HTMLButtonElement>('#steer-left');
-const steerRight = mustQuery<HTMLButtonElement>('#steer-right');
 const brakeButton = mustQuery<HTMLButtonElement>('#brake');
 const finalTime = mustQuery<HTMLElement>('#final-time');
 const finalDamage = mustQuery<HTMLElement>('#final-damage');
@@ -148,36 +147,120 @@ function isPortrait(): boolean {
   return window.matchMedia('(orientation: portrait)').matches;
 }
 
+// ---------- Fullscreen ----------
+
+interface FullscreenDocument extends Document {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => void;
+}
+
+interface FullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?: () => void;
+}
+
+function fullscreenElement(): Element | null {
+  const doc = document as FullscreenDocument;
+  return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+}
+
+function enterFullscreen(): void {
+  if (fullscreenElement()) {
+    return;
+  }
+  const root = document.documentElement as FullscreenElement;
+  const request =
+    root.requestFullscreen?.bind(root) ??
+    root.webkitRequestFullscreen?.bind(root);
+  try {
+    const result = request?.();
+    if (result instanceof Promise) {
+      void result.catch(() => undefined);
+    }
+  } catch {
+    // Fullscreen is a progressive enhancement; the race still runs without it.
+  }
+}
+
+function exitFullscreen(): void {
+  if (!fullscreenElement()) {
+    return;
+  }
+  const doc = document as FullscreenDocument;
+  const exit =
+    doc.exitFullscreen?.bind(doc) ?? doc.webkitExitFullscreen?.bind(doc);
+  try {
+    const result = exit?.();
+    if (result instanceof Promise) {
+      void result.catch(() => undefined);
+    }
+  } catch {
+    // The browser may have already dropped fullscreen.
+  }
+}
+
 let tiltEnabled = false;
-let tiltNeutral = 0;
+let tiltListening = false;
+let tiltNeutral: number | null = null;
 let tiltValue = 0;
-let pointerSteer = 0;
+let keySteer = 0;
+
+const TILT_DEAD_ZONE = 3;
+const TILT_FULL_LOCK = 25;
+// Each orientation event nudges the wheel toward the target. Smoothing keeps a
+// shaky hand from sawing at the wheel without making the response feel laggy.
+const TILT_SMOOTHING = 0.35;
+
+function screenAngleDegrees(): number {
+  const angle = window.screen.orientation?.angle;
+  if (typeof angle === 'number') {
+    return angle;
+  }
+  const legacy = (window as Window & { orientation?: number }).orientation;
+  return typeof legacy === 'number' ? ((legacy % 360) + 360) % 360 : 0;
+}
 
 function applySteer(game: Game | null): void {
   if (!game) {
     return;
   }
   const tilt = tiltEnabled ? tiltValue : 0;
-  game.setSteer(Math.max(-1, Math.min(1, tilt + pointerSteer)));
+  game.setSteer(Math.max(-1, Math.min(1, tilt + keySteer)));
+}
+
+function resetTilt(): void {
+  tiltNeutral = null;
+  tiltValue = 0;
+  applySteer(game);
 }
 
 function handleOrientation(event: DeviceOrientationEvent): void {
-  if (!tiltEnabled || event.gamma === null) {
+  if (!tiltEnabled || event.beta === null || event.gamma === null) {
     return;
   }
-  const angle = event.gamma - tiltNeutral;
-  const deadZone = 3;
-  if (Math.abs(angle) < deadZone) {
-    tiltValue = 0;
+  const angle = tiltDegrees(event.beta, event.gamma, screenAngleDegrees());
+  if (angle === null) {
     return;
   }
-  const normalised = (Math.sign(angle) * (Math.abs(angle) - deadZone)) / 22;
-  tiltValue = Math.max(-1, Math.min(1, normalised));
+  if (tiltNeutral === null) {
+    tiltNeutral = angle;
+    return;
+  }
+  const target = steerFromTilt(
+    angle,
+    tiltNeutral,
+    TILT_DEAD_ZONE,
+    TILT_FULL_LOCK,
+  );
+  tiltValue += (target - tiltValue) * TILT_SMOOTHING;
+  applySteer(game);
 }
 
 async function enableTilt(): Promise<void> {
-  const orientation = DeviceOrientationEvent as unknown as DeviceOrientationEventWithPermission;
+  if (tiltEnabled) {
+    return;
+  }
   try {
+    const orientation = DeviceOrientationEvent as unknown as DeviceOrientationEventWithPermission;
     if (typeof orientation.requestPermission === 'function') {
       const result = await orientation.requestPermission();
       if (result !== 'granted') {
@@ -186,8 +269,10 @@ async function enableTilt(): Promise<void> {
       }
     }
     tiltEnabled = true;
-    tiltNeutral = 0;
-    window.addEventListener('deviceorientation', handleOrientation);
+    if (!tiltListening) {
+      window.addEventListener('deviceorientation', handleOrientation);
+      tiltListening = true;
+    }
   } catch {
     tiltEnabled = false;
   }
@@ -233,6 +318,7 @@ try {
           menuBestElement.textContent = formatTime(totalTime);
         }
         setScreen('finished');
+        exitFullscreen();
         document
           .querySelector<HTMLButtonElement>('[data-overlay="finished"] .button--primary')
           ?.focus({ preventScroll: true });
@@ -311,8 +397,10 @@ function startRace(): void {
   // A new track for every race, not just every load.
   game.startRace(nextSeed);
   nextSeed = randomSeed();
-  pointerSteer = 0;
+  keySteer = 0;
+  resetTilt();
   setScreen('countdown');
+  enterFullscreen();
 }
 
 function pauseRace(): void {
@@ -321,6 +409,7 @@ function pauseRace(): void {
   }
   game.pause();
   setScreen('paused');
+  exitFullscreen();
 }
 
 function resumeRace(): void {
@@ -329,6 +418,7 @@ function resumeRace(): void {
   }
   game.resume();
   setScreen('racing');
+  enterFullscreen();
 }
 
 function showMenu(): void {
@@ -337,6 +427,7 @@ function showMenu(): void {
   }
   game.toMenu();
   setScreen('menu');
+  exitFullscreen();
 }
 
 startButton.addEventListener('click', startRace);
@@ -373,29 +464,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action]
   });
 }
 
-function holdSteer(button: HTMLButtonElement, direction: -1 | 1): void {
-  const press = () => {
-    pointerSteer = direction;
-    applySteer(game);
-  };
-  const release = () => {
-    if (pointerSteer === direction) {
-      pointerSteer = 0;
-      applySteer(game);
-    }
-  };
-  button.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    press();
-  });
-  button.addEventListener('pointerup', release);
-  button.addEventListener('pointerleave', release);
-  button.addEventListener('pointercancel', release);
-}
-
-holdSteer(steerLeft, -1);
-holdSteer(steerRight, 1);
-
 const setBrake = (active: boolean) => game?.setBrake(active);
 brakeButton.addEventListener('pointerdown', (event) => {
   event.preventDefault();
@@ -426,20 +494,14 @@ window.addEventListener('keydown', (event) => {
       camera === 'cockpit' ? 'Switch to chase camera' : 'Switch to cockpit camera',
     );
   }
-  const keyboardSteer = steerFromKeys(keys);
-  if (keyboardSteer !== 0) {
-    pointerSteer = keyboardSteer;
-    applySteer(game);
-  }
+  keySteer = steerFromKeys(keys);
+  applySteer(game);
   setBrake(brakeFromKeys(keys));
 });
 window.addEventListener('keyup', (event) => {
   keys.delete(event.key.toLowerCase());
-  const keyboardSteer = steerFromKeys(keys);
-  if (keyboardSteer === 0) {
-    pointerSteer = 0;
-    applySteer(game);
-  }
+  keySteer = steerFromKeys(keys);
+  applySteer(game);
   setBrake(brakeFromKeys(keys));
 });
 
@@ -449,8 +511,20 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// The browser's own Escape handling leaves fullscreen without delivering a
+// keydown, so treat any fullscreen exit during a race as a pause request.
+function handleFullscreenChange(): void {
+  if (!fullscreenElement() && document.body.dataset.screen === 'racing') {
+    pauseRace();
+  }
+}
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
 window.addEventListener('orientationchange', () => {
   rotatePrompt.setAttribute('aria-hidden', String(!isPortrait()));
+  // The screen frame changed, so the neutral roll has to be learned again.
+  resetTilt();
   if (isPortrait() && document.body.dataset.screen === 'racing') {
     pauseRace();
   }

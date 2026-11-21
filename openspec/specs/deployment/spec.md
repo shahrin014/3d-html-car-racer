@@ -162,7 +162,7 @@ NOT deploy.
 - **GIVEN** a pull request changes layout, controls, or physics
 - **WHEN** the browser job runs
 - **THEN** the suite runs at 844×390
-- **AND** it exercises button and keyboard steering with tilt unavailable
+- **AND** it exercises keyboard steering and the brake control with tilt unavailable
 
 #### Scenario: Fork pull request
 
