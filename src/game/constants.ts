@@ -152,6 +152,16 @@ export const JUMP_LANDING_LENGTH = 17;
  */
 export const JUMP_LANDING_HEIGHT = 0.9;
 /**
+ * How far below the virtual jump line or landing deck the car may fall before
+ * the attempt counts as failed. A successful jump clears the deck; this only
+ * catches a car that has dropped into the gap or past the landing.
+ */
+export const JUMP_FAIL_DEPTH = 1;
+/** A clearly failed jump gets this long to recover before the rescue. */
+export const JUMP_FAIL_GRACE_SECONDS = 0.35;
+/** How far before the gap a failed jump is retried from. */
+export const JUMP_RETRY_DISTANCE = 24;
+/**
  * Lip slope, dy/dz. The kicker is convex at the lip, so a fast car leaves it
  * early at a steeper effective angle; this nominal slope is what keeps the
  * flight short enough to reach the landing ramp at doubled speed.

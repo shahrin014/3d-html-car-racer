@@ -123,6 +123,12 @@ runtime API calls.
   the module vertically. Gap frames exist for progress and the camera but carry
   no collider and disable the guide assist, so the body flies ballistically and
   lands on the ramp. The mesh skips the gap entirely: no deck and no rails.
+- **Failed jumps are detected from height.** A jump attempt owns a short span
+  from the kicker lip to the end of the landing. If the car drops more than a
+  metre below that line or deck, drifts off the side, or sails past the landing
+  while airborne, it is rescued after a short grace from the solid run-up before
+  the kicker. The generic off-track timer cannot see this quickly because the
+  gap has no floor to stop the fall.
 - **Scenery is deterministic and one draw call.** The skyline is a single
   instanced box mesh with a canvas façade of lit windows, planned from the
   circuit seed on a jittered grid. Anything within 16 m of a track frame is
