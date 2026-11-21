@@ -192,6 +192,71 @@ function hillPath({ length, height }) {
   };
 }
 
+const SPIRAL = {
+  radius: 12,
+  height: 8 / 1.5,
+  turns: 1,
+};
+
+function smoothStep(t) {
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Helical ramp: one full turn climbing or dropping one bridge level. The
+ * vertical profile eases at both ends so the entry and exit join a straight
+ * flat; the plan circle returns to its own footprint, so the deck above can
+ * span the opening.
+ */
+function spiralPath({
+  radius,
+  height,
+  turns = 1,
+  clockwise = true,
+  descend = false,
+}) {
+  const angle = Math.PI * 2 * turns;
+  const sign = clockwise ? 1 : -1;
+  const rise = descend ? -height : height;
+  const horizontal = radius * angle;
+  const maxBank = bankForRadius(radius) * DEG;
+  return (t) => {
+    const theta = angle * t;
+    const dy = rise * 6 * t * (1 - t);
+    const tangent = new THREE.Vector3(
+      sign * Math.sin(theta) * horizontal,
+      dy,
+      Math.cos(theta) * horizontal,
+    ).normalize();
+    const right = new THREE.Vector3()
+      .crossVectors(new THREE.Vector3(0, 1, 0), tangent)
+      .normalize();
+    const up = new THREE.Vector3().crossVectors(tangent, right).normalize();
+    return {
+      position: new THREE.Vector3(
+        sign * radius * (1 - Math.cos(theta)),
+        rise * smoothStep(t),
+        radius * Math.sin(theta),
+      ),
+      tangent,
+      up,
+      bank: sign * maxBank * Math.sin(Math.PI * t),
+    };
+  };
+}
+
+function spiralArcLength(radius, height, turns = 1) {
+  const horizontal = radius * Math.PI * 2 * turns;
+  const steps = 128;
+  let length = 0;
+  for (let index = 0; index < steps; index += 1) {
+    const t = (index + 0.5) / steps;
+    const dy = height * 6 * t * (1 - t);
+    length += Math.hypot(horizontal, dy) / steps;
+  }
+  return length;
+}
+
 const PIECES = {
   'straight-12': {
     title: 'Straight · 12 m',
@@ -236,6 +301,25 @@ const PIECES = {
     path: loopPath(7),
     view: new THREE.Vector3(0.02, 1, 0.02),
     showLeadIn: true,
+  },
+  'spiral-r12': {
+    title: 'Spiral ramp · R12 · one level',
+    meta: `360° · rises ${SPIRAL.height.toFixed(1)} m · one bridge level`,
+    length: spiralArcLength(SPIRAL.radius, SPIRAL.height),
+    path: spiralPath(SPIRAL),
+    view: new THREE.Vector3(0.9, 0.55, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: SPIRAL.height, z: 0 },
+  },
+  'spiral-r12-plan': {
+    title: 'Spiral ramp · plan view',
+    meta: 'Landmark building fits inside the inner rail',
+    length: spiralArcLength(SPIRAL.radius, SPIRAL.height),
+    path: spiralPath(SPIRAL),
+    view: new THREE.Vector3(0.02, 1, 0.02),
+    showLeadIn: true,
+    leadOut: { x: 0, y: SPIRAL.height, z: 0 },
+    landmark: { width: 8, height: 18, depth: 8 },
   },
   'hill-crest-2.5': {
     title: 'Hill · crest 2.5 m',
@@ -884,13 +968,40 @@ if (piece.kind === 'car') {
   const track = buildTrack(piece.path, piece.length, { boost: piece.boost });
   assetGroup.add(track);
   if (piece.showLeadIn) {
-    // Show the loop in context: track leading in and out proves the
+    // Show the piece in context: track leading in and out proves the
     // entrance and exit rather than reading as a closed ring.
     const leadIn = buildTrack(straightPath(7), 7);
     leadIn.position.z = -7;
     const leadOut = buildTrack(straightPath(7), 7);
-    leadOut.position.set(TRACK.loopOffset, 0, 0);
+    const exit = piece.leadOut ?? { x: TRACK.loopOffset, y: 0, z: 0 };
+    leadOut.position.set(exit.x, exit.y, exit.z);
     assetGroup.add(leadIn, leadOut);
+  }
+  if (piece.landmark) {
+    const map = createWindowTexture();
+    const material = new THREE.MeshStandardMaterial({
+      map,
+      emissive: 0xffffff,
+      emissiveMap: map,
+      emissiveIntensity: 0.85,
+      roughness: 0.92,
+      metalness: 0.06,
+    });
+    const building = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        piece.landmark.width,
+        piece.landmark.height,
+        piece.landmark.depth,
+      ),
+      material,
+    );
+    building.position.set(
+      SPIRAL.radius,
+      piece.landmark.height / 2,
+      0,
+    );
+    building.name = 'spiral-landmark';
+    assetGroup.add(building);
   }
   fitCamera(assetGroup, piece.view ?? new THREE.Vector3(1, 0.72, 1), 1.12);
 }

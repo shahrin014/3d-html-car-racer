@@ -189,6 +189,15 @@ export const BRIDGE_LENGTH =
 export const BRIDGE_CLEARANCE = 3.5;
 
 /**
+ * Spiral ramp module: one full turn climbing (or dropping) one bridge level.
+ * The 18 m centreline radius leaves an opening about 29 m across inside the
+ * inner rail, which is wide enough for a landmark building in the middle.
+ */
+export const SPIRAL_RADIUS = 18;
+export const SPIRAL_HEIGHT = BRIDGE_HEIGHT;
+export const SPIRAL_TURNS = 1;
+
+/**
  * Opponents on the grid. Each drives a kinematic racing line at its own pace
  * and lane, so the field is deterministic and the player can bump into them.
  * Their cruise speed matches the doubled player pace.

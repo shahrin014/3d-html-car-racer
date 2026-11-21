@@ -33,6 +33,8 @@ of the requirements.
 | Maximum frame delta | 0.1 s |
 | Turn bank | 20–45° |
 | Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
+| Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
+| Spiral ramp rise | 8 m (one bridge level) per turn |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
 | Damage per impulse | 18 |
@@ -414,8 +416,10 @@ and two diagonals that cross once at their midpoints, with the vertical legs
 matching and the diagonals long enough to absorb the corner arcs. At the
 crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
 and the loop SHALL sit under the bridge so the crossing threads the loop's
-opening. The bridge SHALL rise on a ramp, cross flat, and descend on a matching
-ramp, at least 3.5 m above the lower deck.
+opening. The bridge SHALL rise on a spiral ramp, cross flat, and descend on a
+matching spiral ramp, at least 3.5 m above the lower deck. Each spiral SHALL
+turn a full circle while climbing or dropping one bridge level, and its radius
+SHALL leave a clear opening wide enough for a landmark building in the middle.
 
 #### Scenario: Every race is randomized
 
@@ -447,6 +451,13 @@ ramp, at least 3.5 m above the lower deck.
 - **WHEN** both circuits are generated
 - **THEN** turns tighten and loops shrink as the level rises
 - **AND** both circuits are closed and contain the required features
+
+#### Scenario: Spiral bridge
+
+- **GIVEN** a figure-eight circuit
+- **WHEN** the bridge is assembled
+- **THEN** it rises on a full-turn spiral and descends on a matching spiral
+- **AND** each spiral leaves an opening wide enough for a landmark building
 
 #### Scenario: Randomization never invents geometry
 

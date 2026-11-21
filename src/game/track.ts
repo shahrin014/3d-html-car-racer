@@ -21,6 +21,9 @@ import {
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
   MIN_TURN_RADIUS,
+  SPIRAL_HEIGHT,
+  SPIRAL_RADIUS,
+  SPIRAL_TURNS,
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
@@ -187,6 +190,94 @@ export function bridgeRampDownPath(
   };
 }
 
+/**
+ * Helical ramp: one full turn around a centre while climbing or dropping one
+ * bridge level. The vertical profile eases in and out so the entry and exit
+ * tangents match a flat straight, and the bank fades at both ends the way a
+ * banked turn does. A clockwise spiral bulges to the right of the approach.
+ */
+function spiralPath(
+  radius: number,
+  height: number,
+  turns: number,
+  clockwise: boolean,
+  descend: boolean,
+): TrackPath {
+  const angle = Math.PI * 2 * turns;
+  const sign = clockwise ? 1 : -1;
+  const rise = descend ? -height : height;
+  const horizontal = radius * angle;
+  const maxBank = (bankForRadius(radius) * Math.PI) / 180;
+  return (t) => {
+    const theta = angle * t;
+    const dy = rise * 6 * t * (1 - t);
+    const tangent = new THREE.Vector3(
+      sign * Math.sin(theta) * horizontal,
+      dy,
+      Math.cos(theta) * horizontal,
+    ).normalize();
+    const right = new THREE.Vector3()
+      .crossVectors(new THREE.Vector3(0, 1, 0), tangent)
+      .normalize();
+    const up = new THREE.Vector3().crossVectors(tangent, right).normalize();
+    return {
+      position: new THREE.Vector3(
+        sign * radius * (1 - Math.cos(theta)),
+        rise * smoothStep(t),
+        radius * Math.sin(theta),
+      ),
+      tangent,
+      up,
+      bank: sign * maxBank * Math.sin(Math.PI * t),
+    };
+  };
+}
+
+/** Spiral that climbs one level and returns to the same plan position. */
+export function spiralUpPath(
+  radius = SPIRAL_RADIUS,
+  height = SPIRAL_HEIGHT,
+  turns = SPIRAL_TURNS,
+  clockwise = true,
+): TrackPath {
+  return spiralPath(radius, height, turns, clockwise, false);
+}
+
+/** Spiral that drops one level and returns to the same plan position. */
+export function spiralDownPath(
+  radius = SPIRAL_RADIUS,
+  height = SPIRAL_HEIGHT,
+  turns = SPIRAL_TURNS,
+  clockwise = true,
+): TrackPath {
+  return spiralPath(radius, height, turns, clockwise, true);
+}
+
+/**
+ * Arc length of a spiral piece. The climb is eased, so integrate the vertical
+ * component instead of using a straight-helix approximation.
+ */
+export function spiralArcLength(
+  radius = SPIRAL_RADIUS,
+  height = SPIRAL_HEIGHT,
+  turns = SPIRAL_TURNS,
+): number {
+  const horizontal = radius * Math.PI * 2 * turns;
+  const steps = 128;
+  let length = 0;
+  for (let index = 0; index < steps; index += 1) {
+    const t = (index + 0.5) / steps;
+    const dy = height * 6 * t * (1 - t);
+    length += Math.hypot(horizontal, dy) / steps;
+  }
+  return length;
+}
+
+/** Radius of the clear opening inside the spiral's inner rail. */
+export function spiralInnerRadius(radius = SPIRAL_RADIUS): number {
+  return radius - TRACK_WIDTH / 2;
+}
+
 /** Hermite basis for a curve with chosen end values and end slopes. */
 function hermite(t: number): { h00: number; h10: number; h01: number; h11: number } {
   const squared = t * t;
@@ -341,7 +432,9 @@ export interface Piece {
     | 'landing'
     | 'ramp-up'
     | 'bridge'
-    | 'ramp-down';
+    | 'ramp-down'
+    | 'spiral-up'
+    | 'spiral-down';
   path: TrackPath;
   length: number;
   /** Matrix that places the piece's local frame in the circuit. */
@@ -350,6 +443,8 @@ export interface Piece {
   /** Authored turn radius and angle, used by layout validation. */
   radius?: number;
   angleDegrees?: number;
+  /** World-space centre of a spiral's clear opening, for landmarks. */
+  spiralCenter?: THREE.Vector3;
 }
 
 /** Seeded, catalogue-based circuit: a stadium with a loop and a hill. */
@@ -484,6 +579,23 @@ function assembleCircuit(
     pieces.push({ kind, path, length, matrix });
   };
 
+  const addSpiral = (
+    kind: 'spiral-up' | 'spiral-down',
+    path: TrackPath,
+    length: number,
+    radius: number,
+    clockwise: boolean,
+  ): void => {
+    const last = pieces[pieces.length - 1];
+    const matrix = last ? frameAt(last.matrix, last.path, 1) : identity.clone();
+    const center = new THREE.Vector3(
+      clockwise ? radius : -radius,
+      0,
+      0,
+    ).applyMatrix4(matrix);
+    pieces.push({ kind, path, length, matrix, spiralCenter: center });
+  };
+
   const pick = <T,>(values: readonly T[]): T => {
     const value = values[Math.floor(random() * values.length)];
     if (value === undefined) {
@@ -533,12 +645,21 @@ function assembleCircuit(
     addStraight(legA - CIRCUIT_LEAD_STRAIGHT - HILL_LENGTH);
     addTurn(turnAngle, true);
 
-    // The crossing leg: a boost straight, then up and over.
+    // The crossing leg: a boost straight, then a spiral up to the deck, a
+    // flat crossing, and a spiral back down. The spirals return to their own
+    // plan position, so the deck covers the old ramp-plus-deck length and its
+    // midpoint still sits over the loop.
     addStraight(Math.max(0, bridgeLead - CIRCUIT_BOOST_LENGTH));
     addStraight(CIRCUIT_BOOST_LENGTH, true);
-    addPiece('ramp-up', bridgeRampUpPath(), BRIDGE_RAMP_LENGTH);
-    addPiece('bridge', bridgeDeckPath(), BRIDGE_FLAT_LENGTH);
-    addPiece('ramp-down', bridgeRampDownPath(), BRIDGE_RAMP_LENGTH);
+    addSpiral('spiral-up', spiralUpPath(), spiralArcLength(), SPIRAL_RADIUS, true);
+    addPiece('bridge', bridgeDeckPath(BRIDGE_LENGTH), BRIDGE_LENGTH);
+    addSpiral(
+      'spiral-down',
+      spiralDownPath(),
+      spiralArcLength(),
+      SPIRAL_RADIUS,
+      true,
+    );
     addStraight(bridgeLead);
     addTurn(turnAngle, false);
 
