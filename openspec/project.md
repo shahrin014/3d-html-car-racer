@@ -236,6 +236,7 @@ runtime API calls.
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m raised deck · 20 m ramps · 24 m flat |
 | Maximum speed | 56 m/s |
+| Player engine force | 60 N, with 0.01875 quadratic drag |
 | Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
