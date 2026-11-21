@@ -217,8 +217,8 @@ runtime API calls.
 | Jump | 1.6 m lip at a 0.03 slope · 5 m gap · 17 m landing ramp, top at 0.9 m |
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m raised deck · 20 m ramps · 24 m flat |
-| Maximum speed | 48 m/s |
-| Limp speed | 20 m/s |
+| Maximum speed | 56 m/s |
+| Limp speed | 24 m/s |
 | Fixed simulation step | 1/120 s |
 | Maximum substeps per frame | 4 |
 | Maximum frame delta | 0.1 s |

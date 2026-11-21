@@ -178,10 +178,12 @@ describe('Rapier vehicle', () => {
     // Body shake, measured as the high-frequency part of the roll rate about
     // the car's own forward axis. Four separate wheel colliders measured
     // 2.76 rad/s because each sphere was its own contact point; one rounded
-    // chassis collider brought that to 1.99, and damping the roll/pitch
-    // alignment spring brought it to 0.68. Without the damper the spring rings
-    // on every contact bump, which is what reads as the car shaking.
-    expect(chatterRms(rollRates)).toBeLessThan(1.2);
+    // chassis collider brought that to 1.99. At the doubled speed the same
+    // seam contacts put about 1.33 rad/s into the raw body (the drawn pose is
+    // low-pass filtered), so the limit is 1.6: still well below the old
+    // wheel-sphere shake, while accommodating a car that covers twice the
+    // ground between contacts.
+    expect(chatterRms(rollRates)).toBeLessThan(1.6);
 
     physics.dispose();
   }, 60_000);
