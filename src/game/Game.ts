@@ -11,6 +11,7 @@ import {
   DEFAULT_LEVEL,
   DEFAULT_OPPONENT_COUNT,
   FIXED_STEP,
+  JUMP_FAIL_GRACE_SECONDS,
   LAPS,
   MAX_DAMAGE,
   MAX_FRAME_DELTA,
@@ -22,6 +23,13 @@ import {
   RESCUE_STALL_SECONDS,
   TRACK_WIDTH,
 } from './constants';
+import {
+  jumpFailed,
+  jumpRetryFrame,
+  jumpSpanAt,
+  jumpSpans,
+  type JumpSpan,
+} from './jumps';
 import { opponentSpecs, racingPose } from './opponents';
 import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
@@ -86,6 +94,7 @@ export class Game {
   private frames!: TrackFrame[];
   private length!: number;
   private boosts: BoostZone[] = [];
+  private jumps: JumpSpan[] = [];
   /** Seed of the circuit currently built. */
   private seed: string;
 
@@ -103,6 +112,7 @@ export class Game {
   private boostCooldown = 0;
   private pausedFromCountdown = false;
   private stallTime = 0;
+  private jumpFailTime = 0;
   private lastTime = 0;
   private physics: PhysicsHandle | null = null;
   private pendingPhysics: PhysicsHandle | null = null;
@@ -200,6 +210,8 @@ export class Game {
     this.frames = buildFrames(circuit);
     this.length = trackLength(this.frames);
     this.boosts = [];
+    this.jumps = jumpSpans(circuit.pieces);
+    this.jumpFailTime = 0;
     let distance = 0;
     for (const piece of circuit.pieces) {
       if (piece.boost) {
@@ -274,6 +286,7 @@ export class Game {
     this.time = 0;
     this.countdownEndsAt = 0;
     this.stallTime = 0;
+    this.jumpFailTime = 0;
     this.boostCooldown = 0;
     this.physicsAccumulator = 0;
     this.lastFrameIndex = 0;
@@ -314,6 +327,7 @@ export class Game {
     this.s = 0;
     this.speed = 0;
     this.damage = 0;
+    this.jumpFailTime = 0;
     const first = this.frames[0];
     if (this.physics && first) {
       this.physics.reset(first);
@@ -706,22 +720,42 @@ export class Game {
     this.carUp.set(0, 1, 0).applyQuaternion(state.quaternion);
     const offTrack = state.position.distanceTo(frame.position) > TRACK_WIDTH;
     const inverted = this.carUp.dot(frame.up) < 0.2;
+
+    // A jump has its own, much shorter, failure timer: once the car is below
+    // the launch line or landing deck it cannot recover, and the generic
+    // off-track distance would take seconds to notice because the gap has no
+    // floor to stop the fall.
+    const span = jumpSpanAt(this.jumps, frame.s);
+    const failedJump = jumpFailed(span, frame, state.position, frame.s);
+    this.jumpFailTime = failedJump ? this.jumpFailTime + delta : 0;
+
     if (this.speed < RESCUE_SPEED_THRESHOLD || offTrack || inverted) {
       this.stallTime += delta;
-      if (this.stallTime > RESCUE_STALL_SECONDS) {
-        this.stallTime = 0;
-        if (racing) {
-          this.totalTime += RESCUE_PENALTY_SECONDS;
-        }
-        physics.reset(frame);
-        resetChaseRig(this.chaseRig);
-        resetSmoothedPose(this.visualPose);
-        this.s = frame.s;
-        this.lastFrameIndex = index;
-        this.physicsAccumulator = 0;
-      }
     } else {
       this.stallTime = 0;
+    }
+
+    if (
+      this.jumpFailTime > JUMP_FAIL_GRACE_SECONDS ||
+      this.stallTime > RESCUE_STALL_SECONDS
+    ) {
+      this.stallTime = 0;
+      this.jumpFailTime = 0;
+      if (racing) {
+        this.totalTime += RESCUE_PENALTY_SECONDS;
+      }
+      // A failed jumper is put back before the kicker so it has a run-up. Any
+      // other rescue stays on the frame under the car.
+      const retry =
+        failedJump && span ? jumpRetryFrame(this.frames, span) : frame;
+      const retryIndex =
+        failedJump && span ? this.frames.indexOf(retry) : index;
+      physics.reset(retry);
+      resetChaseRig(this.chaseRig);
+      resetSmoothedPose(this.visualPose);
+      this.s = retry.s;
+      this.lastFrameIndex = retryIndex >= 0 ? retryIndex : index;
+      this.physicsAccumulator = 0;
     }
   }
 

@@ -925,6 +925,15 @@ be a game-over state.
 - **AND** a time penalty is added
 - **AND** damage is unchanged
 
+#### Scenario: Failed jump recovery
+
+- **GIVEN** the car leaves a kicker below the speed needed to clear the gap
+- **WHEN** it drops below the launch line or the landing deck
+- **THEN** the rescue triggers after a short grace, without waiting for the
+  generic off-track timer
+- **AND** the car is placed on the solid run-up before the kicker
+- **AND** a time penalty is added
+
 #### Scenario: No game over
 
 - **GIVEN** the car is destroyed or repeatedly stuck
