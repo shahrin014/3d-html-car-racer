@@ -2,7 +2,8 @@
 
 Task-specific handover for the work of making the car in the game match the
 reference casting. Project-wide behaviour and decisions live in
-`openspec/specs/` and `openspec/project.md`.
+[OpenSpec](https://github.com/shahrin014/3d-html-car-racer/tree/main/openspec)
+and [project decisions](https://github.com/shahrin014/3d-html-car-racer/blob/main/openspec/project.md).
 
 | Item | Value |
 | --- | --- |
@@ -10,7 +11,7 @@ reference casting. Project-wide behaviour and decisions live in
 | Main checkout | `/mnt/vm-shared-volume/projects/3d-html-car-racer` @ `main` (latest) |
 | Remote branch | `origin/feat/orange-loop-game` (last pushed `bb60f7e`) |
 | Node | `/tmp/node-v26.13.1-linux-x64/bin` must be on `PATH` (not installed system-wide) |
-| Specs | `openspec/specs/` (baseline; no change folder) |
+| Specs | [OpenSpec](https://github.com/shahrin014/3d-html-car-racer/tree/main/openspec) (baseline; no change folder) |
 
 ## 1. Goal
 
