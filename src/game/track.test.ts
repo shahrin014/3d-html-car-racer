@@ -19,7 +19,9 @@ import {
   MIN_TURN_RADIUS,
   RAIL_HEIGHT,
   SPIRAL_HEIGHT,
+  SPIRAL_LEVELS,
   SPIRAL_RADIUS,
+  SPIRAL_TURNS,
   TRACK_WIDTH,
 } from './constants';
 import {
@@ -223,7 +225,7 @@ describe('track pieces', () => {
   });
 
   it('spirals a full turn up one bridge level and returns overhead', () => {
-    const path = spiralUpPath();
+    const path = spiralUpPath(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1);
     const start = path(0);
     const mid = path(0.5);
     const end = path(1);
@@ -231,7 +233,7 @@ describe('track pieces', () => {
     expect(start.position.length()).toBeCloseTo(0, 6);
     expect(end.position.x).toBeCloseTo(0, 6);
     expect(end.position.z).toBeCloseTo(0, 6);
-    expect(end.position.y).toBeCloseTo(SPIRAL_HEIGHT, 6);
+    expect(end.position.y).toBeCloseTo(BRIDGE_HEIGHT, 6);
     expect(start.tangent.dot(end.tangent)).toBeCloseTo(1, 6);
     expect(start.up.dot(end.up)).toBeCloseTo(1, 6);
     // The entry and exit are flat, so the spiral joins a straight cleanly.
@@ -239,7 +241,7 @@ describe('track pieces', () => {
     expect(end.tangent.y).toBeCloseTo(0, 6);
     // Halfway round is the far side of the circle, halfway up.
     expect(mid.position.x).toBeCloseTo(SPIRAL_RADIUS * 2, 6);
-    expect(mid.position.y).toBeCloseTo(SPIRAL_HEIGHT / 2, 6);
+    expect(mid.position.y).toBeCloseTo(BRIDGE_HEIGHT / 2, 6);
     expect(mid.tangent.z).toBeLessThan(-0.9);
     // Every plan point sits on the circle whose centre is one radius to the
     // right of the approach.
@@ -251,7 +253,27 @@ describe('track pieces', () => {
     }
   });
 
-  it('drops a full turn back to the deck level', () => {
+  it('climbs several levels in one continuous spiral', () => {
+    const path = spiralUpPath();
+    const start = path(0);
+    const end = path(1);
+
+    expect(SPIRAL_TURNS).toBe(SPIRAL_LEVELS);
+    expect(SPIRAL_HEIGHT).toBe(BRIDGE_HEIGHT * SPIRAL_LEVELS);
+    expect(end.position.x).toBeCloseTo(0, 6);
+    expect(end.position.z).toBeCloseTo(0, 6);
+    expect(end.position.y).toBeCloseTo(SPIRAL_HEIGHT, 6);
+    expect(start.tangent.dot(end.tangent)).toBeCloseTo(1, 6);
+    // One full turn returns to the entry point, one bridge level higher.
+    for (let turn = 1; turn <= SPIRAL_TURNS; turn += 1) {
+      const point = path(turn / SPIRAL_TURNS).position;
+      expect(point.x).toBeCloseTo(0, 6);
+      expect(point.z).toBeCloseTo(0, 6);
+      expect(point.y).toBeCloseTo(BRIDGE_HEIGHT * turn, 6);
+    }
+  });
+
+  it('drops every level back to the deck', () => {
     const path = spiralDownPath();
     expect(path(0).position.y).toBeCloseTo(0, 6);
     expect(path(1).position.y).toBeCloseTo(-SPIRAL_HEIGHT, 6);
@@ -259,7 +281,9 @@ describe('track pieces', () => {
     expect(path(1).position.z).toBeCloseTo(0, 6);
     expect(path(0).tangent.y).toBeCloseTo(0, 6);
     expect(path(1).tangent.y).toBeCloseTo(0, 6);
-    expect(spiralArcLength()).toBeGreaterThan(SPIRAL_RADIUS * Math.PI * 2);
+    expect(spiralArcLength()).toBeGreaterThan(
+      SPIRAL_RADIUS * Math.PI * 2 * SPIRAL_TURNS,
+    );
   });
 
   it('leaves a building-sized opening inside the spiral', () => {

@@ -34,7 +34,8 @@ of the requirements.
 | Turn bank | 20–45° |
 | Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
 | Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
-| Spiral ramp rise | 8 m (one bridge level) per turn |
+| Spiral ramp rise | 8 m per turn; 16 m for the two-level bridge |
+| Spiral ramp levels | 2 |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
 | Damage per impulse | 18 |
@@ -418,8 +419,9 @@ crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
 and the loop SHALL sit under the bridge so the crossing threads the loop's
 opening. The bridge SHALL rise on a spiral ramp, cross flat, and descend on a
 matching spiral ramp, at least 3.5 m above the lower deck. Each spiral SHALL
-turn a full circle while climbing or dropping one bridge level, and its radius
-SHALL leave a clear opening wide enough for a landmark building in the middle.
+turn one full circle per bridge level and SHALL support climbing or dropping
+multiple levels; the figure-eight bridge SHALL use two levels. Its radius SHALL
+leave a clear opening wide enough for a landmark building in the middle.
 
 #### Scenario: Every race is randomized
 
@@ -456,7 +458,7 @@ SHALL leave a clear opening wide enough for a landmark building in the middle.
 
 - **GIVEN** a figure-eight circuit
 - **WHEN** the bridge is assembled
-- **THEN** it rises on a full-turn spiral and descends on a matching spiral
+- **THEN** it rises on a two-level spiral and descends on a matching spiral
 - **AND** each spiral leaves an opening wide enough for a landmark building
 
 #### Scenario: Randomization never invents geometry

@@ -23,8 +23,8 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Turn | ![turn](track/turn-90-r14.png) | 90°, R14 | Bank ~45° at 12 m/s |
 | Hairpin | ![hairpin](track/turn-180-r10.png) | 180°, R10 | Bank clamped at 45° |
 | Loop | ![loop](track/loop-r7.png) | R7 vertical, 360° | Ring lifted 0.8 m on 3.4 m entry and exit ramps; ends 6.8 m apart |
-| Spiral ramp | ![spiral](track/spiral-r12.png) | R12, 360°, +5.3 m | One bridge level per turn; the exit sits directly over the entry |
-| Spiral plan | ![spiral plan](track/spiral-r12-plan.png) | R12, 360° | 21 m clear opening inside the rail; a landmark building fits |
+| Spiral ramp | ![spiral](track/spiral-r12.png) | R12, 720°, +10.7 m | Two bridge levels; the exit sits directly over the entry |
+| Spiral plan | ![spiral plan](track/spiral-r12-plan.png) | R12, 720° | 21 m clear opening inside the rail; a landmark building fits |
 | Hill | ![hill](track/hill-crest-2.5.png) | 16 m, crest 2.5 m | Zero slope at both ends |
 | Launch ramp | ![ramp up](track/ramp-up-1.6.png) | 8 m, 1.6 m lip | Ends on an 11° launch; an empty gap follows |
 | Landing ramp | ![ramp down](track/ramp-down-1.6.png) | 16 m, 1.6 m lip | Enters on the launch line and flattens to the deck |
@@ -37,8 +37,9 @@ share a launch tangent, with the empty gap between them. The deck floats: there
 are no support columns under elevated track. The game scales the catalogue by
 1.5× and widens the deck to 7 m at runtime, so the track in play is wider than
 the catalogue. The spiral ramp follows the same rule: its R12 catalogue ring
-becomes an R18 ring that climbs 8 m in one turn and leaves a 29 m opening for a
-landmark building.
+becomes an R18 ring that climbs 8 m per turn and leaves a 29 m opening for a
+landmark building. The figure-eight bridge uses two turns, so it rises 16 m
+before the flat crossing.
 
 ## Buildings
 
@@ -96,6 +97,12 @@ embedded textures:
 
 ```bash
 npm run assets:glb
+```
+
+Pass piece ids to export only those models:
+
+```bash
+npm run assets:glb -- spiral-r12
 ```
 
 The files live next to the previews in `assets/track/` and use the same

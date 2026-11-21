@@ -194,8 +194,8 @@ function hillPath({ length, height }) {
 
 const SPIRAL = {
   radius: 12,
-  height: 8 / 1.5,
-  turns: 1,
+  height: (8 / 1.5) * 2,
+  turns: 2,
 };
 
 function smoothStep(t) {
@@ -303,9 +303,9 @@ const PIECES = {
     showLeadIn: true,
   },
   'spiral-r12': {
-    title: 'Spiral ramp · R12 · one level',
-    meta: `360° · rises ${SPIRAL.height.toFixed(1)} m · one bridge level`,
-    length: spiralArcLength(SPIRAL.radius, SPIRAL.height),
+    title: 'Spiral ramp · R12 · two levels',
+    meta: `720° · rises ${SPIRAL.height.toFixed(1)} m · two bridge levels`,
+    length: spiralArcLength(SPIRAL.radius, SPIRAL.height, SPIRAL.turns),
     path: spiralPath(SPIRAL),
     view: new THREE.Vector3(0.9, 0.55, 1),
     showLeadIn: true,
@@ -314,7 +314,7 @@ const PIECES = {
   'spiral-r12-plan': {
     title: 'Spiral ramp · plan view',
     meta: 'Landmark building fits inside the inner rail',
-    length: spiralArcLength(SPIRAL.radius, SPIRAL.height),
+    length: spiralArcLength(SPIRAL.radius, SPIRAL.height, SPIRAL.turns),
     path: spiralPath(SPIRAL),
     view: new THREE.Vector3(0.02, 1, 0.02),
     showLeadIn: true,

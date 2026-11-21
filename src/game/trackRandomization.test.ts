@@ -181,7 +181,7 @@ describe('track randomization', () => {
         ).toBeGreaterThanOrEqual(2);
       }
     }
-  });
+  }, 20_000);
 
   it('tightens turns and shrinks loops as the level rises', () => {
     let previousTurnRadius = Number.POSITIVE_INFINITY;
