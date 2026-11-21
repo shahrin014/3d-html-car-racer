@@ -28,6 +28,7 @@ import { createPhysics, type PhysicsHandle } from './physics';
 import { racePlacing } from './placing';
 import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothing';
 import { buildScenery, type Scenery } from './scenery';
+import { buildSkybox, type Skybox } from './skybox';
 import {
   buildFrames,
   generateCircuit,
@@ -81,6 +82,7 @@ export class Game {
   private opponents: { car: Car; spin: number }[] = [];
   private trackMesh!: TrackMesh;
   private scenery: Scenery | null = null;
+  private skybox: Skybox | null = null;
   private frames!: TrackFrame[];
   private length!: number;
   private boosts: BoostZone[] = [];
@@ -219,6 +221,16 @@ export class Game {
     }
     this.scenery = buildScenery(this.frames, circuit.seed);
     this.scene.add(this.scenery.group);
+
+    // The sky is keyed to the same seed as the circuit, so a fresh track also
+    // brings a fresh time of day and a new horizon to race towards.
+    this.skybox?.dispose();
+    this.skybox = buildSkybox(circuit.seed);
+    this.scene.background = this.skybox.texture;
+    const fog = this.scene.fog;
+    if (fog) {
+      fog.color.setHex(this.skybox.fog);
+    }
   }
 
   /**
@@ -414,6 +426,7 @@ export class Game {
     this.pendingPhysics?.dispose();
     this.trackMesh.dispose();
     this.scenery?.dispose();
+    this.skybox?.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
