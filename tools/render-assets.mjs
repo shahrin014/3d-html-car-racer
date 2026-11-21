@@ -23,6 +23,7 @@ const PIECES = [
   { id: 'turn-180-r10', folder: 'track' },
   { id: 'loop-r7', folder: 'track' },
   { id: 'loop-r7-plan', folder: 'track' },
+  { id: 'spiral-r12-1', folder: 'track' },
   { id: 'spiral-r12', folder: 'track' },
   { id: 'spiral-r12-plan', folder: 'track' },
   { id: 'hill-crest-2.5', folder: 'track' },

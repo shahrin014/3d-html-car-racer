@@ -192,7 +192,13 @@ function hillPath({ length, height }) {
   };
 }
 
-const SPIRAL = {
+const SPIRAL_ONE_LEVEL = {
+  radius: 12,
+  height: 8 / 1.5,
+  turns: 1,
+};
+
+const SPIRAL_TWO_LEVELS = {
   radius: 12,
   height: (8 / 1.5) * 2,
   turns: 2,
@@ -302,24 +308,50 @@ const PIECES = {
     view: new THREE.Vector3(0.02, 1, 0.02),
     showLeadIn: true,
   },
-  'spiral-r12': {
-    title: 'Spiral ramp · R12 · two levels',
-    meta: `720° · rises ${SPIRAL.height.toFixed(1)} m · two bridge levels`,
-    length: spiralArcLength(SPIRAL.radius, SPIRAL.height, SPIRAL.turns),
-    path: spiralPath(SPIRAL),
+  'spiral-r12-1': {
+    title: 'Spiral ramp · R12 · one level',
+    meta: `360° · rises ${SPIRAL_ONE_LEVEL.height.toFixed(1)} m · one bridge level`,
+    length: spiralArcLength(
+      SPIRAL_ONE_LEVEL.radius,
+      SPIRAL_ONE_LEVEL.height,
+      SPIRAL_ONE_LEVEL.turns,
+    ),
+    path: spiralPath(SPIRAL_ONE_LEVEL),
     view: new THREE.Vector3(0.9, 0.55, 1),
     showLeadIn: true,
-    leadOut: { x: 0, y: SPIRAL.height, z: 0 },
+    leadOut: { x: 0, y: SPIRAL_ONE_LEVEL.height, z: 0 },
+  },
+  'spiral-r12': {
+    title: 'Spiral ramp · R12 · two levels',
+    meta: `720° · rises ${SPIRAL_TWO_LEVELS.height.toFixed(1)} m · two bridge levels`,
+    length: spiralArcLength(
+      SPIRAL_TWO_LEVELS.radius,
+      SPIRAL_TWO_LEVELS.height,
+      SPIRAL_TWO_LEVELS.turns,
+    ),
+    path: spiralPath(SPIRAL_TWO_LEVELS),
+    view: new THREE.Vector3(0.9, 0.55, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: SPIRAL_TWO_LEVELS.height, z: 0 },
   },
   'spiral-r12-plan': {
     title: 'Spiral ramp · plan view',
     meta: 'Landmark building fits inside the inner rail',
-    length: spiralArcLength(SPIRAL.radius, SPIRAL.height, SPIRAL.turns),
-    path: spiralPath(SPIRAL),
+    length: spiralArcLength(
+      SPIRAL_TWO_LEVELS.radius,
+      SPIRAL_TWO_LEVELS.height,
+      SPIRAL_TWO_LEVELS.turns,
+    ),
+    path: spiralPath(SPIRAL_TWO_LEVELS),
     view: new THREE.Vector3(0.02, 1, 0.02),
     showLeadIn: true,
-    leadOut: { x: 0, y: SPIRAL.height, z: 0 },
-    landmark: { width: 8, height: 18, depth: 8 },
+    leadOut: { x: 0, y: SPIRAL_TWO_LEVELS.height, z: 0 },
+    landmark: {
+      width: 8,
+      height: 18,
+      depth: 8,
+      radius: SPIRAL_TWO_LEVELS.radius,
+    },
   },
   'hill-crest-2.5': {
     title: 'Hill · crest 2.5 m',
@@ -996,7 +1028,7 @@ if (piece.kind === 'car') {
       material,
     );
     building.position.set(
-      SPIRAL.radius,
+      piece.landmark.radius,
       piece.landmark.height / 2,
       0,
     );
