@@ -117,12 +117,12 @@ runtime API calls.
   allows a plan-view overlap only when the decks are at least 3.5 m apart
   vertically.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
-  kicker ends on an upward launch slope and the landing ramp enters on the same
-  slope before flattening out, so the two ramps and the empty gap share one
-  tangent and still close the module vertically. Gap frames exist for progress
-  and the camera but carry no collider and disable the guide assist, so the body
-  flies ballistically and lands on the ramp. The mesh
-  skips the gap entirely: no deck and no rails.
+  kicker ends on an upward launch slope and the landing ramp enters along the
+  same launch line, but its top edge sits below the lip, so the car drops onto
+  a lower ramp before flattening out. The ramps and the empty gap still close
+  the module vertically. Gap frames exist for progress and the camera but carry
+  no collider and disable the guide assist, so the body flies ballistically and
+  lands on the ramp. The mesh skips the gap entirely: no deck and no rails.
 - **Scenery is deterministic and one draw call.** The skyline is a single
   instanced box mesh with a canvas façade of lit windows, planned from the
   circuit seed on a jittered grid. Anything within 16 m of a track frame is
@@ -208,7 +208,7 @@ runtime API calls.
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
 | Opponent cruise speed | 24–31.2 m/s |
-| Jump | 1.6 m lip at a 0.03 slope · 5 m gap · 17 m landing ramp |
+| Jump | 1.6 m lip at a 0.03 slope · 5 m gap · 17 m landing ramp, top at 0.9 m |
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m raised deck · 20 m ramps · 24 m flat |
 | Maximum speed | 48 m/s |

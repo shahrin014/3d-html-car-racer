@@ -8,6 +8,7 @@ import {
   JUMP_GAP_LENGTH,
   JUMP_HEIGHT,
   JUMP_KICKER_LENGTH,
+  JUMP_LANDING_HEIGHT,
   JUMP_LANDING_LENGTH,
   JUMP_LAUNCH_SLOPE,
   JUMP_LENGTH,
@@ -142,6 +143,12 @@ describe('track pieces', () => {
     expect(landing(0).tangent.angleTo(new THREE.Vector3(0, 0, 1))).toBeLessThan(
       1e-6,
     );
+    // The landing deck's top edge sits below the kicker lip.
+    const landingEntry = landing(0)
+      .position.clone()
+      .applyMatrix4(endFrame(kicker).multiply(endFrame(gap)));
+    expect(landingEntry.y).toBeLessThan(JUMP_HEIGHT - 1e-6);
+    expect(landingEntry.y).toBeCloseTo(JUMP_LANDING_HEIGHT, 6);
 
     const world = new THREE.Matrix4()
       .multiply(endFrame(kicker))
