@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import {
   advanceTravel,
   circuitLength,
+  gradeAt,
+  paceAt,
   racingPose,
   type OpponentSpec,
 } from './opponents';
@@ -418,6 +420,7 @@ export async function createPhysics(
           racer.travelled,
           dt,
           trackLength,
+          gradeAt(frames, racer.distance),
         );
         racer.travelled = advanced.travelled;
         racer.distance = advanced.distance;
@@ -468,6 +471,7 @@ export async function createPhysics(
         const translation = racer.body.translation();
         const rotation = racer.body.rotation();
         const pose = racingPose(frames, racer.distance, racer.spec.lane);
+        const pace = paceAt(racer.spec, racer.distance, pose.tangent.y);
         return {
           position: new THREE.Vector3(
             translation.x,
@@ -480,8 +484,8 @@ export async function createPhysics(
             rotation.z,
             rotation.w,
           ),
-          velocity: pose.tangent.clone().multiplyScalar(racer.spec.speed),
-          speed: racer.spec.speed,
+          velocity: pose.tangent.clone().multiplyScalar(pace),
+          speed: pace,
           travelled: racer.travelled,
         };
       }),

@@ -54,8 +54,10 @@ runtime API calls.
   unit tests.
 - **Opponents are kinematic.** Rivals follow the circuit exactly on their own
   lanes and pace; the player's rigid body still collides with them, so they feel
-  solid without a second vehicle simulation. They never add damage, because a
-  kinematic body can produce very large solver forces in a frame.
+  solid without a second vehicle simulation. Pace is modulated by the track
+  tangent's grade, so rivals slow on climbs and speed up on descents. They never
+  add damage, because a kinematic body can produce very large solver forces in a
+  frame.
 - **Seeded, catalog-based generation.** A seed selects and orders authored
   pieces; it never invents geometry. The layout is a regular-polygon family
   (three to six banked corners of 360°/n, with alternating leg lengths allowed
@@ -104,8 +106,10 @@ runtime API calls.
   precesses with every rotation, and the fronts wobble at speed.
 - **Opponents are kinematic.** Each rival follows the same sampled frames as the
   renderer, in its own lane and at its own pace, through a kinematic body in the
-  player's world so it feels solid. Their contacts are excluded from damage:
-  kinematic bodies can produce very large solver forces in one frame.
+  player's world so it feels solid. Pace follows the frame tangent's vertical
+  component, slowing on climbs and speeding up on descents. Their contacts are
+  excluded from damage: kinematic bodies can produce very large solver forces in
+  one frame.
 - **`frame.right` is the driver's left.** The frame is right-handed but a car
   facing `+Z` has its right toward `-X`; player steering is negated once in the
   physics and once for the wheel visuals, pinned by tests.
@@ -227,7 +231,7 @@ runtime API calls.
 | Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |
-| Opponent cruise speed | 24–31.2 m/s |
+| Opponent cruise speed | 24–31.2 m/s, modulated by track grade |
 | Jump | 1.6 m lip at a 0.03 slope · 5 m gap · 17 m landing ramp, top at 0.9 m |
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m raised deck · 20 m ramps · 24 m flat |

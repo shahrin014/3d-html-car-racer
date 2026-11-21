@@ -33,6 +33,9 @@ of the requirements.
 | Maximum frame delta | 0.1 s |
 | Turn bank | 20–45° |
 | Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
+| Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
+| Spiral ramp rise | 8 m per turn; 16 m for the two-level bridge |
+| Spiral ramp levels | 2 |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
 | Damage per impulse | 18 |
@@ -414,8 +417,11 @@ and two diagonals that cross once at their midpoints, with the vertical legs
 matching and the diagonals long enough to absorb the corner arcs. At the
 crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
 and the loop SHALL sit under the bridge so the crossing threads the loop's
-opening. The bridge SHALL rise on a ramp, cross flat, and descend on a matching
-ramp, at least 3.5 m above the lower deck.
+opening. The bridge SHALL rise on a spiral ramp, cross flat, and descend on a
+matching spiral ramp, at least 3.5 m above the lower deck. Each spiral SHALL
+turn one full circle per bridge level and SHALL support climbing or dropping
+multiple levels; the figure-eight bridge SHALL use two levels. Its radius SHALL
+leave a clear opening wide enough for a landmark building in the middle.
 
 #### Scenario: Every race is randomized
 
@@ -447,6 +453,13 @@ ramp, at least 3.5 m above the lower deck.
 - **WHEN** both circuits are generated
 - **THEN** turns tighten and loops shrink as the level rises
 - **AND** both circuits are closed and contain the required features
+
+#### Scenario: Spiral bridge
+
+- **GIVEN** a figure-eight circuit
+- **WHEN** the bridge is assembled
+- **THEN** it rises on a two-level spiral and descends on a matching spiral
+- **AND** each spiral leaves an opening wide enough for a landmark building
 
 #### Scenario: Randomization never invents geometry
 
@@ -720,9 +733,10 @@ defaulting to three, and the choice SHALL persist across reloads. Each opponent
 SHALL use a palette paint that differs from the player's paint; opponent paints
 SHALL stay distinct until every non-player paint has been used, after which they
 cycle. Opponents SHALL follow the circuit on a kinematic racing line with their
-own lane and pace, SHALL stay on the deck through banks and loops, and SHALL be
-solid: the player's car collides with them without taking damage. They SHALL NOT
-change lap counting, timing, or the three-lap race against the clock.
+own lane and pace, slowing on climbs and accelerating on descents, SHALL stay on
+the deck through banks and loops, and SHALL be solid: the player's car collides
+with them without taking damage. They SHALL NOT change lap counting, timing, or
+the three-lap race against the clock.
 
 #### Scenario: Configurable field
 
@@ -753,6 +767,13 @@ change lap counting, timing, or the three-lap race against the clock.
 - **WHEN** the field drives a lap
 - **THEN** every opponent stays on the deck
 - **AND** follows the turns, banks, and loop of the circuit
+
+#### Scenario: Rivals respond to the terrain
+
+- **GIVEN** a race with opponents
+- **WHEN** a rival climbs a ramp, hill, or loop
+- **THEN** its pace falls below its cruise speed
+- **AND** its pace rises above cruise speed on the following descent
 
 ### Requirement: The player car's paint is selectable
 
