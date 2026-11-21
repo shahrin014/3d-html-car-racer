@@ -137,21 +137,39 @@ bridge height, and back down in a different section, as set out below.
 - **AND** only the combination, corner count, straight lengths, and elevation
   route differ
 
-### Requirement: Elevated sections climb once and descend elsewhere
+### Requirement: Elevated sections climb in stages and descend elsewhere
 
 Some seeds SHALL produce a circuit whose route leaves the lower deck, holds
 bridge height along the circuit, and rejoins the lower deck in a different
-section. Bridge height SHALL be at least one bridge level above the lower deck;
-a seed MAY climb more than one level. The climb SHALL be an authored spiral or
-ramp. The elevated stretch SHALL continue through at least one authored straight
-or banked turn beyond the climb. The descent SHALL be an authored spiral or
-ramp, and it SHALL sit at a different plan position from the climb; the route
-SHALL NOT drop back onto the lower deck at the climbing point. The climb and the
-descent MAY use different shapes. The elevated deck SHALL hold its height,
-within the authored bank, until the descent begins. Every climb and every descent
-SHALL meet the deck it joins at zero slope, so a car at racing speed is not
-launched. The elevated section SHALL remain part of the closed circuit and SHALL
-satisfy the overpass rules for every lower section it passes over.
+section. Bridge height SHALL be one or more bridge levels above the lower deck.
+A route MAY climb in one or two stages and descend in one or two stages. Each
+stage SHALL be an authored spiral or ramp and SHALL add or remove one or two
+bridge levels. A circuit MAY mix one-level and two-level stages, and MAY mix
+spiral and ramp stages, so both transition shapes and both spiral heights
+appear in the same circuit. The elevated stretch SHALL continue through at
+least one authored straight or banked turn beyond a climb. The descent stages
+SHALL sit at a different plan position from the climb stages; the route SHALL
+NOT drop back onto the lower deck at the climbing point. The elevated deck SHALL
+hold its height, within the authored bank, between stages. Every stage SHALL
+meet the deck it joins at zero slope, so a car at racing speed is not launched.
+The elevated section SHALL remain part of the closed circuit and SHALL satisfy
+the overpass rules for every lower section it passes over.
+
+#### Scenario: Mixed one-level and two-level stages
+
+- **GIVEN** several seeds at one level
+- **WHEN** the circuits are generated
+- **THEN** some circuits combine one-level and two-level transitions
+- **AND** every transition returns the deck to a valid height
+- **AND** each circuit returns to the lower deck after its last descent
+
+#### Scenario: Mixed spiral and ramp stages
+
+- **GIVEN** several seeds at one level
+- **WHEN** the circuits are generated
+- **THEN** some circuits use both a spiral stage and a ramp stage
+- **AND** a ramp stage uses an authored ramp length for its height
+- **AND** a two-level stage uses a ramp only when the leg has room
 
 #### Scenario: Some seeds keep the route elevated
 

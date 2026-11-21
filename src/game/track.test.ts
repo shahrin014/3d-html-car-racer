@@ -43,6 +43,7 @@ import {
   spiralUpPath,
   turnPath,
   validateCircuit,
+  type Piece,
   type TrackPath,
 } from './track';
 
@@ -370,7 +371,13 @@ describe('track pieces', () => {
       const hasDescent = candidate.pieces.some(
         (piece) => piece.kind === 'spiral-down' || piece.kind === 'ramp-down',
       );
-      if (!hasBridge && hasClimb && hasDescent) {
+      const climbs = candidate.pieces.filter(
+        (piece) => piece.kind === 'spiral-up' || piece.kind === 'ramp-up',
+      ).length;
+      const descents = candidate.pieces.filter(
+        (piece) => piece.kind === 'spiral-down' || piece.kind === 'ramp-down',
+      ).length;
+      if (!hasBridge && hasClimb && hasDescent && climbs === 1 && descents === 1) {
         circuit = candidate;
         break;
       }
@@ -462,6 +469,72 @@ describe('track pieces', () => {
       return;
     }
     throw new Error('no polygon spiral crossing found');
+  });
+
+  it('passes an elevated section over lower track', () => {
+    for (let index = 0; index < 80; index += 1) {
+      const circuit = generateCircuit(`elevated-overpass-${index}`, 1);
+      const frames = buildFrames(circuit, 0.8);
+      const total = frames[frames.length - 1]!.s;
+      const starts: { at: number; kind: Piece['kind'] }[] = [];
+      let distance = 0;
+      for (const piece of circuit.pieces) {
+        starts.push({ at: distance, kind: piece.kind });
+        distance += piece.length;
+      }
+      const kindAt = (s: number): Piece['kind'] => {
+        let kind: Piece['kind'] = starts[0]?.kind ?? 'straight';
+        for (const start of starts) {
+          if (start.at <= s + 1e-6) {
+            kind = start.kind;
+          } else {
+            break;
+          }
+        }
+        return kind;
+      };
+
+      for (let a = 0; a < frames.length; a += 1) {
+        const upper = frames[a]!;
+        const upperKind = kindAt(upper.s);
+        if (upperKind === 'loop' || upperKind === 'gap') {
+          continue;
+        }
+        for (let b = a + 1; b < frames.length; b += 1) {
+          const lower = frames[b]!;
+          const lowerKind = kindAt(lower.s);
+          if (lowerKind === 'loop' || lowerKind === 'gap') {
+            continue;
+          }
+          const direct = Math.abs(upper.s - lower.s);
+          const arc = Math.min(direct, Math.max(0, total - direct));
+          if (arc < TRACK_WIDTH * 2) {
+            continue;
+          }
+          const horizontal = Math.hypot(
+            upper.position.x - lower.position.x,
+            upper.position.z - lower.position.z,
+          );
+          if (horizontal >= TRACK_WIDTH) {
+            continue;
+          }
+          const separation = Math.abs(upper.position.y - lower.position.y);
+          if (separation < BRIDGE_CLEARANCE) {
+            continue;
+          }
+          // An upper deck frame sits over a lower one with real clearance.
+          const high =
+            upper.position.y >= lower.position.y ? upper : lower;
+          const low = high === upper ? lower : upper;
+          expect(high.position.y - low.position.y).toBeGreaterThanOrEqual(
+            BRIDGE_CLEARANCE,
+          );
+          expect(validateCircuit(circuit).ok).toBe(true);
+          return;
+        }
+      }
+    }
+    throw new Error('no elevated-over-lower crossing found');
   });
 
   it('sometimes keeps a figure-eight bridge elevated past the crossing', () => {

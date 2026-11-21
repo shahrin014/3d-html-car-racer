@@ -749,62 +749,87 @@ function assembleCircuit(
   // circuit has exactly two free legs; three-corner circuits have only one and
   // stay at ground.
   const elevated = corners >= 4 && random() < 0.75;
-  const levels = elevated && random() < 0.35 ? 2 : 1;
   const reservedLegs = new Set([loopLeg, hillLeg]);
   const freeLegs = legs
     .map((_, index) => index)
     .filter((index) => !reservedLegs.has(index));
-  let climbLeg = -1;
-  let descentLeg = -1;
-  let climb: Transition | null = null;
-  let descent: Transition | null = null;
+  const transitions = new Map<number, Transition>();
+
+  const pickLegs = (count: number): number[] => {
+    const pool = [...freeLegs];
+    const chosen: number[] = [];
+    while (chosen.length < count && pool.length > 0) {
+      const index = Math.floor(random() * pool.length);
+      chosen.push(pool[index]!);
+      pool.splice(index, 1);
+    }
+    return chosen.sort((a, b) => a - b);
+  };
 
   if (elevated && freeLegs.length >= 2) {
-    const first = Math.floor(random() * freeLegs.length);
-    let second = Math.floor(random() * (freeLegs.length - 1));
-    if (second >= first) {
-      second += 1;
-    }
-    const a = freeLegs[first]!;
-    const b = freeLegs[second]!;
-    // Keep the climb earlier than the descent so the elevated stretch never
-    // wraps around the seam.
-    climbLeg = Math.min(a, b);
-    descentLeg = Math.max(a, b);
-
     const makeTransition = (
       direction: 'up' | 'down',
       legIndex: number,
+      stageLevels: 1 | 2,
+      allowRamp: boolean,
     ): Transition => {
       const boost = boostLegs.has(legIndex) ? CIRCUIT_BOOST_LENGTH : 0;
       const available =
         (legs[legIndex] ?? 0) - CIRCUIT_LEAD_STRAIGHT - boost;
-      // Two levels always use the spiral: a matching straight ramp would be
-      // too long for the authored leg budget. One level prefers a ramp when
-      // there is room, which keeps both transition shapes in the catalogue.
-      const canRamp = levels === 1 && available >= BRIDGE_RAMP_LENGTH;
+      // A ramp uses the same authored slope at one or two levels, so its plan
+      // length grows with the height. Use it whenever the leg has room, and
+      // fall back to the spiral otherwise.
+      const rampLength = BRIDGE_RAMP_LENGTH * stageLevels;
+      const canRamp = allowRamp && available >= rampLength;
       if (canRamp && random() < 0.45) {
+        const height = BRIDGE_HEIGHT * stageLevels;
         return {
           kind: direction === 'up' ? 'ramp-up' : 'ramp-down',
-          path: direction === 'up' ? bridgeRampUpPath() : bridgeRampDownPath(),
-          length: BRIDGE_RAMP_LENGTH,
-          plan: BRIDGE_RAMP_LENGTH,
+          path:
+            direction === 'up'
+              ? bridgeRampUpPath(rampLength, height)
+              : bridgeRampDownPath(rampLength, height),
+          length: rampLength,
+          plan: rampLength,
         };
       }
-      const height = BRIDGE_HEIGHT * levels;
+      const height = BRIDGE_HEIGHT * stageLevels;
       return {
         kind: direction === 'up' ? 'spiral-up' : 'spiral-down',
         path:
           direction === 'up'
-            ? spiralUpPath(SPIRAL_RADIUS, height, levels)
-            : spiralDownPath(SPIRAL_RADIUS, height, levels),
-        length: spiralArcLength(SPIRAL_RADIUS, height, levels),
+            ? spiralUpPath(SPIRAL_RADIUS, height, stageLevels)
+            : spiralDownPath(SPIRAL_RADIUS, height, stageLevels),
+        length: spiralArcLength(SPIRAL_RADIUS, height, stageLevels),
         plan: 0,
       };
     };
 
-    climb = makeTransition('up', climbLeg);
-    descent = makeTransition('down', descentLeg);
+    // Five- and six-corner circuits have a third free leg, so some seeds use a
+    // two-stage elevation: climb one level, keep driving, then either climb or
+    // descend another level. That puts both one-level and two-level spirals in
+    // the same circuit instead of forcing one height for the whole layout.
+    const combineLevels = freeLegs.length >= 3 && random() < 0.5;
+    if (combineLevels) {
+      const [first, second, third] = pickLegs(3);
+      if (random() < 0.5) {
+        transitions.set(first!, makeTransition('up', first!, 1, true));
+        transitions.set(second!, makeTransition('up', second!, 1, true));
+        transitions.set(third!, makeTransition('down', third!, 2, true));
+      } else {
+        transitions.set(first!, makeTransition('up', first!, 2, true));
+        transitions.set(second!, makeTransition('down', second!, 1, true));
+        transitions.set(third!, makeTransition('down', third!, 1, true));
+      }
+    } else {
+      const [upLeg, downLeg] = pickLegs(2);
+      const stageLevels = random() < 0.35 ? 2 : 1;
+      transitions.set(upLeg!, makeTransition('up', upLeg!, stageLevels, true));
+      transitions.set(
+        downLeg!,
+        makeTransition('down', downLeg!, stageLevels, true),
+      );
+    }
   }
 
   legs.forEach((leg, index) => {
@@ -817,22 +842,14 @@ function assembleCircuit(
             : HILL_LENGTH
           : 0;
     const boost = boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0;
-    const climbPlan = index === climbLeg && climb ? climb.plan : 0;
-    const descentPlan = index === descentLeg && descent ? descent.plan : 0;
+    const transition = transitions.get(index);
+    const transitionPlan = transition?.plan ?? 0;
     const pad =
-      leg -
-      CIRCUIT_LEAD_STRAIGHT -
-      feature -
-      boost -
-      climbPlan -
-      descentPlan;
+      leg - CIRCUIT_LEAD_STRAIGHT - feature - boost - transitionPlan;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
-    if (index === climbLeg && climb) {
-      addTransition(climb);
-    }
-    if (index === descentLeg && descent) {
-      addTransition(descent);
+    if (transition) {
+      addTransition(transition);
     }
     if (index === loopLeg) {
       addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);

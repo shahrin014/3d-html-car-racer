@@ -128,10 +128,12 @@ runtime API calls.
   Validation allows a plan-view overlap only when the decks are at least 3.5 m
   apart vertically.
 - **Elevated sections can carry the route.** Beyond the figure-eight crossing, a
-  seed may send the circuit up a spiral or ramp, along an elevated stretch, and
-  back down on a spiral or ramp in a different section. The elevated deck may
-  cross over lower track, provided the decks stay at least 3.5 m apart and no
-  support touches either deck.
+  seed may send the circuit up one or two stages, along an elevated stretch, and
+  back down in one or two stages on a different section. Any stage can be a
+  spiral or a ramp, and a circuit can mix one-level and two-level stages, so
+  both transition shapes and both spiral heights appear together. The elevated
+  deck may cross over lower track, provided the decks stay at least 3.5 m apart
+  and no support touches either deck.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
   kicker ends on an upward launch slope and the landing ramp enters along the
   same launch line, but its top edge sits below the lip, so the car drops onto

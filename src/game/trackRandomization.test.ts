@@ -187,6 +187,7 @@ describe('track randomization', () => {
 
   it('sends some polygon seeds up a climb and back down elsewhere', () => {
     let elevated = 0;
+    const climbs = new Set<string>();
     const descents = new Set<string>();
     for (const seed of SEEDS) {
       for (const level of LEVELS) {
@@ -204,6 +205,7 @@ describe('track randomization', () => {
           continue;
         }
         elevated += 1;
+        climbs.add(circuit.pieces[climbIndex]!.kind);
         descents.add(circuit.pieces[descentIndex]!.kind);
         const climb = circuit.pieces[climbIndex]!;
         const descent = circuit.pieces[descentIndex]!;
@@ -222,6 +224,8 @@ describe('track randomization', () => {
       }
     }
     expect(elevated).toBeGreaterThan(0);
+    expect(climbs.has('ramp-up')).toBe(true);
+    expect(climbs.has('spiral-up')).toBe(true);
     expect(descents.has('ramp-down')).toBe(true);
     expect(descents.has('spiral-down')).toBe(true);
   }, 20_000);
@@ -250,6 +254,87 @@ describe('track randomization', () => {
     }
     expect(levels.has(1)).toBe(true);
     expect(levels.has(2)).toBe(true);
+  }, 20_000);
+
+  it('combines one-level and two-level spirals in one circuit', () => {
+    const oneLevel = spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1);
+    const twoLevel = spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT * 2, 2);
+    let mixed: Circuit | null = null;
+    for (const seed of SEEDS) {
+      for (const level of LEVELS) {
+        const circuit = generateCircuit(seed, level);
+        const spirals = circuit.pieces.filter(
+          (piece) =>
+            piece.kind === 'spiral-up' || piece.kind === 'spiral-down',
+        );
+        const hasOne = spirals.some(
+          (piece) => Math.abs(piece.length - oneLevel) < 0.01,
+        );
+        const hasTwo = spirals.some(
+          (piece) => Math.abs(piece.length - twoLevel) < 0.01,
+        );
+        if (hasOne && hasTwo) {
+          mixed = circuit;
+          break;
+        }
+      }
+      if (mixed) {
+        break;
+      }
+    }
+    expect(mixed).not.toBeNull();
+
+    // Each transition changes the deck by one or two levels, and the circuit
+    // returns to the lower deck after the last one.
+    let elevation = 0;
+    let base: number | null = null;
+    for (const piece of mixed!.pieces) {
+      if (
+        piece.kind !== 'spiral-up' &&
+        piece.kind !== 'spiral-down' &&
+        piece.kind !== 'ramp-up' &&
+        piece.kind !== 'ramp-down'
+      ) {
+        continue;
+      }
+      const start = new THREE.Vector3().setFromMatrixPosition(piece.matrix);
+      base ??= start.y;
+      expect(start.y - base).toBeCloseTo(elevation, 3);
+      const end = piece.path(1).position.clone().applyMatrix4(piece.matrix);
+      const change = end.y - start.y;
+      elevation += change;
+      const levels = Math.round(Math.abs(change) / BRIDGE_HEIGHT);
+      expect(levels === 1 || levels === 2).toBe(true);
+    }
+    expect(elevation).toBeCloseTo(0, 3);
+  }, 20_000);
+
+  it('mixes ramp and spiral transitions in one circuit', () => {
+    let mixed = false;
+    for (const seed of SEEDS) {
+      for (const level of LEVELS) {
+        const kinds = generateCircuit(seed, level).pieces
+          .map((piece) => piece.kind)
+          .filter(
+            (kind) =>
+              kind === 'ramp-up' ||
+              kind === 'ramp-down' ||
+              kind === 'spiral-up' ||
+              kind === 'spiral-down',
+          );
+        if (
+          kinds.some((kind) => kind.startsWith('ramp')) &&
+          kinds.some((kind) => kind.startsWith('spiral'))
+        ) {
+          mixed = true;
+          break;
+        }
+      }
+      if (mixed) {
+        break;
+      }
+    }
+    expect(mixed).toBe(true);
   }, 20_000);
 
   it('tightens turns and shrinks loops as the level rises', () => {
