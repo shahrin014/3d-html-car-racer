@@ -464,6 +464,71 @@ describe('track pieces', () => {
     throw new Error('no polygon spiral crossing found');
   });
 
+  it('sometimes keeps a figure-eight bridge elevated past the crossing', () => {
+    const patterns = new Set<'near' | 'far'>();
+    let farCircuit: ReturnType<typeof generateCircuit> | null = null;
+    for (let index = 0; index < 80; index += 1) {
+      const candidate = generateCircuit(`figure-eight-hold-${index}`, 1);
+      const bridgeIndex = candidate.pieces.findIndex(
+        (piece) => piece.kind === 'bridge',
+      );
+      if (bridgeIndex < 0) {
+        continue;
+      }
+      const descentIndex = candidate.pieces.findIndex(
+        (piece, pieceIndex) =>
+          pieceIndex > bridgeIndex &&
+          (piece.kind === 'spiral-down' || piece.kind === 'ramp-down'),
+      );
+      const far = descentIndex > bridgeIndex + 2;
+      patterns.add(far ? 'far' : 'near');
+      if (far) {
+        farCircuit ??= candidate;
+      }
+    }
+
+    // Seeds choose both the immediate descent and a descent after another
+    // corner, so the bridge exit no longer always sits over the climb.
+    expect(patterns.has('near')).toBe(true);
+    expect(patterns.has('far')).toBe(true);
+    expect(farCircuit).not.toBeNull();
+
+    const pieces = farCircuit!.pieces;
+    const bridgeIndex = pieces.findIndex((piece) => piece.kind === 'bridge');
+    const descentIndex = pieces.findIndex(
+      (piece, index) =>
+        index > bridgeIndex &&
+        (piece.kind === 'spiral-down' || piece.kind === 'ramp-down'),
+    );
+    expect(descentIndex).toBe(bridgeIndex + 3);
+    expect(pieces[bridgeIndex + 1]?.kind).toBe('straight');
+    expect(pieces[bridgeIndex + 2]?.kind).toBe('turn');
+
+    const bridgeStart = new THREE.Vector3().setFromMatrixPosition(
+      pieces[bridgeIndex]!.matrix,
+    );
+    for (const index of [bridgeIndex + 1, bridgeIndex + 2, descentIndex]) {
+      const start = new THREE.Vector3().setFromMatrixPosition(
+        pieces[index]!.matrix,
+      );
+      expect(start.y).toBeCloseTo(bridgeStart.y, 6);
+    }
+    const descent = pieces[descentIndex]!;
+    const descentStart = new THREE.Vector3().setFromMatrixPosition(
+      descent.matrix,
+    );
+    const descentEnd = descent.path(1).position
+      .clone()
+      .applyMatrix4(descent.matrix);
+    expect(descentStart.y - descentEnd.y).toBeCloseTo(SPIRAL_HEIGHT, 6);
+
+    const frames = buildFrames(farCircuit!);
+    const first = frames[0]!;
+    const last = frames[frames.length - 1]!;
+    expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
+    expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
+  });
+
   it('threads a bridge through the loop in a figure-eight circuit', () => {
     let circuit: ReturnType<typeof generateCircuit> | null = null;
     for (let index = 0; index < 40; index += 1) {

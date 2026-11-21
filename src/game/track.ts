@@ -676,6 +676,13 @@ function assembleCircuit(
     addStraight(CIRCUIT_BOOST_LENGTH, true);
     addSpiral('spiral-up', spiralUpPath(), spiralArcLength(), SPIRAL_RADIUS, true);
     addPiece('bridge', bridgeDeckPath(BRIDGE_LENGTH), BRIDGE_LENGTH);
+    // Some seeds keep the bridge elevated past the crossing and descend after
+    // the next corner, so the exit does not always sit directly over the climb.
+    const continueElevated = random() < 0.5;
+    if (continueElevated) {
+      addStraight(bridgeLead);
+      addTurn(turnAngle, false);
+    }
     addSpiral(
       'spiral-down',
       spiralDownPath(),
@@ -683,8 +690,10 @@ function assembleCircuit(
       SPIRAL_RADIUS,
       true,
     );
-    addStraight(bridgeLead);
-    addTurn(turnAngle, false);
+    if (!continueElevated) {
+      addStraight(bridgeLead);
+      addTurn(turnAngle, false);
+    }
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
     addStraight(CIRCUIT_BOOST_LENGTH, true);
