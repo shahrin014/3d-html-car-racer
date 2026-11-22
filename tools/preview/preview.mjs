@@ -30,6 +30,21 @@ const TRACK = {
   loopOffset: 4,
 };
 
+/**
+ * The obstacle corridor is rendered at runtime scale: the 7 m deck, 0.9 m
+ * hazard blocks 2.5 m from the centreline, and rails the height of a car are
+ * the values the player actually drives against. The catalogue's other pieces
+ * are shown at 3 m width (the game widens the deck to 7 m at runtime).
+ */
+const OBSTACLE_TRACK = {
+  width: 7,
+  thickness: 0.18,
+  railWidth: 0.18,
+  railHeight: 0.9,
+  seam: 1.5,
+  loopOffset: 4,
+};
+
 const DESIGN_SPEED = 12;
 const DEG = Math.PI / 180;
 
@@ -382,6 +397,15 @@ const PIECES = {
     boost: true,
     view: new THREE.Vector3(0.9, 0.6, 1),
   },
+  'obstacle-corridor-24': {
+    title: 'Obstacle corridor · 24 m',
+    meta: 'Five seeded rows across the deck · shown at runtime scale (7 m deck)',
+    length: 24,
+    path: straightPath(24),
+    obstacles: true,
+    track: OBSTACLE_TRACK,
+    view: new THREE.Vector3(0.7, 0.5, 1),
+  },
   'building-block': {
     kind: 'building',
     title: 'City block · low',
@@ -655,7 +679,7 @@ function framesFor(path, length, step = 0.35) {
  * `pointA` and `pointB` return the strip edges; `normal` gives the flat normal
  * for the strip so edges stay crisp.
  */
-function buildStrip(frames, pointA, pointB, normalOf) {
+function buildStrip(frames, pointA, pointB, normalOf, track = TRACK) {
   const positions = [];
   const normals = [];
   const uvs = [];
@@ -667,7 +691,7 @@ function buildStrip(frames, pointA, pointB, normalOf) {
     const normal = normalOf(frame);
     positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
     normals.push(normal.x, normal.y, normal.z, normal.x, normal.y, normal.z);
-    const v = frame.s / TRACK.seam;
+    const v = frame.s / track.seam;
     uvs.push(0, v, 1, v);
     if (index > 0) {
       const base = (index - 1) * 2;
@@ -686,21 +710,21 @@ function buildStrip(frames, pointA, pointB, normalOf) {
   return geometry;
 }
 
-function addStrip(group, frames, material, pointA, pointB, normalOf) {
+function addStrip(group, frames, material, pointA, pointB, normalOf, track = TRACK) {
   const mesh = new THREE.Mesh(
-    buildStrip(frames, pointA, pointB, normalOf),
+    buildStrip(frames, pointA, pointB, normalOf, track),
     material,
   );
   mesh.frustumCulled = false;
   group.add(mesh);
 }
 
-function addCap(group, frame, material) {
-  const half = TRACK.width / 2;
+function addCap(group, frame, material, track = TRACK) {
+  const half = track.width / 2;
   const topLeft = frame.position.clone().addScaledVector(frame.right, -half);
   const topRight = frame.position.clone().addScaledVector(frame.right, half);
-  const bottomLeft = topLeft.clone().addScaledVector(frame.up, -TRACK.thickness);
-  const bottomRight = topRight.clone().addScaledVector(frame.up, -TRACK.thickness);
+  const bottomLeft = topLeft.clone().addScaledVector(frame.up, -track.thickness);
+  const bottomRight = topRight.clone().addScaledVector(frame.up, -track.thickness);
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
@@ -726,8 +750,9 @@ function addCap(group, frame, material) {
   group.add(mesh);
 }
 
-function buildTrack(path, length, { boost = false, railFade } = {}) {
+function buildTrack(path, length, { boost = false, railFade, track: trackConfig } = {}) {
   const group = new THREE.Group();
+  const track = { ...TRACK, ...trackConfig };
   const railScale = (s) => {
     if (!railFade) {
       return 1;
@@ -749,56 +774,56 @@ function buildTrack(path, length, { boost = false, railFade } = {}) {
     side: THREE.DoubleSide,
   });
 
-  const half = TRACK.width / 2;
+  const half = track.width / 2;
   const topLeft = (frame) =>
     frame.position.clone().addScaledVector(frame.right, -half);
   const topRight = (frame) =>
     frame.position.clone().addScaledVector(frame.right, half);
   const bottomLeft = (frame) =>
-    topLeft(frame).addScaledVector(frame.up, -TRACK.thickness);
+    topLeft(frame).addScaledVector(frame.up, -track.thickness);
   const bottomRight = (frame) =>
-    topRight(frame).addScaledVector(frame.up, -TRACK.thickness);
+    topRight(frame).addScaledVector(frame.up, -track.thickness);
 
-  addStrip(group, frames, surfaceMaterial, topLeft, topRight, (frame) => frame.up);
+  addStrip(group, frames, surfaceMaterial, topLeft, topRight, (frame) => frame.up, track);
   addStrip(group, frames, surfaceMaterial, bottomLeft, bottomRight, (frame) =>
-    frame.up.clone().negate(),
+    frame.up.clone().negate(), track,
   );
   addStrip(group, frames, surfaceMaterial, topLeft, bottomLeft, (frame) =>
-    frame.right.clone().negate(),
+    frame.right.clone().negate(), track,
   );
   addStrip(group, frames, surfaceMaterial, topRight, bottomRight, (frame) =>
-    frame.right.clone(),
+    frame.right.clone(), track,
   );
 
   const firstFrame = frames[0];
   const lastFrame = frames[frames.length - 1];
   if (firstFrame) {
-    addCap(group, firstFrame, surfaceMaterial);
+    addCap(group, firstFrame, surfaceMaterial, track);
   }
   if (lastFrame) {
-    addCap(group, lastFrame, surfaceMaterial);
+    addCap(group, lastFrame, surfaceMaterial, track);
   }
 
   // Continuous rails: four swept faces per rail.
   for (const side of [-1, 1]) {
     const lateral =
-      side * (TRACK.width / 2 - TRACK.railWidth / 2);
+      side * (track.width / 2 - track.railWidth / 2);
     const railBase = (frame) =>
       frame.position.clone().addScaledVector(frame.right, lateral);
     const innerEdge = (frame) =>
       railBase(frame).addScaledVector(
         frame.right,
-        -side * (TRACK.railWidth / 2),
+        -side * (track.railWidth / 2),
       );
     const outerEdge = (frame) =>
       railBase(frame).addScaledVector(
         frame.right,
-        side * (TRACK.railWidth / 2),
+        side * (track.railWidth / 2),
       );
     const lift = (point, frame) =>
       point
         .clone()
-        .addScaledVector(frame.up, TRACK.railHeight * railScale(frame.s));
+        .addScaledVector(frame.up, track.railHeight * railScale(frame.s));
 
     addStrip(
       group,
@@ -807,6 +832,7 @@ function buildTrack(path, length, { boost = false, railFade } = {}) {
       (frame) => lift(innerEdge(frame), frame),
       (frame) => lift(outerEdge(frame), frame),
       (frame) => frame.up,
+      track,
     );
     addStrip(
       group,
@@ -815,6 +841,7 @@ function buildTrack(path, length, { boost = false, railFade } = {}) {
       innerEdge,
       (frame) => lift(innerEdge(frame), frame),
       (frame) => frame.right.clone().multiplyScalar(-side),
+      track,
     );
     addStrip(
       group,
@@ -823,11 +850,121 @@ function buildTrack(path, length, { boost = false, railFade } = {}) {
       (frame) => lift(outerEdge(frame), frame),
       outerEdge,
       (frame) => frame.right.clone().multiplyScalar(side),
+      track,
     );
   }
 
   // The deck floats: no support columns, matching the game.
   return group;
+}
+
+/**
+ * Dark hazard blocks with bright diagonal stripes, placed along an obstacle
+ * corridor exactly as the game's `obstacleSpecs` does: rows on alternating
+ * edges with occasional double-edge gates, chosen from a fixed seed so the
+ * catalog image is reproducible. The corridor keeps the centreline clear.
+ */
+function buildObstacleBlocks(group, length) {
+  const rows = 5;
+  const lateral = 2.5;
+  const size = 0.9;
+  let hash = 2166136261;
+  const seed = 'catalog-obstacle:1:0:obstacles';
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  const random = () => {
+    hash += 0x6d2b79f5;
+    let t = hash;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const texture = (() => {
+    const canvasTexture = document.createElement('canvas');
+    canvasTexture.width = 128;
+    canvasTexture.height = 128;
+    const ctx = canvasTexture.getContext('2d');
+    if (!ctx) {
+      throw new Error('2D canvas unavailable');
+    }
+    ctx.fillStyle = '#1a1206';
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.strokeStyle = '#ffc928';
+    ctx.lineWidth = 16;
+    for (let offset = -128; offset < 256; offset += 40) {
+      ctx.beginPath();
+      ctx.moveTo(offset, 0);
+      ctx.lineTo(offset + 128, 128);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#ff5a1f';
+    ctx.fillRect(0, 0, 128, 10);
+    const created = new THREE.CanvasTexture(canvasTexture);
+    created.colorSpace = THREE.SRGBColorSpace;
+    created.wrapS = THREE.RepeatWrapping;
+    created.wrapT = THREE.RepeatWrapping;
+    created.anisotropy = 8;
+    return created;
+  })();
+
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    emissive: 0xffa000,
+    emissiveMap: texture,
+    emissiveIntensity: 0.7,
+    roughness: 0.55,
+    metalness: 0.1,
+  });
+  const geometry = new THREE.BoxGeometry(size, size, size);
+
+  const placed = [];
+  const startSide = random() < 0.5 ? -1 : 1;
+  for (let row = 0; row < rows; row += 1) {
+    const roll = random();
+    const side = (row % 2 === 0 ? startSide : -startSide) * lateral;
+    let sides;
+    if (roll < 0.2) {
+      sides = [-lateral, lateral];
+    } else if (roll < 0.5) {
+      sides = [0];
+    } else {
+      sides = [side];
+    }
+    const z = ((row + 1) / (rows + 1)) * length;
+    for (const position of sides) {
+      placed.push({ x: position, y: size / 2, z });
+    }
+  }
+
+  const blocks = new THREE.InstancedMesh(geometry, material, placed.length);
+  blocks.frustumCulled = false;
+  const matrix = new THREE.Matrix4();
+  placed.forEach((position, index) => {
+    matrix.setPosition(position.x, position.y, position.z);
+    blocks.setMatrixAt(index, matrix);
+  });
+  blocks.instanceMatrix.needsUpdate = true;
+  group.add(blocks);
+
+  // A soft contact shadow under each block keeps it anchored on the deck.
+  const shadowMaterial = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+  });
+  for (const position of placed) {
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(size + 0.16, size + 0.16),
+      shadowMaterial,
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.set(position.x, 0.012, position.z);
+    group.add(shadow);
+  }
 }
 
 function createContactShadow(width, depth) {
@@ -997,8 +1134,14 @@ if (piece.kind === 'car') {
   assetGroup.add(building);
   fitCamera(assetGroup, piece.view ?? new THREE.Vector3(1, 0.55, 1), 1.08);
 } else {
-  const track = buildTrack(piece.path, piece.length, { boost: piece.boost });
+  const track = buildTrack(piece.path, piece.length, {
+    boost: piece.boost,
+    track: piece.track,
+  });
   assetGroup.add(track);
+  if (piece.obstacles) {
+    buildObstacleBlocks(assetGroup, piece.length);
+  }
   if (piece.showLeadIn) {
     // Show the piece in context: track leading in and out proves the
     // entrance and exit rather than reading as a closed ring.

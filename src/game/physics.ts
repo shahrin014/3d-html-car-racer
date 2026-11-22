@@ -1,5 +1,9 @@
 import * as THREE from 'three';
-import type { ObstacleSpec } from './obstacles';
+import {
+  weaveLateral,
+  type ObstacleLane,
+  type ObstacleSpec,
+} from './obstacles';
 import {
   advanceTravel,
   circuitLength,
@@ -63,6 +67,8 @@ export interface PhysicsOptions {
   opponents?: OpponentSpec[];
   /** Solid hazard blocks on the obstacle segments. */
   obstacles?: readonly ObstacleSpec[];
+  /** Corridor geometry the rivals weave around inside obstacle segments. */
+  obstacleLanes?: readonly ObstacleLane[];
 }
 
 export interface PhysicsHandle {
@@ -289,6 +295,7 @@ export async function createPhysics(
       collider: collider.handle,
       distance: spec.start,
       travelled: spec.start,
+      lateral: spec.lane,
     };
   });
   const opponentColliders = new Set(opponents.map((racer) => racer.collider));
@@ -466,7 +473,15 @@ export async function createPhysics(
         );
         racer.travelled = advanced.travelled;
         racer.distance = advanced.distance;
-        const pose = racingPose(frames, racer.distance, racer.spec.lane);
+        // Inside an obstacle corridor the rival weaves around the blocks
+        // instead of driving through them on its home lane.
+        racer.lateral = weaveLateral(
+          options.obstacleLanes ?? [],
+          racer.distance,
+          racer.lateral,
+          racer.spec.lane,
+        );
+        const pose = racingPose(frames, racer.distance, racer.lateral);
         racer.body.setNextKinematicTranslation(pose.position);
         racer.body.setNextKinematicRotation(pose.quaternion);
       }
@@ -512,7 +527,7 @@ export async function createPhysics(
       opponents.map((racer) => {
         const translation = racer.body.translation();
         const rotation = racer.body.rotation();
-        const pose = racingPose(frames, racer.distance, racer.spec.lane);
+        const pose = racingPose(frames, racer.distance, racer.lateral);
         const pace = paceAt(racer.spec, racer.distance, pose.tangent.y);
         return {
           position: new THREE.Vector3(
@@ -570,7 +585,8 @@ export async function createPhysics(
       for (const racer of opponents) {
         racer.distance = racer.spec.start;
         racer.travelled = racer.spec.start;
-        const pose = racingPose(frames, racer.distance, racer.spec.lane);
+        racer.lateral = racer.spec.lane;
+        const pose = racingPose(frames, racer.distance, racer.lateral);
         racer.body.setTranslation(pose.position, true);
         racer.body.setRotation(pose.quaternion, true);
         racer.body.setNextKinematicTranslation(pose.position);

@@ -34,7 +34,7 @@ of the requirements.
 | Spiral ramp rise | 8 m per turn; 16 m for two levels |
 | Spiral ramp levels | up to 2 |
 | Obstacle segment | 24 m straight with five seeded rows of edge blocks |
-| Obstacle block placement | 2.5 m from the centreline; clear centreline corridor |
+| Obstacle block placement | edge (2.5 m), centre, and double-edge rows; every row keeps a car-wide gap |
 | Assembly attempts | 32 deterministic offsets |
 
 ## Requirements
@@ -145,17 +145,18 @@ bridge height, and back down in a different section, as set out below.
 - **AND** only the combination, corner count, straight lengths, obstacle rows,
   and elevation route differ
 
-### Requirement: Obstacle segments are seeded and leave a clear line
+### Requirement: Obstacle segments are seeded and leave a gap in every row
 
 Some seeds SHALL include an obstacle segment as an authored straight from the
 catalog. The segment SHALL keep its authored 24 m length. The seed SHALL choose
-which rows carry a block on the left edge, the right edge, or both edges, and
-the same seed SHALL produce the same obstacle layout. Every block SHALL sit near
-a guide rail, inside the track, and above the deck. A clear corridor SHALL
-remain along the centreline and over every rival lane, so neither the player nor
-a rival is forced through a block. The obstacle segment SHALL NOT be combined
-with a climb/descent on the same leg; a leg MAY place the corridor just before
-its boost strip.
+each row's blocks: an edge block, a centre block, or a double-edge gate, and
+the same seed SHALL produce the same obstacle layout. Every row SHALL keep at
+least one gap at least a car width wide, clear of blocks, and every block SHALL
+sit inside the track and above the deck. Rivals SHALL steer a weaving line
+through each corridor that clears every block, so neither the player nor a rival
+is forced through a block. The obstacle segment SHALL NOT be combined with a
+climb/descent on the same leg; a leg MAY place the corridor just before its
+boost strip.
 
 #### Scenario: Obstacles are deterministic
 
@@ -164,12 +165,19 @@ its boost strip.
 - **THEN** every obstacle block has the same position and orientation
 - **AND** the obstacle segment keeps its authored length
 
-#### Scenario: Obstacles leave a clear line
+#### Scenario: Every row keeps a gap
 
 - **GIVEN** any generated obstacle segment
-- **WHEN** the blocks are measured against the centreline and the rival lanes
-- **THEN** no block reaches the centreline or a rival lane
+- **WHEN** each row is measured against the blocks in that row
+- **THEN** a gap at least a car width wide stays clear of blocks in every row
 - **AND** every block stays inside the rails and above the deck
+
+#### Scenario: Rivals weave clear of the blocks
+
+- **GIVEN** any generated obstacle segment
+- **WHEN** the weaving line rivals follow is sampled across the corridor
+- **THEN** the line clears every block by a car's width
+- **AND** the line returns to the rival's home lane outside the corridor
 
 #### Scenario: Not every seed carries obstacles
 

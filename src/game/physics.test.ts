@@ -359,6 +359,8 @@ describe('obstacles', () => {
         right: new THREE.Vector3(1, 0, 0),
         s: z,
         solid: true,
+        halfWidth: TRACK_WIDTH / 2,
+        rails: true,
       });
     }
     const blockZ = 30;

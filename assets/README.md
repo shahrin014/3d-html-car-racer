@@ -30,6 +30,7 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Launch ramp | ![ramp up](track/ramp-up-1.6.png) | 8 m, 1.6 m lip | Ends on an 11° launch; an empty gap follows |
 | Landing ramp | ![ramp down](track/ramp-down-1.6.png) | 16 m, 1.6 m lip | Enters on the launch line and flattens to the deck |
 | Boost straight | ![boost](track/boost-12.png) | 12 m + armed strip | Chevrons face the driving direction |
+| Obstacle corridor | ![obstacle corridor](track/obstacle-corridor-24.png) | 24 m, five seeded rows across the deck | Edge, centre, and gate rows that rivals weave around. Shown at runtime scale (7 m deck) |
 
 All pieces are 3.0 m wide in the catalogue (three car widths), 0.12 m thick,
 with 0.35 m guide rails, and start and end unbanked so any two pieces join

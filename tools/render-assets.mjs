@@ -30,6 +30,7 @@ const PIECES = [
   { id: 'ramp-up-1.6', folder: 'track' },
   { id: 'ramp-down-1.6', folder: 'track' },
   { id: 'boost-12', folder: 'track' },
+  { id: 'obstacle-corridor-24', folder: 'track' },
   { id: 'building-block', folder: 'buildings' },
   { id: 'building-tower', folder: 'buildings' },
   { id: 'building-wide', folder: 'buildings' },

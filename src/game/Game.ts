@@ -33,7 +33,9 @@ import {
 } from './jumps';
 import {
   buildObstacleMesh,
+  obstacleLanes,
   obstacleSpecs,
+  type ObstacleLane,
   type ObstacleMesh,
   type ObstacleSpec,
 } from './obstacles';
@@ -105,6 +107,7 @@ export class Game {
   private trackMesh!: TrackMesh;
   private obstacleMesh: ObstacleMesh | null = null;
   private obstacles: ObstacleSpec[] = [];
+  private obstacleLaneSpecs: ObstacleLane[] = [];
   private scenery: Scenery | null = null;
   private skyboxRevision = 0;
   private frames!: TrackFrame[];
@@ -250,6 +253,7 @@ export class Game {
     this.scene.add(mesh.group);
 
     this.obstacles = obstacleSpecs(circuit);
+    this.obstacleLaneSpecs = obstacleLanes(circuit);
     if (this.obstacleMesh) {
       this.scene.remove(this.obstacleMesh.group);
       this.obstacleMesh.dispose();
@@ -541,6 +545,7 @@ export class Game {
     this.physicsLoad = createPhysics(this.frames, {
       opponents: opponentSpecs(this.opponentCount),
       obstacles: this.obstacles,
+      obstacleLanes: this.obstacleLaneSpecs,
     })
       .then((handle) => {
         if (revision !== this.physicsRevision) {

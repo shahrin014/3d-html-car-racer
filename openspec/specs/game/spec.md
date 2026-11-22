@@ -33,7 +33,7 @@ of the requirements.
 | Maximum frame delta | 0.1 s |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
-| Obstacle segment | 24 m, five rows of edge blocks |
+| Obstacle segment | 24 m, five seeded rows across the deck |
 | Obstacle block | 0.9 m wide, 0.9 m deep, 0.9 m tall |
 | Damage per impulse | 18 |
 | Maximum damage | 100% |
@@ -467,19 +467,21 @@ crosses a barrier as it enters the landing.
 ### Requirement: Obstacle segments line the deck with solid hazards
 
 Some circuits SHALL include an obstacle segment: a straight deck lined with
-solid hazard blocks. The blocks SHALL sit near the guide rails, so a clear
-corridor remains along the centreline and over every rival lane. A car that
-drives into a block SHALL be stopped by it and SHALL take impact damage; the
-block SHALL NOT move, break, or leave the deck. The blocks SHALL be visually
-distinct from the surface and the boost strips. The obstacle segment SHALL keep
-the track surface continuous beneath the blocks.
+solid hazard blocks. Blocks SHALL appear at the deck edges, in the middle of the
+road, and as double-edge gates, so the car has to weave through the corridor
+instead of driving straight down the middle. Every row SHALL keep at least one
+passable gap at least a car width wide, and a car that drives into a block SHALL
+be stopped by it and SHALL take impact damage. Blocks SHALL NOT move, break, or
+leave the deck, and SHALL be visually distinct from the surface and the boost
+strips. The obstacle segment SHALL keep the track surface continuous beneath
+the blocks.
 
-#### Scenario: Centreline stays clear
+#### Scenario: Every row keeps a gap
 
 - **GIVEN** an obstacle segment
-- **WHEN** the blocks and the clear corridor are measured
-- **THEN** no block reaches the centreline or any rival lane
-- **AND** a car driving down the centreline passes without contact
+- **WHEN** each row of blocks is measured
+- **THEN** every row leaves a lateral corridor at least a car width wide, clear
+  of blocks, that a car can drive through without contact
 
 #### Scenario: Hitting a block damages the car
 
@@ -488,6 +490,13 @@ the track surface continuous beneath the blocks.
 - **THEN** the block stops the car
 - **AND** the impact adds damage
 - **AND** the block stays fixed to the deck
+
+#### Scenario: Rivals weave around the blocks
+
+- **GIVEN** rivals approaching an obstacle segment
+- **WHEN** they drive through the corridor
+- **THEN** each rival steers a line that clears every block
+- **AND** the rival stays on the deck between the rails
 
 #### Scenario: Obstacles are visible and distinct
 
