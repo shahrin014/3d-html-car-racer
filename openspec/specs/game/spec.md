@@ -678,7 +678,8 @@ The menu SHALL let the player choose a field of zero to thirty opponents,
 defaulting to three, and the choice SHALL persist across reloads. Each opponent
 SHALL use a palette paint that differs from the player's paint; opponent paints
 SHALL stay distinct until every non-player paint has been used, after which they
-cycle. Opponents SHALL follow the circuit on a kinematic racing line with their
+cycle. Opponents SHALL be drawn from the catalog car models and mixed across the
+field, so a grid is not built entirely from the player's car. Opponents SHALL follow the circuit on a kinematic racing line with their
 own lane and pace, slowing on climbs and accelerating on descents, SHALL stay on
 the deck through banks and loops, and SHALL be solid: the player's car collides
 with them without taking damage. They SHALL NOT change lap counting, timing, or
@@ -779,19 +780,27 @@ the origin, face +Z, and stay inside the physics envelope.
 
 ### Requirement: The player car's paint is selectable
 
-The menu SHALL offer ten named car paints, including the default pearl white of
-the Mach livery, as labelled swatches that can be activated by touch,
-mouse, or keyboard. The selection SHALL apply to the car immediately, SHALL
+The menu SHALL offer the stock livery, which is the default and keeps each
+car's baked colours, plus ten named car paints, as labelled swatches that can be
+activated by touch, mouse, or keyboard. The selection SHALL apply to the car immediately, SHALL
 persist across reloads, and SHALL expose its state to assistive technology. An
 unknown or corrupt stored paint SHALL fall back to the default.
 
-#### Scenario: Ten paints are offered
+#### Scenario: The stock livery and ten paints are offered
 
 - **GIVEN** the menu is shown
 - **WHEN** the paint picker is inspected
-- **THEN** ten paints are shown, each with a name and a distinct colour
-- **AND** exactly one is marked as the current paint
+- **THEN** the stock livery and ten paints are shown
+- **AND** the ten paints each have a name and a distinct colour
+- **AND** exactly one option is marked as the current paint
 - **AND** every swatch has an accessible name and a pressed state
+
+#### Scenario: Stock keeps a dark car's own livery
+
+- **GIVEN** a car whose baked body colour is dark
+- **WHEN** the paint is the stock livery
+- **THEN** the car keeps its own colours
+- **AND** choosing a paint recolours its bodywork through the paint mask
 
 #### Scenario: Selection applies and persists
 
@@ -805,7 +814,7 @@ unknown or corrupt stored paint SHALL fall back to the default.
 
 - **GIVEN** the stored paint id is not one of the ten
 - **WHEN** the game loads
-- **THEN** the default pearl white is used
+- **THEN** the stock livery is used
 
 ### Requirement: Device tilt steers the car
 

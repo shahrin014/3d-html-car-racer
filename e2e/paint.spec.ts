@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { expectNoIssues, gotoApp, watchPage } from './helpers.ts';
 
-test('paint picker offers ten paints and remembers the choice', async ({
+test('paint picker offers the stock livery and ten paints, and remembers the choice', async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -9,13 +9,14 @@ test('paint picker offers ten paints and remembers the choice', async ({
   await gotoApp(page);
 
   const swatches = page.locator('#paint-picker button[data-paint]');
-  await expect(swatches).toHaveCount(10);
+  await expect(swatches).toHaveCount(11);
   await expect(swatches.first()).toHaveAttribute('aria-pressed', 'true');
 
   const names = await swatches.evaluateAll((buttons) =>
     buttons.map((button) => button.getAttribute('aria-label')),
   );
-  expect(new Set(names).size).toBe(10);
+  expect(new Set(names).size).toBe(11);
+  await expect(swatches.first()).toHaveAttribute('aria-label', 'Stock livery');
 
   // Pick a paint the default is not, and check the pressed state moved with it.
   const violet = page.locator('#paint-picker button[data-paint="violet"]');
@@ -23,7 +24,7 @@ test('paint picker offers ten paints and remembers the choice', async ({
   await violet.click();
   await expect(violet).toHaveAttribute('aria-pressed', 'true');
   await expect(
-    page.locator('#paint-picker button[data-paint="pearl"]'),
+    page.locator('#paint-picker button[data-paint="stock"]'),
   ).toHaveAttribute('aria-pressed', 'false');
 
   // It survives a reload, including the swatch state.
@@ -38,7 +39,7 @@ test('paint picker offers ten paints and remembers the choice', async ({
   );
   await page.reload();
   await expect(
-    page.locator('#paint-picker button[data-paint="pearl"]'),
+    page.locator('#paint-picker button[data-paint="stock"]'),
   ).toHaveAttribute('aria-pressed', 'true');
 
   expectNoIssues(issues);

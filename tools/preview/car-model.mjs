@@ -15,7 +15,8 @@ import {
 /** Load one car's assets, then return a clone for the studio. */
 export async function createCar(id = 'mach') {
   await preloadCarModel('/public/models/', id);
-  return createRuntimeCar().group;
+  // Stock livery: the catalog shows each car as authored, before any paint.
+  return createRuntimeCar(null, id, 0).group;
 }
 
 const wheelParts = {

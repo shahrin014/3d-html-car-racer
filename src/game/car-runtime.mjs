@@ -21,41 +21,46 @@ const WHEEL_NAMES = [
 ];
 
 const sets = new Map();
-let active = null;
-let resolved = null;
+const resolvedById = new Map();
 
 /** A livery material that swaps the white bodywork for the chosen paint. */
-function paintedMaterial(source, color, map, mask) {
+function paintedMaterial(source, color, map, mask, baseLuma) {
   const material = source.clone();
   material.userData.paint = color;
   if ('map' in material && map) {
     material.map = map;
     material.needsUpdate = true;
   }
-  if (!map || !mask) {
+  // Stock livery: keep the baked colours, no repaint shader.
+  if (color === null || color === undefined || !map || !mask) {
     return material;
   }
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uPaintColor = { value: new THREE.Color(color) };
     shader.uniforms.uPaintMask = { value: mask };
+    shader.uniforms.uPaintBaseLuma = { value: baseLuma };
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
         `#include <common>
 uniform vec3 uPaintColor;
-uniform sampler2D uPaintMask;`,
+uniform sampler2D uPaintMask;
+uniform float uPaintBaseLuma;`,
       )
       .replace(
         '#include <map_fragment>',
         `vec4 livery = texture2D( map, vMapUv );
 float paintMask = texture2D( uPaintMask, vMapUv ).r;
-float shade = dot( livery.rgb, vec3( 0.299, 0.587, 0.114 ) );
-vec3 painted = uPaintColor * ( 0.45 + 0.9 * shade );
+float luma = dot( livery.rgb, vec3( 0.299, 0.587, 0.114 ) );
+// Light bodies keep the livery's painted shading; dark bodies have almost no
+// shading in the texture, so the paint is applied flat and lit by the scene.
+float detail = mix( 1.0, 0.45 + 0.9 * luma, step( 0.2, uPaintBaseLuma ) );
+vec3 painted = uPaintColor * detail;
 diffuseColor *= vec4( mix( livery.rgb, painted, paintMask ), livery.a );`,
       );
   };
   // Three caches programs by material; a fresh key per colour is required.
-  material.customProgramCacheKey = () => `livery-${color}`;
+  material.customProgramCacheKey = () => `livery-${color}-${baseLuma}`;
   material.needsUpdate = true;
   return material;
 }
@@ -93,20 +98,22 @@ export function preloadCarModel(base, id = 'mach') {
   if (!sets.has(key)) {
     sets.set(key, loadSet(base, id));
   }
-  active = sets.get(key);
-  return active.then((value) => {
-    resolved = value;
+  const pending = sets.get(key);
+  return pending.then((value) => {
+    resolvedById.set(id, value);
     return value.template;
   });
 }
 
 /** Build one car from an already-loaded model root. */
-export function buildCar(root, color = DEFAULT_BODY_COLOR) {
+export function buildCar(
+  root,
+  color = DEFAULT_BODY_COLOR,
+  { livery = null, mask = null, baseLuma = 0.7 } = {},
+) {
   const group = root.clone(true);
   group.name = 'car';
 
-  const map = resolved?.livery ?? null;
-  const mask = resolved?.mask ?? null;
   const cache = new Map();
   group.traverse((node) => {
     if (!node.isMesh) {
@@ -120,7 +127,7 @@ export function buildCar(root, color = DEFAULT_BODY_COLOR) {
       if (cached) {
         return cached;
       }
-      const painted = paintedMaterial(material, color, map, mask);
+      const painted = paintedMaterial(material, color, livery, mask, baseLuma);
       cache.set(material, painted);
       return painted;
     };
@@ -151,11 +158,17 @@ export function buildCar(root, color = DEFAULT_BODY_COLOR) {
   };
 }
 
-/** Build one car from the preloaded set. */
-export function createCar(color = DEFAULT_BODY_COLOR) {
-  const set = resolved;
+/** Build one car from the preloaded set for `id`. */
+export function createCar(color = DEFAULT_BODY_COLOR, id = 'mach', baseLuma = 0.7) {
+  const set = resolvedById.get(id);
   if (!set) {
-    throw new Error('car model is not loaded; await preloadCarModel()');
+    throw new Error(
+      `car ${id} is not loaded; await preloadCarModel(base, '${id}')`,
+    );
   }
-  return buildCar(set.template, color);
+  return buildCar(set.template, color, {
+    livery: set.livery,
+    mask: set.mask,
+    baseLuma,
+  });
 }

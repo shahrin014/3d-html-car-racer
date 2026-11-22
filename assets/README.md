@@ -102,9 +102,11 @@ Long-nose GT with a low canopy, wide haunches, and a rear wing.
 | `car/<id>-paint-mask.png` | White bodywork mask used for repainting |
 
 At runtime the livery texture and the mask are bound to the body material. The
-selected paint replaces only the masked white bodywork, scaled by the livery's
-own luminance so creases and shading survive; the coloured graphics, glazing,
-and tyres stay exactly as authored.
+default is the **stock livery**: the car keeps its own colours. Choosing a paint
+replaces only the masked bodywork, scaled by the livery's own luminance on a
+light car (so creases and shading survive) or applied flat on a dark car (whose
+texture carries little shading); the graphics, glazing, and tyres stay as
+authored.
 
 The wheels are part of the body surface, so each model ships four empty pivots
 named `wheel-rear-left`, `wheel-rear-right`, `wheel-front-left`, and
@@ -130,7 +132,9 @@ The build is driven by `tools/model/cars.json`; nothing in it assumes the Mach's
      "target": { "length": 2.45, "width": 1.26, "height": 0.6 },
      "wheelRadius": 0.26,
      "textureSize": 512,
-     "nose": "auto"
+     "nose": "auto",
+     "paintBase": [0.7, 0.7, 0.7],
+     "paintTolerance": 0.12
    }
    ```
 3. Build and publish:
@@ -150,6 +154,11 @@ nose (the taller end carries the rear wing), levels the car on its four tyre
 contacts, and grounds it on the tyres. If a mesh defeats those heuristics,
 override `nose` (`"-y"` or `"auto"`) or `upAxis` (`0`, `1`, `2`) for that car
 only. Scale, wheel radius, and texture size come from the same entry.
+
+`paintBase` is the body colour the paint mask should cover, with
+`paintTolerance` as its RGB distance. Dark cars should also set
+`paintExcludeWheels: true`, which carves the wheels' and glazing's UV footprints
+out of the mask so the paint does not recolour tyres or glass.
 
 At runtime, pass the id: `preloadCarModel(id)`. The catalog renderer takes the
 same id in `tools/preview/car-model.mjs`.

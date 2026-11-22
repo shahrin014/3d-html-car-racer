@@ -312,7 +312,8 @@ let carId = readCar();
 async function bootGame(): Promise<void> {
   startButton.disabled = true;
   try {
-    await preloadCarModel(carId);
+    // Every car is loaded so rivals can use any catalog model.
+    await Promise.all(CARS.map((car) => preloadCarModel(car.id)));
   } catch (error) {
     console.error('The car model could not be loaded.', error);
     startButton.textContent = 'Car model unavailable';
@@ -457,7 +458,9 @@ for (const option of PAINTS) {
   swatch.dataset.paint = option.id;
   swatch.style.setProperty(
     '--paint',
-    `#${option.color.toString(16).padStart(6, '0')}`,
+    option.color === null
+      ? 'conic-gradient(from 210deg, #f2f4f7 0 55%, #2b3d8f 55% 75%, #ef5f16 75%)'
+      : `#${option.color.toString(16).padStart(6, '0')}`,
   );
   swatch.title = option.name;
   swatch.setAttribute('aria-label', option.name);

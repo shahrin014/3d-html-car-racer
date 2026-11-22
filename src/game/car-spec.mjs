@@ -39,6 +39,9 @@ export const DEFAULT_BODY_COLOR = 0xf1f3f6;
  * asset names (public/models/<id>.glb and the two PNGs) and cars.json keys.
  */
 export const CARS = [
-  { id: 'mach', name: 'Mach' },
-  { id: 'gt', name: 'GT' },
+  // paintBaseLuma is the luminance of the livery's body colour: light bodies
+  // keep their painted shading, dark bodies take a flat paint colour (their
+  // texture carries little shading to preserve).
+  { id: 'mach', name: 'Mach', paintBaseLuma: 0.7 },
+  { id: 'gt', name: 'GT', paintBaseLuma: 0.0 },
 ];

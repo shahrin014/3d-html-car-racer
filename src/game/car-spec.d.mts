@@ -32,6 +32,7 @@ export declare const DEFAULT_BODY_COLOR: number;
 export interface CarOption {
   readonly id: string;
   readonly name: string;
+  readonly paintBaseLuma: number;
 }
 
 export declare const CARS: readonly CarOption[];

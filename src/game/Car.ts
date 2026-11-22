@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { CAR, DEFAULT_BODY_COLOR } from './car-spec.mjs';
+import { CAR, CARS, DEFAULT_BODY_COLOR } from './car-spec.mjs';
 import {
   buildCar as buildCarRuntime,
   createCar as createCarRuntime,
@@ -38,9 +38,10 @@ export function buildCar(root: THREE.Object3D, color = PLAYER_PAINT): Car {
   return buildCarRuntime(root, color) as Car;
 }
 
-/** Build one car. Throws until `preloadCarModel()` resolves. */
-export function createCar(color = PLAYER_PAINT): Car {
-  return createCarRuntime(color) as Car;
+/** Build one catalog car. Throws until its assets are preloaded. */
+export function createCar(color: number | null = PLAYER_PAINT, id = PLAYER_CAR): Car {
+  const option = CARS.find((car) => car.id === id) ?? CARS[0]!;
+  return createCarRuntime(color, option.id, option.paintBaseLuma) as Car;
 }
 
 /** Visual envelope in metres, kept in step with the physics chassis. */

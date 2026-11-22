@@ -10,6 +10,11 @@ describe('selectable cars', () => {
     expect(new Set(CARS.map((car) => car.id)).size).toBe(CARS.length);
     expect(new Set(CARS.map((car) => car.name)).size).toBe(CARS.length);
     expect(CARS[0]!.id).toBe(PLAYER_CAR);
+    for (const car of CARS) {
+      expect(Number.isFinite(car.paintBaseLuma)).toBe(true);
+      expect(car.paintBaseLuma).toBeGreaterThanOrEqual(0);
+      expect(car.paintBaseLuma).toBeLessThanOrEqual(1);
+    }
   });
 
   it('has a published model, livery, and mask for every car', async () => {

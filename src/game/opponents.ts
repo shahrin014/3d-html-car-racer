@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CARS } from './car-spec.mjs';
 import {
   OPPONENT_BASE_SPEED,
   OPPONENT_COUNT_MAX,
@@ -210,4 +211,26 @@ export function racingPose(
     .addScaledVector(up, PHYSICS_RIDE_HEIGHT);
 
   return { position, quaternion, tangent, up, right };
+}
+
+/**
+ * Deterministic random catalog cars for the field. Shuffling the catalog by a
+ * hash of the circuit seed means a grid mixes models instead of repeating the
+ * player's car, while the same seed always produces the same field.
+ */
+export function opponentCarIds(seed: string, count: number): string[] {
+  const score = (id: string): number => {
+    let hash = 2166136261;
+    const text = `${seed}:rival:${id}`;
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  };
+  const order = [...CARS]
+    .sort((a, b) => score(a.id) - score(b.id))
+    .map((car) => car.id);
+  const wanted = Math.max(0, Math.floor(count));
+  return Array.from({ length: wanted }, (_, index) => order[index % order.length]!);
 }
