@@ -1,17 +1,21 @@
 import * as THREE from 'three';
-import { createCar as buildCar } from '../../src/game/car-model.mjs';
+import {
+  createCar as createRuntimeCar,
+  preloadCarModel,
+} from '../../src/game/car-runtime.mjs';
 
 /**
  * Preview entry point for the car and the cockpit rig.
  *
- * The car itself lives in `src/game/car-model.mjs`: the game and this catalog
- * render the same geometry, so a render can never drift from what is driven.
- * Only the cockpit helpers are preview-only for now - the game has no cockpit
- * camera yet.
+ * The car is built by the game's own runtime module from the published assets
+ * in public/models, so the catalog render and the car on the track are the
+ * same code, the same GLB, and the same transform.
  */
 
-export function createCar() {
-  return buildCar().group;
+/** Load the game's car assets once, then return a clone for the studio. */
+export async function createCar() {
+  await preloadCarModel('/public/models/', 'mach-speeder');
+  return createRuntimeCar().group;
 }
 
 const wheelParts = {

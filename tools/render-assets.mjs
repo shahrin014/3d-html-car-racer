@@ -36,6 +36,7 @@ const PIECES = [
   { id: 'building-wide', folder: 'buildings' },
   { id: 'car', folder: 'car', name: 'car-hero' },
   { id: 'car-side', folder: 'car', name: 'car-side' },
+  { id: 'car-rear', folder: 'car', name: 'car-rear' },
   { id: 'car-ref', folder: 'car', name: 'car-ref' },
   { id: 'cockpit', folder: 'cockpit', name: 'cockpit-view' },
 ];

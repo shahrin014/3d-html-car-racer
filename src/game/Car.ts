@@ -1,20 +1,46 @@
-import { CAR, createCar as buildCar } from './car-model.mjs';
-import type { CarModel } from './car-model.mjs';
+import type * as THREE from 'three';
+import { CAR, DEFAULT_BODY_COLOR } from './car-spec.mjs';
+import {
+  buildCar as buildCarRuntime,
+  createCar as createCarRuntime,
+  preloadCarModel as preloadRuntime,
+} from './car-runtime.mjs';
 
 /**
- * The car the player drives: the candy red die-cast hypercar built in
- * `car-model.mjs`, which the asset preview renders from the same geometry.
+ * The car the player drives: the Mach Speeder, loaded once from a binary glTF
+ * and cloned per car.
  *
- * The model faces +Z, which is the direction of travel on the circuit, so no
- * extra rotation is needed here.
+ * The model, its transform, its re-paint shader, and its wheel pivots all live
+ * in `car-runtime.mjs`, which the asset catalog imports too - the render and
+ * the game are guaranteed to show the same car.
  */
-export type Car = CarModel;
+export type Car = {
+  group: THREE.Group;
+  wheels: THREE.Group[];
+  setSteer: (value: number) => void;
+};
 
-/** Paint of the reference casting: candy red with black aero and gold wheels. */
-export const PLAYER_PAINT = 0xa30f1d;
+/** Paint of the reference casting. */
+export const PLAYER_PAINT = DEFAULT_BODY_COLOR;
 
+const MODELS = `${import.meta.env.BASE_URL}models/`;
+
+/** Which car the player drives. Add another id to cars.json to offer a choice. */
+export const PLAYER_CAR = 'mach-speeder';
+
+/** Fetch the car model ahead of the first race. */
+export async function preloadCarModel(): Promise<void> {
+  await preloadRuntime(MODELS, PLAYER_CAR);
+}
+
+/** Build one car from an already-loaded root (used by tests). */
+export function buildCar(root: THREE.Object3D, color = PLAYER_PAINT): Car {
+  return buildCarRuntime(root, color) as Car;
+}
+
+/** Build one car. Throws until `preloadCarModel()` resolves. */
 export function createCar(color = PLAYER_PAINT): Car {
-  return buildCar(color);
+  return createCarRuntime(color) as Car;
 }
 
 /** Visual envelope in metres, kept in step with the physics chassis. */

@@ -1,8 +1,8 @@
 # Asset catalog
 
-Rendered references for every gameplay asset. These images are documentation and
-design review material, not files loaded at runtime: the game builds all geometry
-and textures procedurally, and still downloads no models, textures, or fonts.
+Rendered references for every gameplay asset. Track, city, and cockpit geometry
+is still generated procedurally at runtime; the car is the one authored model and
+the game loads its GLB from `public/models/car.glb`.
 
 Regenerate the whole catalog with:
 
@@ -62,21 +62,79 @@ colliders.
 
 ## Car
 
-![car](car/car-hero.png)
+![car hero](car/car-hero.png)
 
 ![car side](car/car-side.png)
 
-Die-cast hypercar, 2.45 × 1.0 × 0.78 m, 1.4 m wheelbase, roof 0.71 m. The shell
-is lofted from longitudinal cross-sections, and each section carries a full
-profile - floor, arch line, shoulder, fender crown, centreline - so the body
-wraps the wheels instead of leaving them exposed. Wheel arches are circles
-concentric with each tyre plus a 30 mm gap, which is what keeps the bodywork
-out of the wheels. Details are sampled from that same surface: a lofted black
-canopy, a tapered hood blade, side intakes, sills, a wide-mouth nose, diffuser
-fins, a tail light bar, and a swan-neck rear wing on uprights with endplates.
-Wheels are lathed tyres with gold multi-spoke faces. Candy red paint, black
-aero, and gold rims come from `src/game/car-model.mjs`, which the game and this
-render both use, so the catalog image is always the car you drive.
+![car rear](car/car-rear.png)
+
+![car reference angle](car/car-ref.png)
+
+The Mach Speeder: a low, wide endurance prototype based on the Hot Wheels
+casting, generated from the images in `docs/reference/` and cleaned up in
+Blender. It is 2.45 x 1.26 x 0.60 m with a 0.26 m wheel radius and a visual body
+that overhangs the 1.0 m physics collider across the fender pods.
+
+The source is one fused, textured mesh. Its baked livery is what makes it read
+as the reference casting, so the game keeps that texture instead of repainting
+individual panels:
+
+| File | Role |
+| --- | --- |
+| `car/mach-speeder.glb` | Body shell, smoothing, and four wheel pivots |
+| `car/mach-speeder-livery.png` | Baked white/blue/orange livery |
+| `car/mach-speeder-paint-mask.png` | White bodywork mask used for repainting |
+
+At runtime the livery texture and the mask are bound to the body material. The
+selected paint replaces only the masked white bodywork, scaled by the livery's
+own luminance so creases and shading survive; blue stripes, orange aero, the
+glazing, and the tyres stay exactly as authored. That is what keeps ten very
+different paint colours on the same livery layout.
+
+The casting's wheels are part of the body surface, so the model ships four
+empty pivots named `wheel-rear-left`, `wheel-rear-right`, `wheel-front-left`,
+and `wheel-front-right` at the axle centres. The game turns the front pair for
+steering and spins all four; the visible turbofans are the casting's own rims.
+
+`npm run model:car` validates and publishes the three files to
+`public/models/<id>.*`, where the shell precaches them. The previews above are
+rendered from those published files through the game's own runtime module, so
+the catalog cannot drift from the car in the game.
+
+## Adding a car
+
+The build is driven by `tools/model/cars.json`; nothing in it assumes the Mach
+Speeder's axes, rake, or ride height.
+
+1. Put the source mesh and its texture under `assets/car/source/<id>/`
+   (OBJ with an MTL, or a GLB).
+2. Add an entry to `tools/model/cars.json`:
+   ```json
+   "my-car": {
+     "label": "My Car",
+     "source": "assets/car/source/my-car/my-car.obj",
+     "target": { "length": 2.45, "width": 1.26, "height": 0.6 },
+     "wheelRadius": 0.26,
+     "textureSize": 512,
+     "nose": "auto"
+   }
+   ```
+3. Build and publish:
+   ```bash
+   PYTHONPATH=... blender -b -P tools/model/build-car.py -- my-car
+   npm run model:car
+   ```
+
+The builder detects which source axis is up (smallest extent), which is the
+nose (the taller end carries the rear wing), levels the car on its four tyre
+contacts, and grounds it on the tyres. If a mesh defeats those heuristics,
+override `nose` (`"-y"` or `"auto"`) or `upAxis` (`0`, `1`, `2`) for that car
+only. Scale, wheel radius, and texture size come from the same entry.
+
+At runtime, pass the id: `preloadCarModel('/models/', 'my-car')`. The catalog
+renderer takes the same id in `tools/preview/car-model.mjs`. To offer a choice
+in the garage, read the ids from `cars.json` and set `PLAYER_CAR` in
+`src/game/Car.ts`.
 
 ## Cockpit
 
@@ -114,6 +172,6 @@ npm run assets:glb -- spiral-r12
 ```
 
 The files live next to the previews in `assets/track/` and use the same
-parametric definitions, so models and images cannot drift apart. The car and
-cockpit are not exported yet; they will follow the same format once the car
-model is final.
+parametric definitions, so models and images cannot drift apart. The car is
+exported separately as `assets/car/mach-speeder.glb`; the cockpit is a camera
+rig and has no model.

@@ -14,6 +14,7 @@ import {
   steerFromKeys,
 } from './game/controls';
 import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
+import { preloadCarModel } from './game/Car';
 import { placingLabel } from './game/placing';
 import { DEFAULT_PAINT, PAINTS, paintById } from './game/palette';
 import { randomSeed } from './game/seed';
@@ -280,8 +281,23 @@ async function enableTilt(): Promise<void> {
 
 let game: Game | null = null;
 
-try {
-  game = new Game(
+/**
+ * Load the car model before building the scene: a race never starts with an
+ * empty car. The start button stays disabled until both the model and the
+ * renderer are ready.
+ */
+async function bootGame(): Promise<void> {
+  startButton.disabled = true;
+  try {
+    await preloadCarModel();
+  } catch (error) {
+    console.error('The car model could not be loaded.', error);
+    startButton.textContent = 'Car model unavailable';
+    return;
+  }
+
+  try {
+    game = new Game(
     app,
     {
       onSnapshot: (snapshot: RaceSnapshot) => {
@@ -328,11 +344,17 @@ try {
     paint,
     opponentCount,
   );
-} catch (error) {
-  console.error('WebGL could not be initialised.', error);
-  startButton.disabled = true;
-  startButton.textContent = 'WebGL unavailable';
+  } catch (error) {
+    console.error('WebGL could not be initialised.', error);
+    startButton.disabled = true;
+    startButton.textContent = 'WebGL unavailable';
+    return;
+  }
+
+  startButton.disabled = false;
 }
+
+void bootGame();
 
 function markPaint(id: string): void {
   for (const swatch of paintPicker.querySelectorAll<HTMLButtonElement>('button[data-paint]')) {

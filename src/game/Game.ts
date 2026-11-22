@@ -423,8 +423,8 @@ export class Game {
   }
 
   /**
-   * Repaint the player car. The body, aero, and lamp materials are shared per
-   * paint by `car-model.mjs`, so a rebuild is cheap and a colour the player
+   * Repaint the player car. `Car.ts` clones the loaded scene and swaps only the
+   * three named paint channels, so a rebuild is cheap and a colour the player
    * returns to does not leak another material. The visual pose snaps on the
    * next frame, and physics keeps its own state. Rivals are repainted at the
    * same time so they never share the player's new colour.

@@ -1,17 +1,21 @@
 import type * as THREE from 'three';
 
-/** Envelope and running gear of the die-cast hypercar, in metres. */
+/** Envelope and running gear of the Mach Speeder, in metres. */
 export interface CarSpec {
   readonly length: number;
   readonly width: number;
+  readonly bodyWidth: number;
   readonly height: number;
   readonly wheelbase: number;
-  readonly rearWheelRadius: number;
+  readonly wheelRadius: number;
   readonly frontWheelRadius: number;
-  readonly rearTyreWidth: number;
+  readonly rearWheelRadius: number;
   readonly frontTyreWidth: number;
-  readonly rearAxle: number;
+  readonly rearTyreWidth: number;
   readonly frontAxle: number;
+  readonly rearAxle: number;
+  readonly frontWheelX: number;
+  readonly rearWheelX: number;
 }
 
 export interface CarModel {
@@ -23,5 +27,4 @@ export interface CarModel {
 
 export declare const CAR: CarSpec;
 
-/** Build the car. Defaults to the candy red of the reference casting. */
-export declare function createCar(color?: number): CarModel;
+export declare const DEFAULT_BODY_COLOR: number;
