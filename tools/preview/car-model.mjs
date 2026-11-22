@@ -1,32 +1,21 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {
+  createCar as createRuntimeCar,
+  preloadCarModel,
+} from '../../src/game/car-runtime.mjs';
 
 /**
  * Preview entry point for the car and the cockpit rig.
  *
- * The car is the shipped GLB in `assets/car/mach-speeder.glb`, the same file
- * the game publishes to `public/models/car.glb`, so the catalog render is
- * always the car that is driven. Only the cockpit helpers are preview-only.
+ * The car is built by the game's own runtime module from the published assets
+ * in public/models, so the catalog render and the car on the track are the
+ * same code, the same GLB, and the same transform.
  */
 
+/** Load the game's car assets once, then return a clone for the studio. */
 export async function createCar() {
-  const [gltf, livery] = await Promise.all([
-    new GLTFLoader().loadAsync('/assets/car/mach-speeder.glb'),
-    new THREE.TextureLoader().loadAsync('/assets/car/mach-speeder-livery.png'),
-  ]);
-  livery.colorSpace = THREE.SRGBColorSpace;
-  livery.flipY = false;
-  gltf.scene.traverse((node) => {
-    const mesh = node;
-    if (!mesh.isMesh) return;
-    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-      if (material.name === 'Livery') {
-        material.map = livery;
-        material.needsUpdate = true;
-      }
-    }
-  });
-  return gltf.scene;
+  await preloadCarModel('/public/models/');
+  return createRuntimeCar().group;
 }
 
 const wheelParts = {

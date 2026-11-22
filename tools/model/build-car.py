@@ -37,13 +37,13 @@ bpy.ops.wm.obj_import(filepath=src)
 car = [o for o in bpy.context.scene.objects if o.type == "MESH"][0]
 
 # --- Fit to the envelope ----------------------------------------------------
-# The OBJ's axes are length X, height Y, width Z. Turn the nose to -Y first,
-# then roll the car upright (its up axis must end on +Z); without the roll it
-# comes in lying on one side.
+# The OBJ is Z-up (length X, width Y, height Z), but Blender's OBJ importer
+# assumes Y-up, so the car comes in lying on its side with its true up on +Y.
+# Level it about X first, then yaw the nose onto -Y.
 car.rotation_mode = "XYZ"
-car.rotation_euler = (0, 0, math.radians(-90))
+car.rotation_euler = (math.radians(-90), 0, 0)
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-car.rotation_euler = (0, math.radians(90), 0)
+car.rotation_euler = (0, 0, math.radians(-90))
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
 bpy.context.view_layer.update()
 corners = [car.matrix_world @ Vector(c) for c in car.bound_box]
