@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { BRIDGE_HEIGHT, MIN_TURN_RADIUS, SPIRAL_RADIUS, TRACK_WIDTH } from './constants';
+import { BRIDGE_HEIGHT, JUMP_LANDING_WIDTH, MIN_TURN_RADIUS, SPIRAL_RADIUS, TRACK_WIDTH } from './constants';
 import {
   buildFrames,
   generateCircuit,
@@ -350,6 +350,65 @@ describe('track randomization', () => {
       }
     }
     expect(mixed).toBe(true);
+  }, 20_000);
+
+  it('builds a downhill jump to a wide landing that closes the circuit', () => {
+    // Some elevated descents become a jump that drops a bridge level onto a
+    // landing twice as wide as the running track. A downhill landing is the
+    // one whose deck sinks a full level below its kicker's base.
+    let found: Circuit | null = null;
+    for (let index = 0; index < 500; index += 1) {
+      const circuit = generateCircuit(`downhill-jump-${index}`, 3);
+      const downhill = circuit.pieces.find((wide) => {
+        if (
+          wide.kind !== 'landing' ||
+          wide.halfWidth !== JUMP_LANDING_WIDTH / 2
+        ) {
+          return false;
+        }
+        const i = circuit.pieces.indexOf(wide);
+        const kicker = circuit.pieces[i - 2];
+        const kickStart = new THREE.Vector3().setFromMatrixPosition(
+          kicker!.matrix,
+        );
+        const landEnd = wide.path(1).position.clone().applyMatrix4(wide.matrix);
+        return kickStart.y - landEnd.y >= BRIDGE_HEIGHT - 1;
+      });
+      if (!downhill) {
+        continue;
+      }
+      found = circuit;
+      expect(validateCircuit(circuit).reasons).toEqual([]);
+      break;
+    }
+    expect(found).not.toBeNull();
+  }, 60_000);
+
+  it('widens the flat jump landing to twice the running track', () => {
+    let found: Circuit | null = null;
+    for (let index = 0; index < 200; index += 1) {
+      const circuit = generateCircuit(`flat-landing-${index}`, 1);
+      const landings = circuit.pieces.filter(
+        (piece) => piece.kind === 'landing' && piece.halfWidth === TRACK_WIDTH,
+      );
+      if (landings.length === 0) {
+        continue;
+      }
+      // Found a flat (same-deck) jump whose landing is the full doubled width.
+      const landing = landings.find((piece) => {
+        const i = circuit.pieces.indexOf(piece);
+        const kicker = circuit.pieces[i - 2];
+        const kickStart = new THREE.Vector3().setFromMatrixPosition(
+          kicker!.matrix,
+        );
+        const landEnd = piece.path(1).position.clone().applyMatrix4(piece.matrix);
+        return kickStart.y - landEnd.y < BRIDGE_HEIGHT - 1;
+      });
+      expect(landing).toBeDefined();
+      found = circuit;
+      break;
+    }
+    expect(found).not.toBeNull();
   }, 20_000);
 
   it('keeps figure-eight jump and hill variants closed', () => {

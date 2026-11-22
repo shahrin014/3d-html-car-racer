@@ -22,6 +22,10 @@ of the requirements.
 | Turn bank | 20–45° |
 | Straight lengths | 12–30 m across the level ladder |
 | Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
+| Jump total | 44 m (kicker 9 + gap 9 + landing 26) |
+| Jump lip | 2.2 m above the launch deck |
+| Jump landing width | twice the running track (12 car widths) |
+| Downhill jump landing ramp | 26 m per bridge level dropped |
 | Bridge level | 8 m above the lower deck |
 | Bridge ramp | 20 m up and 20 m down, easing to zero slope at both ends |
 | Bridge flat | 24 m |
@@ -275,6 +279,51 @@ a lower section.
 - **WHEN** generation validates it
 - **THEN** it is rejected
 - **AND** generation continues with a different deterministic offset
+
+### Requirement: Jumps launch long, land wide, and can vault down a level
+
+A jump SHALL be a pronounced obstacle: a kicker that rises to a raised lip and
+ends on an upward launch angle, a deckless gap, and a lower landing ramp that
+enters along the launch line below the lip and sinks back to flat deck. The
+whole module SHALL be longer than a flat hill slot (44 m total), so a leg
+reserves more deck for a jump than for a crest. The landing SHALL be twice as
+wide as the running track, so the deck, guide rails, physics colliders, and the
+jump-failure bound all widen there and a fast, off-line landing has room to
+settle.
+
+A jump MAY instead be a downhill jump placed at the end of an elevated stretch:
+the kicker stays on the high deck, the gap vaults over whatever route lies
+beneath, and a longer landing sinks one or two bridge levels to a lower deck.
+The landing still meets the lower deck at zero slope. Because the gap is
+elevated, it MAY cross over a lower section of the same circuit as an overpass,
+and the crossing must satisfy the overpass clearance rule. When the seed offers
+a downhill descent it picks between a ramp, a spiral, and a jump.
+
+#### Scenario: Long jump module
+
+- **GIVEN** a circuit carrying a jump
+- **WHEN** the jump module is measured
+- **THEN** its total is longer than the hill slot a crest would fill
+- **AND** a faster, higher lip launches across a longer deckless gap
+
+#### Scenario: Wide landing
+
+- **GIVEN** the landing of a jump
+- **WHEN** its width is measured
+- **THEN** it is twice as wide as the running track
+- **AND** the rails and physics deck flare to the same doubled width
+- **AND** the failure bound does not count a car parked on the doubled deck as
+  having left the track
+
+#### Scenario: Downhill jump over a lower route
+
+- **GIVEN** a jump placed at the end of an elevated stretch
+- **WHEN** the module is inspected
+- **THEN** the kicker base sits on the high deck
+- **AND** the landing ends at least one bridge level below the kicker base
+- **AND** the circuit still closes and validation accepts it
+- **AND** where the gap crosses a lower section, the vertical separation obeys
+  the overpass clearance rule
 
 ### Requirement: Every generated circuit is closed and playable
 

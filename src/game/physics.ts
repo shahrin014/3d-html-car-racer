@@ -137,7 +137,7 @@ export async function createPhysics(
     const rotation = quaternionOf(frame);
     world.createCollider(
       RAPIER.ColliderDesc.cuboid(
-        TRACK_WIDTH / 2,
+        frame.halfWidth,
         TRACK_THICKNESS / 2,
         length / 2,
       )
@@ -182,7 +182,7 @@ export async function createPhysics(
     for (const side of [-1, 1]) {
       const rail = middle
         .clone()
-        .addScaledVector(frame.right, side * (TRACK_WIDTH / 2 - RAIL_WIDTH / 2))
+        .addScaledVector(frame.right, side * (frame.halfWidth - RAIL_WIDTH / 2))
         .addScaledVector(frame.up, RAIL_HEIGHT / 2);
       world.createCollider(
         RAPIER.ColliderDesc.cuboid(

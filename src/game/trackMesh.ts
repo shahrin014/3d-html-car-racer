@@ -4,7 +4,6 @@ import {
   RAIL_WIDTH,
   SEAM_LENGTH,
   TRACK_THICKNESS,
-  TRACK_WIDTH,
 } from './constants';
 import type { TrackFrame } from './track';
 
@@ -92,7 +91,6 @@ export function buildTrackMesh(
   pieces: { frames: TrackFrame[]; boost?: boolean; gap?: boolean }[],
 ): TrackMesh {
   const group = new THREE.Group();
-  const half = TRACK_WIDTH / 2;
   const railMaterial = new THREE.MeshStandardMaterial({
     color: 0xc6cedb,
     roughness: 0.34,
@@ -117,10 +115,12 @@ export function buildTrackMesh(
       side: THREE.DoubleSide,
     });
 
+    // The deck is half the piece's (possibly widened) width from the frame
+    // centreline, so a jump landing flares to twice the running track.
     const topLeft = (f: TrackFrame) =>
-      f.position.clone().addScaledVector(f.right, -half);
+      f.position.clone().addScaledVector(f.right, -f.halfWidth);
     const topRight = (f: TrackFrame) =>
-      f.position.clone().addScaledVector(f.right, half);
+      f.position.clone().addScaledVector(f.right, f.halfWidth);
     const bottomLeft = (f: TrackFrame) =>
       topLeft(f).addScaledVector(f.up, -TRACK_THICKNESS);
     const bottomRight = (f: TrackFrame) =>
@@ -153,9 +153,12 @@ export function buildTrackMesh(
     }
 
     for (const side of [-1, 1]) {
-      const lateral = side * (half - RAIL_WIDTH / 2);
+      // Rails ride the piece's own half-width, so the widened landing gets its
+      // own wider rails instead of sweeping out an invisible extra track.
       const base = (f: TrackFrame) =>
-        f.position.clone().addScaledVector(f.right, lateral);
+        f.position
+          .clone()
+          .addScaledVector(f.right, side * (f.halfWidth - RAIL_WIDTH / 2));
       const inner = (f: TrackFrame) =>
         base(f).addScaledVector(f.right, -side * (RAIL_WIDTH / 2));
       const outer = (f: TrackFrame) =>

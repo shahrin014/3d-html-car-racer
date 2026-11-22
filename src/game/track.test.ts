@@ -178,7 +178,9 @@ describe('track pieces', () => {
     expect(JUMP_LENGTH).toBe(
       JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH,
     );
-    expect(JUMP_LENGTH).toBe(30);
+    // The jump is longer than the 30 m slot the flat module used to fill, so a
+    // leg must reserve more than a hill's worth of deck for it.
+    expect(JUMP_LENGTH).toBe(44);
     // The module's plan advance is what the leg budget must reserve; it is
     // slightly longer than the three piece lengths because of the launch tilt.
     expect(jumpPlanarLength()).toBeGreaterThan(JUMP_LENGTH);

@@ -14,8 +14,10 @@ import {
   JUMP_GAP_LENGTH,
   JUMP_HEIGHT,
   JUMP_KICKER_LENGTH,
+  JUMP_DOWN_LANDING_PER_LEVEL,
   JUMP_LANDING_HEIGHT,
   JUMP_LANDING_LENGTH,
+  JUMP_LANDING_WIDTH,
   JUMP_LAUNCH_SLOPE,
   LOOP_OFFSET,
   LOOP_RADIUS,
@@ -41,6 +43,12 @@ export interface TrackFrame {
    * so it must get no collider and must not apply the guide assist.
    */
   solid: boolean;
+  /**
+   * Half the deck width at this frame. A jump landing is twice as wide as the
+   * running track, so the mesh, physics deck and rails, and jump-failure bound
+   * all widen where the car lands.
+   */
+  halfWidth: number;
 }
 
 export interface TrackSample {
@@ -303,13 +311,38 @@ function hermiteSlope(t: number): { d00: number; d10: number; d01: number; d11: 
 
 /**
  * Planar forward distance of a whole jump module.
- *
- * The gap and the landing are placed on the tilted launch frame, so their
- * forward distance is not the sum of the three authored lengths. Compose the
- * three placement frames exactly instead of approximating the tilt, so a leg
- * budget built from this figure closes on the seam.
  */
 export function jumpPlanarLength(): number {
+  return jumpModulePlanarLength(0, JUMP_LANDING_LENGTH);
+}
+
+/**
+ * Planar forward distance of a downhill jump that drops `drop` metres to a
+ * lower landing deck. Same launch and gap as the flat module, but the landing
+ * is longer (it must sink a whole level) and ends below the launch deck.
+ */
+export function downJumpLandingLength(stageLevels: number): number {
+  return JUMP_DOWN_LANDING_PER_LEVEL * Math.max(1, Math.round(stageLevels));
+}
+
+/**
+ * Planar forward distance a downhill jump needs so a leg budget can reserve it.
+ * It drops `stageLevels` bridge levels to a lower deck.
+ */
+export function downJumpPlanarLength(stageLevels: number): number {
+  const landing = downJumpLandingLength(stageLevels);
+  return jumpModulePlanarLength(BRIDGE_HEIGHT * stageLevels, landing);
+}
+
+/**
+ * Shared planar composition for the jump module. The gap and the landing are
+ * placed on the tilted launch frame, so their forward distance is not the sum
+ * of the three authored lengths. Compose the placement frames exactly instead
+ * of approximating the tilt, so a leg budget built from this closes on the
+ * seam. A `drop` reuses the same geometry but sinks the landing by that many
+ * world metres and walks it a longer landing ramp.
+ */
+function jumpModulePlanarLength(drop: number, landingLength: number): number {
   const endFrame = (matrix: THREE.Matrix4, path: TrackPath): THREE.Matrix4 => {
     const sample = path(1);
     const rotation = new THREE.Matrix4().makeBasis(
@@ -321,7 +354,11 @@ export function jumpPlanarLength(): number {
   };
   let matrix = endFrame(new THREE.Matrix4(), kickerPath());
   matrix = endFrame(matrix, gapPath());
-  matrix = endFrame(matrix, landingPath());
+  matrix = endFrame(
+    matrix,
+    landingPath(landingLength, JUMP_HEIGHT, JUMP_LAUNCH_SLOPE,
+      JUMP_GAP_LENGTH, JUMP_LANDING_HEIGHT, drop),
+  );
   const end = new THREE.Vector3().setFromMatrixPosition(matrix);
   return Math.hypot(end.x, end.z);
 }
@@ -379,15 +416,17 @@ export function landingPath(
   slope = JUMP_LAUNCH_SLOPE,
   gapLength = JUMP_GAP_LENGTH,
   entryHeight = JUMP_LANDING_HEIGHT,
+  drop = 0,
 ): TrackPath {
   const angle = Math.atan(slope);
   const cosine = Math.cos(angle);
   // The placement origin is the end of the gap on the launch line. Convert the
   // wanted world heights back into the tilted local frame: the deck starts at
-  // the lower landing height and finishes at the module's base.
+  // the lower landing height and finishes `drop` below the module's base.
   const lipHeight = height + gapLength * Math.sin(angle);
   const start = (entryHeight - lipHeight) / cosine;
-  const end = -(height / cosine + (gapLength + length) * slope);
+  const end =
+    -(height / cosine + (gapLength + length) * slope) - drop / cosine;
   return (t) => {
     const basis = hermite(t);
     const derivative = hermiteSlope(t);
@@ -448,6 +487,12 @@ export interface Piece {
   /** Matrix that places the piece's local frame in the circuit. */
   matrix: THREE.Matrix4;
   boost?: boolean;
+  /**
+   * Half the deck width this piece is drawn at. Only a jump landing is wider
+   * than the running track (TWICE the normal width); every other piece keeps
+   * the normal half-width.
+   */
+  halfWidth?: number;
   /** Authored turn radius and angle, used by layout validation. */
   radius?: number;
   angleDegrees?: number;
@@ -606,14 +651,63 @@ function assembleCircuit(
 
   /** A climb or descent between the lower deck and the elevated stretch. */
   type Transition = {
-    kind: 'spiral-up' | 'spiral-down' | 'ramp-up' | 'ramp-down';
+    kind: 'spiral-up' | 'spiral-down' | 'ramp-up' | 'ramp-down' | 'jump-down';
     path: TrackPath;
     length: number;
     /** Forward distance consumed in plan view; a spiral consumes none. */
     plan: number;
+    /** Bridge levels a jump-down drops; the landing sinks this far. */
+    stageLevels?: number;
+  };
+
+  /** A downhill jump: kicker on the high deck, gap, then a wide landing lower. */
+  const addDownJump = (stageLevels: number): void => {
+    addJump(0, downJumpLandingLength(stageLevels));
+    // Sink the landing by `drop` so it reaches the lower deck.
+    const drop = BRIDGE_HEIGHT * Math.max(1, Math.round(stageLevels));
+    const landing = pieces[pieces.length - 1];
+    if (landing && landing.kind === 'landing') {
+      const landingLength = landing.length;
+      landing.path = landingPath(
+        landingLength,
+        JUMP_HEIGHT,
+        JUMP_LAUNCH_SLOPE,
+        JUMP_GAP_LENGTH,
+        JUMP_LANDING_HEIGHT,
+        drop,
+      );
+    }
+  };
+
+  /**
+   * A flat jump: kicker up to a raised lip, the deckless gap, and the landing
+   * ramp. The landing is always twice as wide as the running track, so a fast,
+   * off-line landing has room to settle. An optional `drop` makes it a downhill
+   * jump whose landing sinks below the launch deck.
+   */
+  const addJump = (
+    drop = 0,
+    landingLength: number = JUMP_LANDING_LENGTH,
+  ): void => {
+    addPiece('kicker', kickerPath(), JUMP_KICKER_LENGTH);
+    addPiece('gap', gapPath(), JUMP_GAP_LENGTH);
+    addPiece(
+      'landing',
+      landingPath(landingLength, JUMP_HEIGHT, JUMP_LAUNCH_SLOPE,
+        JUMP_GAP_LENGTH, JUMP_LANDING_HEIGHT, drop),
+      landingLength,
+    );
+    const landing = pieces[pieces.length - 1];
+    if (landing && landing.kind === 'landing') {
+      landing.halfWidth = JUMP_LANDING_WIDTH / 2;
+    }
   };
 
   const addTransition = (transition: Transition): void => {
+    if (transition.kind === 'jump-down') {
+      addDownJump(transition.stageLevels ?? 1);
+      return;
+    }
     if (transition.kind === 'spiral-up' || transition.kind === 'spiral-down') {
       addSpiral(
         transition.kind,
@@ -668,9 +762,7 @@ function assembleCircuit(
     addStraight(CIRCUIT_LEAD_STRAIGHT);
     const featureLength = jump ? jumpPlanarLength() : HILL_LENGTH;
     if (jump) {
-      addPiece('kicker', kickerPath(), JUMP_KICKER_LENGTH);
-      addPiece('gap', gapPath(), JUMP_GAP_LENGTH);
-      addPiece('landing', landingPath(), JUMP_LANDING_LENGTH);
+      addJump();
     } else {
       addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
     }
@@ -803,6 +895,23 @@ function assembleCircuit(
         };
       }
       const height = BRIDGE_HEIGHT * stageLevels;
+      // A downhill jump is a descent that vaults from the raised deck down to
+      // a lower deck. It is long, so only offer it when the leg has room; then
+      // a fraction of descents become a jump instead of a ramp or spiral.
+      const jumpPlan = downJumpPlanarLength(stageLevels);
+      if (
+        direction === 'down' &&
+        available >= jumpPlan &&
+        random() < 0.3
+      ) {
+        return {
+          kind: 'jump-down',
+          path: gapPath(),
+          length: JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + downJumpLandingLength(stageLevels),
+          plan: jumpPlan,
+          stageLevels,
+        };
+      }
       return {
         kind: direction === 'up' ? 'spiral-up' : 'spiral-down',
         path:
@@ -868,11 +977,10 @@ function assembleCircuit(
         LOOP_RETURN_LENGTH,
       );
     } else if (index === hillLeg) {
-      // A leg carries either a crest or a jump; both fill the same 30 m slot.
+      // A leg carries either a crest or a jump. Both fill the same planned
+      // deck budget, so the leg closes whichever feature the seed chooses.
       if (jump) {
-        addPiece('kicker', kickerPath(), JUMP_KICKER_LENGTH);
-        addPiece('gap', gapPath(), JUMP_GAP_LENGTH);
-        addPiece('landing', landingPath(), JUMP_LANDING_LENGTH);
+        addJump();
       } else {
         addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
       }
@@ -1075,6 +1183,7 @@ export function buildFrames(circuit: Circuit, step = 0.4): TrackFrame[] {
         right: new THREE.Vector3().crossVectors(upWorld, tangent).normalize(),
         s: distance + t * piece.length,
         solid: piece.kind !== 'gap',
+        halfWidth: piece.halfWidth ?? TRACK_WIDTH / 2,
       });
     }
     distance += piece.length;
