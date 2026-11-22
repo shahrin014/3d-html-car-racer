@@ -406,7 +406,7 @@ const PIECES = {
   car: {
     kind: 'car',
     title: 'Mach Speeder · hero',
-    meta: '2.45 × 1.22 × 0.60 m · white body · blue livery · orange aero',
+    meta: '2.45 × 1.26 × 0.60 m · baked livery · repaintable body mask · orange aero',
   },
   'car-side': {
     kind: 'car',
@@ -418,7 +418,7 @@ const PIECES = {
     kind: 'car',
     view: 'rear',
     title: 'Mach Speeder · rear',
-    meta: 'single-element orange wing · diffuser strakes · Kamm tail',
+    meta: 'single-element orange wing · livery texture · Kamm tail',
   },
   'car-ref': {
     kind: 'car',
