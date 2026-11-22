@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { BRIDGE_HEIGHT, MIN_TURN_RADIUS, SPIRAL_RADIUS, TRACK_WIDTH } from './constants';
+import { BRIDGE_HEIGHT, JUMP_LANDING_WIDTH, MIN_TURN_RADIUS, SPIRAL_RADIUS, TRACK_WIDTH } from './constants';
 import {
   buildFrames,
   generateCircuit,
@@ -350,6 +350,116 @@ describe('track randomization', () => {
       }
     }
     expect(mixed).toBe(true);
+  }, 20_000);
+
+  it('builds a downhill jump to a wide landing that closes the circuit', () => {
+    // Some elevated descents become a jump that drops a bridge level onto a
+    // landing twice as wide as the running track. A downhill landing is the
+    // one whose deck sinks a full level below its kicker's base.
+    let found: Circuit | null = null;
+    for (let index = 0; index < 500; index += 1) {
+      const circuit = generateCircuit(`downhill-jump-${index}`, 3);
+      const downhill = circuit.pieces.find((wide) => {
+        if (
+          wide.kind !== 'landing' ||
+          wide.halfWidth !== JUMP_LANDING_WIDTH / 2
+        ) {
+          return false;
+        }
+        const i = circuit.pieces.indexOf(wide);
+        const kicker = circuit.pieces[i - 2];
+        const kickStart = new THREE.Vector3().setFromMatrixPosition(
+          kicker!.matrix,
+        );
+        const landEnd = wide.path(1).position.clone().applyMatrix4(wide.matrix);
+        return kickStart.y - landEnd.y >= BRIDGE_HEIGHT - 1;
+      });
+      if (!downhill) {
+        continue;
+      }
+      found = circuit;
+      expect(validateCircuit(circuit).reasons).toEqual([]);
+      break;
+    }
+    expect(found).not.toBeNull();
+  }, 60_000);
+
+  it('widens the flat jump landing to twice the running track', () => {
+    let found: Circuit | null = null;
+    for (let index = 0; index < 200; index += 1) {
+      const circuit = generateCircuit(`flat-landing-${index}`, 1);
+      const landings = circuit.pieces.filter(
+        (piece) => piece.kind === 'landing' && piece.halfWidth === TRACK_WIDTH,
+      );
+      if (landings.length === 0) {
+        continue;
+      }
+      // Found a flat (same-deck) jump whose landing is the full doubled width.
+      const landing = landings.find((piece) => {
+        const i = circuit.pieces.indexOf(piece);
+        const kicker = circuit.pieces[i - 2];
+        const kickStart = new THREE.Vector3().setFromMatrixPosition(
+          kicker!.matrix,
+        );
+        const landEnd = piece.path(1).position.clone().applyMatrix4(piece.matrix);
+        return kickStart.y - landEnd.y < BRIDGE_HEIGHT - 1;
+      });
+      expect(landing).toBeDefined();
+      found = circuit;
+      break;
+    }
+    expect(found).not.toBeNull();
+  }, 20_000);
+
+  it('tapers the wide landing symmetrically back to normal width', () => {
+    let found: Circuit | null = null;
+    for (let index = 0; index < 120; index += 1) {
+      const circuit = generateCircuit(`taper-check-${index}`, 1);
+      if (!circuit.pieces.some((piece) => piece.kind === 'landing')) {
+        continue;
+      }
+      const frames = buildFrames(circuit);
+      let start = 0;
+      let landing: { from: number; to: number } | null = null;
+      for (const piece of circuit.pieces) {
+        if (piece.kind === 'landing' && piece.halfWidth != null) {
+          landing = { from: start, to: start + piece.length };
+          break;
+        }
+        start += piece.length;
+      }
+      if (!landing) {
+        continue;
+      }
+      const inLanding = frames.filter(
+        (f) => f.s >= landing!.from - 1e-6 && f.s < landing!.to - 1e-6,
+      );
+      if (inLanding.length < 3) {
+        continue;
+      }
+      // First frame is full width; the landing tapers toward the normal
+      // half-width by its far end (the exact normal width lands on the seam).
+      const first = inLanding[0]!;
+      const last = inLanding[inLanding.length - 1]!;
+      expect(first.halfWidth).toBeCloseTo(JUMP_LANDING_WIDTH / 2, 6);
+      expect(last.halfWidth - TRACK_WIDTH / 2).toBeLessThan(0.05);
+      expect(last.halfWidth).toBeLessThan(JUMP_LANDING_WIDTH / 2);
+      // The flare is symmetric: both rails sit the same distance off-centre.
+      for (const frame of inLanding) {
+        const right = new THREE.Vector3().crossVectors(frame.up, frame.tangent);
+        const leftEdge = frame.position.clone().addScaledVector(right, -frame.halfWidth);
+        const rightEdge = frame.position.clone().addScaledVector(right, frame.halfWidth);
+        expect(leftEdge.distanceTo(frame.position)).toBeCloseTo(
+          rightEdge.distanceTo(frame.position),
+          6,
+        );
+        // The landing still has its left/right guide rails.
+        expect(frame.rails).toBe(true);
+      }
+      found = circuit;
+      break;
+    }
+    expect(found).not.toBeNull();
   }, 20_000);
 
   it('keeps figure-eight jump and hill variants closed', () => {

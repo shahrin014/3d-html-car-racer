@@ -2,7 +2,6 @@ import {
   CAR_WIDTH,
   JUMP_FAIL_DEPTH,
   JUMP_RETRY_DISTANCE,
-  TRACK_WIDTH,
 } from './constants';
 import type { Piece, TrackFrame } from './track';
 
@@ -79,7 +78,9 @@ export function jumpFailed(
     return true;
   }
   const lateral = dx * frame.right.x + dy * frame.right.y + dz * frame.right.z;
-  if (Math.abs(lateral) > TRACK_WIDTH / 2 + CAR_WIDTH / 2) {
+  // The landing ramp is twice as wide as the running track, so its half-width
+  // is the generous bound; the gap keeps the normal width.
+  if (Math.abs(lateral) > frame.halfWidth + CAR_WIDTH / 2) {
     return true;
   }
   if (s > span.landingEnd && height > JUMP_FAIL_DEPTH) {

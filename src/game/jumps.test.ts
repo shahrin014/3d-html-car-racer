@@ -38,6 +38,8 @@ function frame(s: number, solid = true): TrackFrame {
     right: new THREE.Vector3(1, 0, 0),
     s,
     solid,
+    halfWidth: TRACK_WIDTH / 2,
+    rails: true,
   };
 }
 

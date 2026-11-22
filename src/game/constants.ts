@@ -158,18 +158,29 @@ export const CIRCUIT_BOOST_LENGTH = 12;
 
 /**
  * Jump module: a kicker up to a raised lip, a gap with no deck, and a landing
- * ramp back down. The three pieces add up to the hill's 30 m slot, so a leg can
- * carry either a crest or a jump.
+ * ramp back down. The flat module sits on one deck; the same three pieces also
+ * form a downhill jump at the end of an elevated stretch, where the kicker
+ * stays on the high deck and the landing sinks to a lower deck so the gap
+ * vaults over whatever route lies beneath.
  */
-export const JUMP_HEIGHT = 1.6;
-export const JUMP_KICKER_LENGTH = 8;
-export const JUMP_GAP_LENGTH = 5;
-export const JUMP_LANDING_LENGTH = 17;
+export const JUMP_HEIGHT = 2.2;
+export const JUMP_KICKER_LENGTH = 9;
+export const JUMP_GAP_LENGTH = 9;
+export const JUMP_LANDING_LENGTH = 26;
 /**
  * World height of the landing ramp's top edge. It sits below the kicker lip,
  * so the car drops onto a lower ramp instead of landing level with the launch.
  */
-export const JUMP_LANDING_HEIGHT = 0.9;
+export const JUMP_LANDING_HEIGHT = 1.1;
+/**
+ * Landing area width for a jump, in metres. It is twice as wide as the running
+ * track so a fast, off-line landing has room to settle instead of dropping off
+ * the side. The mesh, the physics deck and rails, and the jump-failure lateral
+ * bound all widen at the landing.
+ */
+export const JUMP_LANDING_WIDTH = TRACK_WIDTH * 2;
+/** Default landing width, equal to the normal track. */
+export const TRACK_LANDING_WIDTH = TRACK_WIDTH;
 /**
  * How far below the virtual jump line or landing deck the car may fall before
  * the attempt counts as failed. A successful jump clears the deck; this only
@@ -185,9 +196,15 @@ export const JUMP_RETRY_DISTANCE = 24;
  * early at a steeper effective angle; this nominal slope is what keeps the
  * flight short enough to reach the landing ramp at doubled speed.
  */
-export const JUMP_LAUNCH_SLOPE = 0.03;
+export const JUMP_LAUNCH_SLOPE = 0.04;
 export const JUMP_LENGTH =
   JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + JUMP_LANDING_LENGTH;
+/**
+ * Downhill jump landing ramp length per bridge level dropped. Descending is
+ * gravity-assisted so the landing can be steeper than the flat jump, but it
+ * still eases to a flat deck on the lower level.
+ */
+export const JUMP_DOWN_LANDING_PER_LEVEL = 26;
 
 /**
  * Bridge module: a ramp up to a raised deck, a flat crossing, and a ramp back

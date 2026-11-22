@@ -386,7 +386,13 @@ upward launch angle, a deckless gap, and a lower landing ramp that enters along
 the launch line below the lip and sinks back to the deck. The car SHALL leave
 the lip, fly over the empty space, and land on the down-ramp. The kicker and
 landing SHALL end at the gap with a clear edge; no deck or rail SHALL cross the
-gap.
+gap. The landing SHALL be twice as wide as the running track where the car
+touches down, and SHALL then taper along one smooth centred curve back to the
+normal track width, so a fast, off-line landing has room to settle before the
+deck narrows and there is no sharp corner on either rail. The landing SHALL
+keep its left and right guide rails along its length; only the deckless gap and
+the touchdown mouth are left free, so a car coming down from the jump never
+crosses a barrier as it enters the landing.
 
 #### Scenario: Track width
 
@@ -435,6 +441,16 @@ gap.
 - **THEN** it leaves the lip and crosses the gap unsupported
 - **AND** it lands on the landing ramp
 - **AND** the landing ramp sits lower than the kicker lip
+- **AND** the landing ramp is twice as wide as the running track
+- **AND** it keeps racing without a rescue
+
+#### Scenario: Downhill jump
+
+- **GIVEN** a jump placed at the end of an elevated stretch
+- **WHEN** the car leaves the high-deck kicker
+- **THEN** it flies over the gap, which may pass over a lower section of the
+  circuit
+- **AND** it lands on the wide ramp and rides it down to the lower deck
 - **AND** it keeps racing without a rescue
 
 #### Scenario: Loop entrance and exit
