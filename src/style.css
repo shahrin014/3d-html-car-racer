@@ -737,6 +737,21 @@ kbd {
   transition: transform 90ms ease, border-color 120ms ease;
 }
 
+.paint--stock {
+  background: #d21f2b;
+}
+
+.paint--stock::after {
+  content: '';
+  position: absolute;
+  top: 44%;
+  left: 13%;
+  right: 13%;
+  height: 12%;
+  border-radius: 3px;
+  background: #f7fafc;
+}
+
 .paint:hover {
   transform: scale(1.08);
 }

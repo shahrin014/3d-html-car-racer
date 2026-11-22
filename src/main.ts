@@ -454,14 +454,14 @@ carPicker.addEventListener('click', (event) => {
 for (const option of PAINTS) {
   const swatch = document.createElement('button');
   swatch.type = 'button';
-  swatch.className = 'paint';
+  swatch.className = option.id === 'stock' ? 'paint paint--stock' : 'paint';
   swatch.dataset.paint = option.id;
-  swatch.style.setProperty(
-    '--paint',
-    option.color === null
-      ? 'conic-gradient(from 210deg, #f2f4f7 0 55%, #2b3d8f 55% 75%, #ef5f16 75%)'
-      : `#${option.color.toString(16).padStart(6, '0')}`,
-  );
+  if (option.color !== null) {
+    swatch.style.setProperty(
+      '--paint',
+      `#${option.color.toString(16).padStart(6, '0')}`,
+    );
+  }
   swatch.title = option.name;
   swatch.setAttribute('aria-label', option.name);
   swatch.setAttribute('aria-pressed', String(option.id === paint.id));

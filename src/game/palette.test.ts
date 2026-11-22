@@ -10,12 +10,12 @@ import {
 const COLORS = PAINTS.filter((paint) => paint.color !== null);
 
 describe('car paints', () => {
-  it('offers the stock livery plus ten paints with unique ids and names', () => {
-    expect(PAINTS).toHaveLength(11);
-    expect(COLORS).toHaveLength(10);
-    expect(new Set(PAINTS.map((paint) => paint.id)).size).toBe(11);
-    expect(new Set(PAINTS.map((paint) => paint.name)).size).toBe(11);
-    expect(new Set(COLORS.map((paint) => paint.color)).size).toBe(10);
+  it('offers the stock livery plus nine paints with unique ids and names', () => {
+    expect(PAINTS).toHaveLength(10);
+    expect(COLORS).toHaveLength(9);
+    expect(new Set(PAINTS.map((paint) => paint.id)).size).toBe(10);
+    expect(new Set(PAINTS.map((paint) => paint.name)).size).toBe(10);
+    expect(new Set(COLORS.map((paint) => paint.color)).size).toBe(9);
     expect(PAINTS[0]!.color).toBeNull();
   });
 
