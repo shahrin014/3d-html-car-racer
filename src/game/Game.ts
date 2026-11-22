@@ -47,7 +47,9 @@ import { createSmoothedPose, resetSmoothedPose, smoothPose } from './poseSmoothi
 import {
   buildScenery,
   clearsTrack,
+  SCENERY_GRID,
   SCENERY_LANDMARK_CLEARANCE,
+  SCENERY_MARGIN,
   type Building,
   type Scenery,
 } from './scenery';
@@ -109,6 +111,8 @@ export class Game {
   private obstacles: ObstacleSpec[] = [];
   private obstacleLaneSpecs: ObstacleLane[] = [];
   private scenery: Scenery | null = null;
+  /** The floor plane and its grid, rebuilt with each circuit. */
+  private ground: { mesh: THREE.Mesh; grid: THREE.GridHelper } | null = null;
   private skyboxRevision = 0;
   private frames!: TrackFrame[];
   private length!: number;
@@ -194,7 +198,6 @@ export class Game {
     this.scene.environmentIntensity = 0.45;
 
     this.clockLights();
-    this.addGround();
 
     this.seed = seed;
     this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
@@ -297,6 +300,8 @@ export class Game {
       landmarks,
     );
     this.scene.add(this.scenery.group);
+
+    this.layoutGround();
 
     this.applySkybox(circuit.seed);
   }
@@ -580,19 +585,65 @@ export class Game {
     return this.physicsLoad;
   }
 
-  private addGround(): void {
+  /**
+   * Build the floor plane and its grid under the circuit and its skyline.
+   * The floor is sized to the city — track plus the buildings that ring it —
+   * with enough margin that its edge never reaches the camera's frustum; a
+   * fixed 400 m floor only covered the track, so buildings stood past its
+   * edge with the skybox's own lower hemisphere under them. The plane is drawn
+   * double-sided so the floor is still there if the driver's eye slips
+   * below it.
+   */
+  private layoutGround(): void {
+    if (this.ground) {
+      this.scene.remove(this.ground.mesh);
+      this.scene.remove(this.ground.grid);
+      this.ground.mesh.geometry.dispose();
+      (this.ground.mesh.material as THREE.Material).dispose();
+      this.ground.grid.geometry.dispose();
+      (this.ground.grid.material as THREE.Material).dispose();
+      this.ground = null;
+    }
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (const frame of this.frames) {
+      minX = Math.min(minX, frame.position.x);
+      maxX = Math.max(maxX, frame.position.x);
+      minZ = Math.min(minZ, frame.position.z);
+      maxZ = Math.max(maxZ, frame.position.z);
+    }
+    const cx = (minX + maxX) / 2;
+    const cz = (minZ + maxZ) / 2;
+    const halfSpan = Math.max(maxX - cx, maxZ - cz);
+    // The skyline reaches this far past the track: the grid margin, the
+    // metre-wide jitter, and the outer edge of the widest building.
+    const cityHalfSpan = halfSpan + SCENERY_MARGIN + SCENERY_GRID + 8;
+    // 450 m of floor past the city keeps the edge past the 400 m far plane.
+    const planeSize = 2 * (cityHalfSpan + 450);
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(400, 400),
-      new THREE.MeshStandardMaterial({ color: 0x0a1018, roughness: 1 }),
+      new THREE.PlaneGeometry(planeSize, planeSize),
+      new THREE.MeshStandardMaterial({
+        color: 0x0a1018,
+        roughness: 1,
+        side: THREE.DoubleSide,
+      }),
     );
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.02;
+    ground.position.set(cx, -0.02, cz);
     this.scene.add(ground);
-    const grid = new THREE.GridHelper(400, 100, 0x22334a, 0x141d29);
-    grid.position.y = 0.001;
+    const grid = new THREE.GridHelper(
+      2 * cityHalfSpan,
+      Math.max(1, Math.round((2 * cityHalfSpan) / 4)),
+      0x22334a,
+      0x141d29,
+    );
+    grid.position.set(cx, 0.001, cz);
     grid.material.transparent = true;
     grid.material.opacity = 0.35;
     this.scene.add(grid);
+    this.ground = { mesh: ground, grid };
   }
 
   private clockLights(): void {
