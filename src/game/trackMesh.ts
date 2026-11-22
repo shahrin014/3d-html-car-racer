@@ -159,13 +159,12 @@ export function buildTrackMesh(
     }
 
     if (piece.rails === false) {
-      // The jump landing is left open (no rails) so a landing car never hits a
-      // barrier at the touchdown mouth.
+      // No deck here, so no rails either (a jump gap).
       continue;
     }
     for (const side of [-1, 1]) {
-      // Rails ride the piece's own half-width, so the widened landing gets its
-      // own wider rails instead of sweeping out an invisible extra track.
+      // Rails ride the piece's own half-width, so the widened landing keeps
+      // its left/right rails instead of sweeping out an invisible extra track.
       const base = (f: TrackFrame) =>
         f.position
           .clone()

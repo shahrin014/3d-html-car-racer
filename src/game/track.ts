@@ -1214,7 +1214,7 @@ export function buildFrames(circuit: Circuit, step = 0.4): TrackFrame[] {
         halfWidth: piece.widthTaper
           ? piece.widthTaper(t)
           : (piece.halfWidth ?? TRACK_WIDTH / 2),
-        rails: piece.kind !== 'landing',
+        rails: piece.kind !== 'gap',
       });
     }
     distance += piece.length;

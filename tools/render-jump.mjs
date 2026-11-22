@@ -98,7 +98,7 @@ function buildModule(drop) {
   const parts = [
     [kickerPath(), TRACK_WIDTH / 2, false, true],
     [gapPath(), TRACK_WIDTH / 2, true, false],
-    [landingPath(JUMP_LANDING_LENGTH, drop), landingWidthTaper(), false, false],
+    [landingPath(JUMP_LANDING_LENGTH, drop), landingWidthTaper(), false, true],
   ];
   const ribbon = [];
   let m = new THREE.Matrix4();
@@ -221,8 +221,9 @@ function buildPolygons(ribbon) {
     }
     const p1 = project(a.right), p2 = project(a.left), p3 = project(b.left), p4 = project(b.right);
     polys.push({ pts: [p1, p2, p3, p4], z: (p1.z + p4.z) / 2, fill: shade(0.85, DECK_BASE) });
-    // Open landing (mouth): draw the deck but no rails, so a landing car never
-    // meets a barrier where it touches down.
+    // Open landing mouth: the very first landing segment (where the car touches
+    // down) has no rail, then the side (left/right) rails resume along the
+    // landing. A landing car never meets a barrier right at the entry.
     if (!a.rails || !b.rails) {
       continue;
     }

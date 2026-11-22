@@ -453,8 +453,8 @@ describe('track randomization', () => {
           rightEdge.distanceTo(frame.position),
           6,
         );
-        // The landing is open so a landing car does not hit a barrier.
-        expect(frame.rails).toBe(false);
+        // The landing still has its left/right guide rails.
+        expect(frame.rails).toBe(true);
       }
       found = circuit;
       break;

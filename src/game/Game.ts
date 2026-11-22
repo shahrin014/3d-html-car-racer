@@ -621,15 +621,15 @@ export class Game {
           halfWidth: piece.widthTaper
             ? piece.widthTaper(index / count)
             : (piece.halfWidth ?? TRACK_WIDTH / 2),
-          rails: piece.kind !== 'landing',
+          rails: piece.kind !== 'gap',
         });
       }
       grouped.push(
         piece.kind === 'gap'
           ? { frames, gap: true }
           : piece.boost
-            ? { frames, boost: true, rails: piece.kind !== 'landing' }
-            : { frames, rails: piece.kind !== 'landing' },
+            ? { frames, boost: true, rails: true }
+            : { frames, rails: true },
       );
       offset += piece.length;
     }
