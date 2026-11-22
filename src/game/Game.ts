@@ -39,7 +39,7 @@ import {
   type ObstacleMesh,
   type ObstacleSpec,
 } from './obstacles';
-import { opponentSpecs, racingPose } from './opponents';
+import { opponentCarIds, opponentSpecs, racingPose } from './opponents';
 import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
 import { racePlacing } from './placing';
@@ -205,7 +205,7 @@ export class Game {
     this.seed = seed;
     this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
 
-    this.car = createCar(paint.color);
+    this.car = createCar(paint.color, this.carId);
     this.scene.add(this.car.group);
     this.placeCar(0, 0);
     this.rebuildOpponentCars();
@@ -449,7 +449,7 @@ export class Game {
     }
     this.carId = id;
     this.scene.remove(this.car.group);
-    this.car = createCar(this.playerPaint.color);
+    this.car = createCar(this.playerPaint.color, id);
     this.scene.add(this.car.group);
     resetSmoothedPose(this.visualPose);
     this.placeCar(0, 0);
@@ -462,7 +462,7 @@ export class Game {
     }
     this.playerPaint = paint;
     this.scene.remove(this.car.group);
-    this.car = createCar(paint.color);
+    this.car = createCar(paint.color, this.carId);
     this.scene.add(this.car.group);
     resetSmoothedPose(this.visualPose);
     this.rebuildOpponentCars();
@@ -497,9 +497,10 @@ export class Game {
     for (const opponent of this.opponents) {
       this.scene.remove(opponent.car.group);
     }
+    const ids = opponentCarIds(this.seed, this.opponentCount);
     this.opponents = opponentPaints(this.playerPaint, this.opponentCount).map(
-      (paint) => {
-        const car = createCar(paint.color);
+      (paint, index) => {
+        const car = createCar(paint.color, ids[index] ?? this.carId);
         this.scene.add(car.group);
         return { car, spin: 0 };
       },

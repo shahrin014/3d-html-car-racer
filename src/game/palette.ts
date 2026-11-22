@@ -2,19 +2,20 @@
  * Selectable paints for the player car and the opponents.
  *
  * Ids are stable because the chosen paint is persisted; names double as the
- * accessible label on each swatch. The palette is capped at ten paints for the
- * player picker. A full field of opponents can be larger than the palette, so
- * rival paints cycle once every non-player colour has been used.
+ * accessible label on each swatch. The first entry is the stock livery: each
+ * car keeps its own baked colours until a paint is chosen, which matters for a
+ * dark car like the GT. The ten paint colours follow. A full field of opponents
+ * can be larger than the palette, so rival paints cycle.
  */
 export interface Paint {
   readonly id: string;
   readonly name: string;
-  readonly color: number;
+  /** Paint colour, or null for the car's own baked livery. */
+  readonly color: number | null;
 }
 
 export const PAINTS: readonly Paint[] = [
-  // The casting's own white livery leads: it is the colour the reference car
-  // wears and therefore the default selection.
+  { id: 'stock', name: 'Stock livery', color: null },
   { id: 'pearl', name: 'Pearl white', color: 0xf2f4f7 },
   { id: 'candy', name: 'Candy red', color: 0xa30f1d },
   { id: 'gold', name: 'Champagne gold', color: 0xf2b705 },
@@ -35,22 +36,22 @@ export function paintById(id: string | null | undefined): Paint {
 }
 
 /**
- * Paints for `count` opponents: never the player's own paint. Walking from the
- * player's slot keeps the assignment deterministic, so the same player paint
- * always produces the same opponent grid. The walk cycles when the field is
- * larger than the remaining palette, so every rival still gets a paint.
+ * Paints for `count` opponents: never the player's own paint, and never the
+ * stock livery (rivals are always a solid colour). Walking the palette from the
+ * player's slot keeps the assignment deterministic; the walk cycles when the
+ * field is larger than the remaining palette.
  */
 export function opponentPaints(player: Paint, count: number): Paint[] {
-  const total = PAINTS.length;
-  const start = Math.max(0, PAINTS.indexOf(player));
+  const palette = PAINTS.filter((paint) => paint.color !== null);
+  const start = palette.indexOf(player);
+  const available = start >= 0 ? palette.filter((paint) => paint !== player) : palette;
   const wanted = Math.max(0, Math.floor(count));
-  const perCycle = Math.max(0, total - 1);
-  const paints: Paint[] = [];
-  if (perCycle === 0) {
-    return paints;
+  if (available.length === 0) {
+    return [];
   }
+  const paints: Paint[] = [];
   for (let step = 0; step < wanted; step += 1) {
-    paints.push(PAINTS[(start + 1 + (step % perCycle)) % total]!);
+    paints.push(available[step % available.length]!);
   }
   return paints;
 }

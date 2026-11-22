@@ -12,11 +12,22 @@ export declare function preloadCarModel(
   id?: string,
 ): Promise<THREE.Object3D>;
 
+export interface CarMaterials {
+  livery?: THREE.Texture | null;
+  mask?: THREE.Texture | null;
+  baseLuma?: number;
+}
+
 /** Build one car from an already-loaded model root. */
 export declare function buildCar(
   root: THREE.Object3D,
-  color?: number,
+  color?: number | null,
+  materials?: CarMaterials,
 ): RuntimeCar;
 
-/** Build one car from the preloaded model. */
-export declare function createCar(color?: number): RuntimeCar;
+/** Build one car from the preloaded set for `id`. */
+export declare function createCar(
+  color?: number | null,
+  id?: string,
+  baseLuma?: number,
+): RuntimeCar;

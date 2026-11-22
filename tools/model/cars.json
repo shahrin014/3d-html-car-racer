@@ -9,7 +9,13 @@
     },
     "wheelRadius": 0.26,
     "textureSize": 512,
-    "nose": "auto"
+    "nose": "auto",
+    "paintBase": [
+      0.7,
+      0.7,
+      0.7
+    ],
+    "paintTolerance": 0.22
   },
   "gt": {
     "label": "GT",
@@ -21,6 +27,13 @@
     },
     "wheelRadius": 0.26,
     "textureSize": 512,
-    "nose": "auto"
+    "nose": "auto",
+    "paintBase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "paintTolerance": 0.22,
+    "paintExcludeWheels": true
   }
 }

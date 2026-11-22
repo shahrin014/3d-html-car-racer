@@ -55,7 +55,7 @@ calls.
   scaling, damage, lap timing, and input mapping are framework-free modules with
   unit tests.
 - **Opponents are kinematic.** Rivals follow the circuit exactly on their own
-  lanes and pace; the player's rigid body still collides with them, so they feel
+  lanes, in a mixed field of catalog car models and palette paints; the player's rigid body still collides with them, so they feel
   solid without a second vehicle simulation. Pace is modulated by the track
   tangent's grade, so rivals slow on climbs and speed up on descents. They never
   add damage, because a kinematic body can produce very large solver forces in a
@@ -247,7 +247,7 @@ calls.
 | Best time | The fastest total time at a level, stored locally and kept across circuits. |
 | Paint | One of ten named car colours; the player picks one in the menu and it is stored locally. |
 | Car | One of the selectable models in the catalog (Mach, GT); the player picks one in the menu and it is stored locally. |
-| Opponent | A computer rival on the same circuit, driven along a kinematic racing line in a palette paint. |
+| Opponent | A computer rival on the same circuit, driven along a kinematic racing line in a catalog car and palette paint. |
 | Scenery | Deterministic city blocks and towers around the circuit; presentation only. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
 | Cockpit camera | A driver's-eye view with a generated dashboard texture. |

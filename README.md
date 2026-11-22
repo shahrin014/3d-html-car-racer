@@ -5,8 +5,8 @@ against the clock on a generated circuit with banked turns, a vertical loop,
 crests, jumps, obstacle corridors lined with solid hazard blocks, boost
 straights, figure-eight layouts with bridges over the track, and spiral ramps
 that climb two levels around a landmark tower in a generated city skyline. The
-cars are the Mach and the GT, shipped as GLBs and repainted by the menu's
-ten-colour picker, driven by a Rapier rigid-body simulation behind a small
+cars are the Mach and the GT, shipped as GLBs and kept in their stock liveries or
+repainted from the menu's ten-colour picker, driven by a Rapier rigid-body simulation behind a small
 adapter.
 
 **Play:** https://shahrin014.github.io/3d-html-car-racer/

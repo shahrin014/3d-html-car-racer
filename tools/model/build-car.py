@@ -48,6 +48,9 @@ HEIGHT = float(target.get("height", 0.6))
 TEXTURE_SIZE = int(config.get("textureSize", 512))
 WHEEL_RADIUS = float(config.get("wheelRadius", 0.26))
 NOSE = config.get("nose", "auto")
+PAINT_BASE = config.get("paintBase")
+PAINT_TOLERANCE = float(config.get("paintTolerance", 0.12))
+PAINT_EXCLUDE_WHEELS = bool(config.get("paintExcludeWheels", False))
 UP_OVERRIDE = config.get("upAxis", "auto")
 out_dir = os.path.join(repo_root, "assets/car")
 
@@ -225,14 +228,72 @@ for material in mesh.materials:
 png_w, png_h = image.size
 pixels = np.array(image.pixels[:], dtype=np.float32).reshape(png_h, png_w, 4)
 rgb = pixels[..., :3]
-value = rgb.max(axis=2)
-chroma = rgb.max(axis=2) - rgb.min(axis=2)
-mask = ((value > 0.5) & (chroma < 0.14)).astype(np.float32)
+
+if PAINT_BASE is None:
+    # Default: light neutral bodywork.
+    value = rgb.max(axis=2)
+    chroma = rgb.max(axis=2) - rgb.min(axis=2)
+    mask = ((value > 0.5) & (chroma < 0.14)).astype(np.float32)
+else:
+    base = np.array(PAINT_BASE, dtype=np.float32)
+    distance = np.linalg.norm(rgb - base, axis=2)
+    mask = (distance < PAINT_TOLERANCE).astype(np.float32)
+
+# Wheels and glazing can share the body's base colour on a dark car, so carve
+# their UV footprints out of the mask when the car needs it.
+if PAINT_EXCLUDE_WHEELS:
+    excluded = np.zeros((png_h, png_w), dtype=bool)
+    uv_layer = mesh.uv_layers.active.data
+    for polygon in mesh.polygons:
+        c = polygon.center
+        near_wheel = any(
+            math.hypot(c.z - row[2], c.y - row[1]) < WHEEL_RADIUS * (HEIGHT / 0.6) + 0.06
+            and abs(c.x) > 0.25
+            for row in rows
+        )
+        glazing = (
+            c.z > HEIGHT * 0.4
+            and abs(c.x) < WIDTH * 0.3
+            and -LENGTH * 0.25 < c.y < LENGTH * 0.18
+        )
+        if not (near_wheel or glazing):
+            continue
+        points = [
+            (
+                uv_layer[loop].uv.x * png_w,
+                uv_layer[loop].uv.y * png_h,
+            )
+            for loop in polygon.loop_indices
+        ]
+        for index in range(1, len(points) - 1):
+            tri = [points[0], points[index], points[index + 1]]
+            xs = [p[0] for p in tri]
+            ys = [p[1] for p in tri]
+            x0, x1 = max(0, int(min(xs))), min(png_w - 1, int(max(xs)) + 1)
+            y0, y1 = max(0, int(min(ys))), min(png_h - 1, int(max(ys)) + 1)
+            ax, ay = tri[0]
+            bx, by = tri[1]
+            cx, cy = tri[2]
+            denominator = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+            if abs(denominator) < 1e-9:
+                continue
+            for py in range(y0, y1 + 1):
+                for px in range(x0, x1 + 1):
+                    a = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / denominator
+                    b = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / denominator
+                    if a >= 0 and b >= 0 and a + b <= 1:
+                        excluded[py, px] = True
+    # Grow the exclusion so filtering does not bleed body paint into tyres.
+    grown = excluded.copy()
+    for dy in (-2, -1, 0, 1, 2):
+        for dx in (-2, -1, 0, 1, 2):
+            grown |= np.roll(np.roll(excluded, dy, axis=0), dx, axis=1)
+    mask = mask * (~grown)
 
 kernel = np.ones(5, dtype=np.float32) / 5
 for axis in (0, 1):
     mask = np.apply_along_axis(lambda row: np.convolve(row, kernel, mode="same"), axis, mask)
-mask = np.clip(mask * 1.6 - 0.25, 0, 1)
+mask = np.clip(mask * 1.4 - 0.1, 0, 1)
 
 mask_img = bpy.data.images.new("PaintMask", width=png_w, height=png_h, alpha=False)
 rgba = np.zeros((png_h, png_w, 4), dtype=np.float32)

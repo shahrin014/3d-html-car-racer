@@ -7,11 +7,13 @@ import {
   PHYSICS_RIDE_HEIGHT,
   TRACK_WIDTH,
 } from './constants';
+import { CARS } from './car-spec.mjs';
 import {
   advanceDistance,
   advanceTravel,
   circuitLength,
   gradeAt,
+  opponentCarIds,
   opponentSpecs,
   paceAt,
   racingPose,
@@ -130,5 +132,22 @@ describe('terrain pace', () => {
     const descent = advanceDistance(spec, start, 1, length, -0.4) - start;
     expect(climb).toBeGreaterThan(0);
     expect(descent).toBeGreaterThan(climb);
+  });
+});
+
+describe('opponent car models', () => {
+  it('mixes the catalog models across the field, deterministically', () => {
+    const ids = opponentCarIds('circuit-0123456789abcdef', 3);
+    expect(ids).toHaveLength(3);
+    for (const id of ids) {
+      expect(CARS.some((car) => car.id === id)).toBe(true);
+    }
+    // Two models on the grid, not three copies of the player's car.
+    expect(new Set(ids).size).toBeGreaterThan(1);
+    expect(opponentCarIds('circuit-0123456789abcdef', 3)).toEqual(ids);
+  });
+
+  it('returns no models for an empty field', () => {
+    expect(opponentCarIds('seed', 0)).toEqual([]);
   });
 });
