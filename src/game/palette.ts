@@ -13,6 +13,9 @@ export interface Paint {
 }
 
 export const PAINTS: readonly Paint[] = [
+  // The casting's own white livery leads: it is the colour the reference car
+  // wears and therefore the default selection.
+  { id: 'pearl', name: 'Pearl white', color: 0xf2f4f7 },
   { id: 'candy', name: 'Candy red', color: 0xa30f1d },
   { id: 'gold', name: 'Champagne gold', color: 0xf2b705 },
   { id: 'lemon', name: 'Lemon', color: 0xf7e04a },
@@ -22,7 +25,6 @@ export const PAINTS: readonly Paint[] = [
   { id: 'azure', name: 'Azure', color: 0x2b6cff },
   { id: 'violet', name: 'Violet', color: 0x8b5cf6 },
   { id: 'magenta', name: 'Magenta', color: 0xe63fa8 },
-  { id: 'pearl', name: 'Pearl white', color: 0xe9edf2 },
 ];
 
 export const DEFAULT_PAINT = PAINTS[0]!;

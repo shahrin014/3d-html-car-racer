@@ -23,7 +23,7 @@ test('paint picker offers ten paints and remembers the choice', async ({
   await violet.click();
   await expect(violet).toHaveAttribute('aria-pressed', 'true');
   await expect(
-    page.locator('#paint-picker button[data-paint="candy"]'),
+    page.locator('#paint-picker button[data-paint="pearl"]'),
   ).toHaveAttribute('aria-pressed', 'false');
 
   // It survives a reload, including the swatch state.
@@ -38,7 +38,7 @@ test('paint picker offers ten paints and remembers the choice', async ({
   );
   await page.reload();
   await expect(
-    page.locator('#paint-picker button[data-paint="candy"]'),
+    page.locator('#paint-picker button[data-paint="pearl"]'),
   ).toHaveAttribute('aria-pressed', 'true');
 
   expectNoIssues(issues);

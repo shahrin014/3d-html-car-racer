@@ -22,8 +22,7 @@
     "test:e2e:raw": "node tools/run-e2e.mjs",
     "test:e2e:install": "playwright install chromium",
     "assets": "node tools/render-assets.mjs",
-    "model:car": "node tools/export-car-glb.mjs",
-    "model:check": "node tools/check-car.mjs",
+    "model:car": "node tools/model/publish-car.mjs",
     "assets:glb": "node tools/export-glb.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "check": "npm run typecheck && npm run test && npm run build"

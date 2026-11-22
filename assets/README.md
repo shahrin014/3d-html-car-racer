@@ -1,8 +1,8 @@
 # Asset catalog
 
-Rendered references for every gameplay asset. These images are documentation and
-design review material, not files loaded at runtime: the game builds all geometry
-and textures procedurally, and still downloads no models, textures, or fonts.
+Rendered references for every gameplay asset. Track, city, and cockpit geometry
+is still generated procedurally at runtime; the car is the one authored model and
+the game loads its GLB from `public/models/car.glb`.
 
 Regenerate the whole catalog with:
 
@@ -61,21 +61,49 @@ colliders.
 
 ## Car
 
-![car](car/car-hero.png)
+![car hero](car/car-hero.png)
 
 ![car side](car/car-side.png)
 
-Die-cast hypercar, 2.45 × 1.0 × 0.78 m, 1.4 m wheelbase, roof 0.71 m. The shell
-is lofted from longitudinal cross-sections, and each section carries a full
-profile - floor, arch line, shoulder, fender crown, centreline - so the body
-wraps the wheels instead of leaving them exposed. Wheel arches are circles
-concentric with each tyre plus a 30 mm gap, which is what keeps the bodywork
-out of the wheels. Details are sampled from that same surface: a lofted black
-canopy, a tapered hood blade, side intakes, sills, a wide-mouth nose, diffuser
-fins, a tail light bar, and a swan-neck rear wing on uprights with endplates.
-Wheels are lathed tyres with gold multi-spoke faces. Candy red paint, black
-aero, and gold rims come from `src/game/car-model.mjs`, which the game and this
-render both use, so the catalog image is always the car you drive.
+![car rear](car/car-rear.png)
+
+![car reference angle](car/car-ref.png)
+
+The Mach Speeder: a low, wide endurance prototype based on the Hot Wheels
+casting, modelled from the images in `docs/reference/`. It is 2.45 × 1.22 ×
+0.60 m with a 1.52 m wheelbase, 0.26 m wheel radius, and a visual body that
+overhangs the 1.0 m physics collider across the fender pods.
+
+The silhouette is built from deliberately separate volumes rather than one
+shell. Front fender pods float over the wheels, joined to the tub by thin
+horizontal blades, so the air gap between the nose and the fenders stays open.
+A wide mouth intake is split by a paint blade over a dark recess, with the sharp
+centre tongue ahead of it. Deep side scallops expose an orange core between a
+dark sill and the upper lip. The canopy is a teardrop with an orange roof scoop
+and a spine running back to the engine deck, where three louvres sit on each
+side. The tail is a Kamm cut with a light bar, a four-strake diffuser, and a
+single-element orange wing on two thin pylons.
+
+The wheels are turbofans: a tyre, a dark face disc, an orange recessed ring and
+lip, a black hub, and a single notch. Each wheel is a named node in the GLB
+(`wheel-front-left`, and so on) so the game can steer the front pair and spin
+all four.
+
+Colour is split into channels that the game repaints:
+
+| Channel | Parts | Behaviour |
+| --- | --- | --- |
+| `Paint` | Outer body, fender pods, wing endplates | Takes the selected paint |
+| `PaintDeep` | Sills, splitter, diffuser, lower flank | A darkened tone of the paint |
+| `Stripe` | Twin strips over the nose and rear deck | Light on dark paints, dark on light |
+| `Accent` | Wing, roof scoop, intake cores, wheel rings | Fixed Hot Wheels orange |
+| `Glass` | Canopy | Fixed dark blue glass |
+| `Trim`, `Tyre`, `Brake`, `Headlight`, `Taillight` | Details | Fixed |
+
+The committed model is `car/mach-speeder.glb`. `npm run model:car` checks its
+envelope, wheel nodes, and material channels, then publishes it to
+`public/models/car.glb`. The preview above is rendered from that same GLB, so
+the catalog cannot drift from the car in the game.
 
 ## Cockpit
 
@@ -113,6 +141,6 @@ npm run assets:glb -- spiral-r12
 ```
 
 The files live next to the previews in `assets/track/` and use the same
-parametric definitions, so models and images cannot drift apart. The car and
-cockpit are not exported yet; they will follow the same format once the car
-model is final.
+parametric definitions, so models and images cannot drift apart. The car is
+exported separately as `assets/car/mach-speeder.glb`; the cockpit is a camera
+rig and has no model.

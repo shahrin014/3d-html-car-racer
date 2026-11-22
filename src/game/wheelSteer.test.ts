@@ -1,15 +1,30 @@
 import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import * as THREE from 'three';
-import { createCar } from './car-model.mjs';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildCar } from './Car';
+
+const MODEL = path.resolve(process.cwd(), 'assets/car/mach-speeder.glb');
 
 /** Axle direction of a wheel in car space: the wheel's local +X. */
 function axleOf(wheel: THREE.Object3D): THREE.Vector3 {
   return new THREE.Vector3(1, 0, 0).applyQuaternion(wheel.quaternion);
 }
 
+async function shippedCar() {
+  const bytes = await readFile(MODEL);
+  const gltf = await new GLTFLoader().parseAsync(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    '',
+  );
+  return buildCar(gltf.scene);
+}
+
 describe('steered wheels', () => {
-  it('keeps the axle fixed while the wheel spins', () => {
-    const car = createCar();
+  it('keeps the axle fixed while the wheel spins', async () => {
+    const car = await shippedCar();
+    expect(car.wheels).toHaveLength(4);
     const wheel = car.wheels[2]!;
     car.setSteer(-0.4);
 
@@ -27,8 +42,8 @@ describe('steered wheels', () => {
     }
   });
 
-  it('steers only the front pair, and in the direction asked for', () => {
-    const car = createCar();
+  it('steers only the front pair, and in the direction asked for', async () => {
+    const car = await shippedCar();
     const before = car.wheels.map(axleOf);
     car.setSteer(-0.5);
 

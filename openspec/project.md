@@ -25,9 +25,11 @@ availability, and damage sensitivity.
 | Hosting | GitHub Pages via GitHub Actions |
 | CI/CD | GitHub Actions, deploy from `main` |
 
-The game deliberately uses only Three.js primitives and generated canvas
-textures. There are no downloaded models, textures, fonts, audio files, or
-runtime API calls.
+The game deliberately uses Three.js primitives and generated canvas textures
+for the circuit, city, and cockpit. The one authored model is the player car:
+a committed GLB loaded from the app's own origin and precached with the shell.
+There are no third-party models, textures, fonts, audio files, or runtime API
+calls.
 
 ## Project Conventions
 
@@ -155,6 +157,17 @@ runtime API calls.
 - **The deck floats.** There are no support columns under the track: the layout
   reads as an assembled plastic track, and the underside is part of the swept
   surface rather than a separate structure.
+- **The car is one authored GLB, recoloured by material name.** The Mach Speeder
+  is modelled offline (an image-to-3D base cleaned up in Blender) and loaded from
+  `public/models/car.glb`, which is precached with the shell. Each car is a clone
+  of that scene; the runtime clones only the three named paint channels (`Paint`,
+  `PaintDeep`, `Stripe`) and derives their tones from the selected paint, so ten
+  rivals share tyres, glass, lamps, and the fixed orange aero. Four named wheel
+  nodes carry the axles, so the front pair can steer while all four spin.
+- **The car model is separate from its physics envelope.** `car-spec.mjs` holds
+  the dimensions, wheel positions, and livery maths. The model's visual width
+  across the fender pods may overhang the chassis collider; `CAR.width` stays at
+  1.0 because track width is seven car widths and the collider is built from it.
 
 ### Asset formats
 
@@ -162,8 +175,10 @@ runtime API calls.
   models for every 3D asset, split by kind (`assets/track/`,
   `assets/buildings/`, `assets/car/`, `assets/cockpit/`). New 3D assets are GLB
   with embedded textures.
-- The game itself still builds geometry procedurally and downloads no models;
-  GLB files are the design and interchange format, not runtime dependencies.
+- The circuit, city, and cockpit are still built procedurally at runtime. The
+  car's `assets/car/mach-speeder.glb` is the exception: `npm run model:car`
+  validates it and publishes it to `public/models/car.glb`, and the game loads
+  that file. Other GLBs remain design and interchange formats.
 
 ### Testing Strategy
 

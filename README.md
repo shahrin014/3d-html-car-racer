@@ -4,8 +4,9 @@ A mobile-first circuit racer inspired by orange plastic track sets. Three laps
 against the clock on a generated circuit with banked turns, a vertical loop,
 crests, jumps, boost straights, figure-eight layouts with bridges over the
 track, and spiral ramps that climb two levels around a landmark tower in a
-generated city skyline. The car is a candy-red die-cast hypercar driven by a
-Rapier rigid-body simulation behind a small adapter.
+generated city skyline. The car is a white, blue, and orange Mach Speeder, shipped
+as a GLB and repainted by the menu's ten-colour picker, driven by a Rapier
+rigid-body simulation behind a small adapter.
 
 **Play:** https://shahrin014.github.io/3d-html-car-racer/
 
@@ -39,6 +40,11 @@ npm run preview    # serve the production build on :4173
 ```
 
 `npm run test:e2e` needs Chromium once per machine: `npm run test:e2e:install`.
+
+The car model is committed. `npm run model:car` validates
+`assets/car/mach-speeder.glb` and publishes it to `public/models/car.glb`, which
+is the file the game loads and precaches. Rebuilding the mesh from the image-to-3D
+base needs Blender plus NumPy; see `tools/model/build-car.py`.
 
 ### Worktrees and concurrent test runs
 
@@ -128,8 +134,8 @@ src/game/
   physics.ts         Rapier adapter: track colliders, wheeled rigid body, guide assist
   track.ts           circuit generation and sampled track frames
   trackMesh.ts       orange swept track mesh, rails, boosts and gate
-  Car.ts             player car wrapper around the shared die-cast model
-  car-model.mjs      parametric car geometry shared with the asset catalog
+  Car.ts             loads the car GLB once, then clones and repaints it per car
+  car-spec.mjs       car envelope, wheel positions, material names, livery maths
   cockpitCamera.ts   driver's-eye camera pose
   cockpit.ts         PNG cockpit frame and rotating steering wheel
   assets/            cockpit frame and wheel PNGs
@@ -138,7 +144,7 @@ public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator
 assets/              rendered catalog: track pieces, car, cockpit, GLB models
 build/               bundle budgets, service worker cache stamping
-tools/               asset preview renderer (three.js in headless Chromium)
+tools/               asset preview renderer; tools/model/ authors and publishes the car
 e2e/                 Playwright browser smoke tests
 openspec/            behavior, project, and deployment specs
 ```

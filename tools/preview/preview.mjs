@@ -405,19 +405,25 @@ const PIECES = {
   },
   car: {
     kind: 'car',
-    title: 'Hypercar · die-cast',
-    meta: '2.45 × 1.0 × 0.78 m · candy red · gold aero wheels · swan-neck wing',
+    title: 'Mach Speeder · hero',
+    meta: '2.45 × 1.22 × 0.60 m · white body · blue livery · orange aero',
   },
   'car-side': {
     kind: 'car',
     view: 'side',
-    title: 'Hypercar · side elevation',
-    meta: 'profile check · wheelbase 1.4 m · roof 0.78 m · wedge nose',
+    title: 'Mach Speeder · side elevation',
+    meta: 'profile check · wheelbase 1.52 m · roof 0.60 m · open wheel arches',
+  },
+  'car-rear': {
+    kind: 'car',
+    view: 'rear',
+    title: 'Mach Speeder · rear',
+    meta: 'single-element orange wing · diffuser strakes · Kamm tail',
   },
   'car-ref': {
     kind: 'car',
     view: 'ref',
-    title: 'Hypercar · reference angle',
+    title: 'Mach Speeder · reference angle',
     meta: 'framed to match docs/reference/mach-speeder-hero.jpg for comparison',
   },
   cockpit: {
@@ -903,7 +909,7 @@ function fitCamera(target, view, pad = 1.04) {
 if (piece.kind === 'car') {
   const track = buildTrack(straightPath(14), 14);
   assetGroup.add(track);
-  const car = createCar();
+  const car = await createCar();
   car.position.set(0, 0, 6);
   assetGroup.add(car);
   const shadow = createContactShadow(3.4, 2.2);
@@ -911,7 +917,7 @@ if (piece.kind === 'car') {
   assetGroup.add(shadow);
   // Both comparison views read the body on its own: the track surface would
   // hide the lower body behind its own edge and clutter the silhouette.
-  if (piece.view === 'side' || piece.view === 'ref') {
+  if (piece.view === 'side' || piece.view === 'ref' || piece.view === 'rear') {
     track.visible = false;
   }
   if (piece.view === 'side') {
@@ -919,20 +925,26 @@ if (piece.kind === 'car') {
     // three-quarter view always hides. Car sits at z = 6 and is 0.78 tall.
     camera.fov = 24;
     camera.updateProjectionMatrix();
-    camera.position.set(14, 1.15, 6.2);
-    camera.lookAt(0, 0.42, 6);
+    camera.position.set(14, 1.0, 6.2);
+    camera.lookAt(0, 0.3, 6);
   } else if (piece.view === 'ref') {
     // Framed to match docs/reference/mach-speeder-hero.jpg: front three-quarter,
     // about 22 degrees above the horizon, close enough to fill the frame.
     camera.fov = 28;
     camera.updateProjectionMatrix();
-    camera.position.set(2.65, 1.95, 8.9);
-    camera.lookAt(0, 0.4, 6.08);
+    camera.position.set(2.65, 1.75, 8.9);
+    camera.lookAt(0, 0.3, 6.08);
   } else {
     camera.fov = 28;
     camera.updateProjectionMatrix();
-    camera.position.set(4.2, 2.5, 10.6);
-    camera.lookAt(0, 0.45, 6.2);
+    camera.position.set(4.2, 2.1, 10.2);
+    camera.lookAt(0, 0.32, 6.2);
+  }
+  if (piece.view === 'rear') {
+    camera.fov = 28;
+    camera.updateProjectionMatrix();
+    camera.position.set(-3.8, 1.9, 2.0);
+    camera.lookAt(0, 0.3, 6.1);
   }
 } else if (piece.kind === 'cockpit') {
   const track = buildTrack(straightPath(90), 90);

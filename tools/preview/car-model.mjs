@@ -1,17 +1,17 @@
 import * as THREE from 'three';
-import { createCar as buildCar } from '../../src/game/car-model.mjs';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
  * Preview entry point for the car and the cockpit rig.
  *
- * The car itself lives in `src/game/car-model.mjs`: the game and this catalog
- * render the same geometry, so a render can never drift from what is driven.
- * Only the cockpit helpers are preview-only for now - the game has no cockpit
- * camera yet.
+ * The car is the shipped GLB in `assets/car/mach-speeder.glb`, the same file
+ * the game publishes to `public/models/car.glb`, so the catalog render is
+ * always the car that is driven. Only the cockpit helpers are preview-only.
  */
 
-export function createCar() {
-  return buildCar().group;
+export async function createCar() {
+  const gltf = await new GLTFLoader().loadAsync('/assets/car/mach-speeder.glb');
+  return gltf.scene;
 }
 
 const wheelParts = {
