@@ -37,6 +37,10 @@ const PIECES = [
   { id: 'car', folder: 'car', name: 'car-hero' },
   { id: 'car-side', folder: 'car', name: 'car-side' },
   { id: 'car-rear', folder: 'car', name: 'car-rear' },
+  { id: 'gt-hero', folder: 'car', name: 'gt-hero' },
+  { id: 'gt-side', folder: 'car', name: 'gt-side' },
+  { id: 'gt-rear', folder: 'car', name: 'gt-rear' },
+  { id: 'gt-ref', folder: 'car', name: 'gt-ref' },
   { id: 'car-ref', folder: 'car', name: 'car-ref' },
   { id: 'cockpit', folder: 'cockpit', name: 'cockpit-view' },
 ];

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildCar } from './Car';
 
-const MODEL = path.resolve(process.cwd(), 'assets/car/mach-speeder.glb');
+const MODEL = path.resolve(process.cwd(), 'assets/car/mach.glb');
 
 /** Axle direction of a wheel in car space: the wheel's local +X. */
 function axleOf(wheel: THREE.Object3D): THREE.Vector3 {

@@ -1,8 +1,24 @@
 {
-  "mach-speeder": {
-    "label": "Mach Speeder",
-    "source": "assets/car/source/mach-speeder.obj",
-    "target": { "length": 2.45, "width": 1.26, "height": 0.6 },
+  "mach": {
+    "label": "Mach",
+    "source": "assets/car/source/mach/mach.obj",
+    "target": {
+      "length": 2.45,
+      "width": 1.26,
+      "height": 0.6
+    },
+    "wheelRadius": 0.26,
+    "textureSize": 512,
+    "nose": "auto"
+  },
+  "gt": {
+    "label": "GT",
+    "source": "assets/car/source/gt/gt.obj",
+    "target": {
+      "length": 2.45,
+      "width": 1.26,
+      "height": 0.6
+    },
     "wheelRadius": 0.26,
     "textureSize": 512,
     "nose": "auto"

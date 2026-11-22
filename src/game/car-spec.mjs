@@ -1,5 +1,5 @@
 /**
- * Mach Speeder dimensions, material names, and livery maths.
+ * Mach dimensions, material names, and livery maths.
  *
  * This module is the small, dependency-free half of the car: the physics
  * envelope, the material channel names, and the paint rules. The game imports
@@ -31,5 +31,14 @@ export const CAR = {
   rearWheelX: 0.485,
 };
 
-/** Default body colour: the white/blue/orange Mach Speeder livery. */
+/** Default body colour: the white/blue/orange Mach livery. */
 export const DEFAULT_BODY_COLOR = 0xf1f3f6;
+
+/**
+ * Selectable cars. The first entry is the default. Ids match the published
+ * asset names (public/models/<id>.glb and the two PNGs) and cars.json keys.
+ */
+export const CARS = [
+  { id: 'mach', name: 'Mach' },
+  { id: 'gt', name: 'GT' },
+];

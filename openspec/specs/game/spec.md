@@ -721,21 +721,41 @@ the three-lap race against the clock.
 - **THEN** its pace falls below its cruise speed
 - **AND** its pace rises above cruise speed on the following descent
 
-### Requirement: The player car is a Mach Speeder loaded from GLB
+### Requirement: The player car is a selectable catalog car
 
-The player car SHALL be the Mach Speeder: a low, wide endurance prototype with
-floating front fender pods, a wide central mouth, side scallops, a canopy, and a
-single-element orange rear wing. The model SHALL be loaded once from
-`models/car.glb` together with its baked livery and paint mask, and cloned per
+The player car SHALL be one of the cars in the catalog - Mach, a low wide
+endurance prototype, or GT, a long-nose grand tourer - each with its own baked
+livery and paint mask. The selected model SHALL be loaded from
+`models/<id>.glb` together with its baked livery and paint mask, and cloned per
 car. The GLB SHALL declare four named wheel pivots at the axles so the front
 pair can steer and every wheel can spin. The selected paint SHALL recolour only
 the white bodywork through the mask; the blue stripes, orange aero, glazing,
 and tyres SHALL stay as authored. The model SHALL sit on the road surface at
 the origin, face +Z, and stay inside the physics envelope.
 
+#### Scenario: Two cars are offered
+
+- **GIVEN** the menu is shown
+- **WHEN** the car picker is inspected
+- **THEN** Mach and GT are offered as labelled options
+- **AND** exactly one is marked as the current car
+
+#### Scenario: Selecting a car applies and persists
+
+- **GIVEN** the menu is shown
+- **WHEN** the player selects a car
+- **THEN** that car's model replaces the player car, keeping the current paint
+- **AND** the same car is used after a reload
+
+#### Scenario: Corrupt car falls back
+
+- **GIVEN** the stored car id is not one of the catalog cars
+- **WHEN** the game loads
+- **THEN** the first catalog car is used
+
 #### Scenario: Wheels come from the model
 
-- **GIVEN** the car GLB
+- **GIVEN** a car GLB
 - **THEN** it contains exactly four nodes named `wheel-rear-left`,
   `wheel-rear-right`, `wheel-front-left`, and `wheel-front-right`
 - **AND** each wheel spins about its own +X axis while the front pair steers
@@ -760,7 +780,7 @@ the origin, face +Z, and stay inside the physics envelope.
 ### Requirement: The player car's paint is selectable
 
 The menu SHALL offer ten named car paints, including the default pearl white of
-the Mach Speeder livery, as labelled swatches that can be activated by touch,
+the Mach livery, as labelled swatches that can be activated by touch,
 mouse, or keyboard. The selection SHALL apply to the car immediately, SHALL
 persist across reloads, and SHALL expose its state to assistive technology. An
 unknown or corrupt stored paint SHALL fall back to the default.

@@ -157,7 +157,7 @@ calls.
 - **The deck floats.** There are no support columns under the track: the layout
   reads as an assembled plastic track, and the underside is part of the swept
   surface rather than a separate structure.
-- **The car is one authored GLB with a masked livery.** The Mach Speeder is
+- **Cars are authored GLBs with masked liveries.** The Mach and the GT are
   generated from the reference photos and cleaned up in Blender, then loaded from
   `public/models/car.glb` with its livery PNG and paint mask, all precached with
   the shell. Each car is a clone of that scene. The runtime binds the livery
@@ -177,7 +177,7 @@ calls.
   `assets/buildings/`, `assets/car/`, `assets/cockpit/`). New 3D assets are GLB
   with embedded textures.
 - The circuit, city, and cockpit are still built procedurally at runtime. The
-  car's `assets/car/mach-speeder.glb` is the exception: `npm run model:car`
+  car's `assets/car/mach.glb` is the exception: `npm run model:car`
   validates it and publishes it to `public/models/car.glb`, and the game loads
   that file. Other GLBs remain design and interchange formats.
 
@@ -246,6 +246,7 @@ calls.
 | Checkpoint | An ordered gate that must be crossed before the finish line counts a lap. |
 | Best time | The fastest total time at a level, stored locally and kept across circuits. |
 | Paint | One of ten named car colours; the player picks one in the menu and it is stored locally. |
+| Car | One of the selectable models in the catalog (Mach, GT); the player picks one in the menu and it is stored locally. |
 | Opponent | A computer rival on the same circuit, driven along a kinematic racing line in a palette paint. |
 | Scenery | Deterministic city blocks and towers around the circuit; presentation only. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
