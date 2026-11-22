@@ -33,6 +33,8 @@ of the requirements.
 | Maximum frame delta | 0.1 s |
 | Boost impulse | 7 m/s |
 | Boost cooldown | 1.6 s |
+| Obstacle segment | 24 m, five rows of edge blocks |
+| Obstacle block | 0.9 m wide, 0.9 m deep, 0.9 m tall |
 | Damage per impulse | 18 |
 | Maximum damage | 100% |
 | Rescue stall time | 2.5 s |
@@ -461,6 +463,39 @@ crosses a barrier as it enters the landing.
 - **AND** the ring's descending side clears the entry track
 - **AND** the car leaves down a ramp 6.8 m ahead of the entrance
 - **AND** both ends meet the straight at zero slope
+
+### Requirement: Obstacle segments line the deck with solid hazards
+
+Some circuits SHALL include an obstacle segment: a straight deck lined with
+solid hazard blocks. The blocks SHALL sit near the guide rails, so a clear
+corridor remains along the centreline and over every rival lane. A car that
+drives into a block SHALL be stopped by it and SHALL take impact damage; the
+block SHALL NOT move, break, or leave the deck. The blocks SHALL be visually
+distinct from the surface and the boost strips. The obstacle segment SHALL keep
+the track surface continuous beneath the blocks.
+
+#### Scenario: Centreline stays clear
+
+- **GIVEN** an obstacle segment
+- **WHEN** the blocks and the clear corridor are measured
+- **THEN** no block reaches the centreline or any rival lane
+- **AND** a car driving down the centreline passes without contact
+
+#### Scenario: Hitting a block damages the car
+
+- **GIVEN** a race on a circuit with an obstacle segment
+- **WHEN** the car drives into a block at speed
+- **THEN** the block stops the car
+- **AND** the impact adds damage
+- **AND** the block stays fixed to the deck
+
+#### Scenario: Obstacles are visible and distinct
+
+- **GIVEN** an obstacle segment
+- **WHEN** the track is inspected
+- **THEN** every block is drawn above the deck
+- **AND** the blocks use a hazard pattern distinct from the surface and boost
+  strips
 
 ### Requirement: The circuit sits in a city skyline
 

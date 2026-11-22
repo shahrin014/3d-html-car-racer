@@ -348,6 +348,56 @@ describe('jumps', () => {
   }, 60_000);
 });
 
+describe('obstacles', () => {
+  it('stops the car at a solid block and records an impact', async () => {
+    const frames: TrackFrame[] = [];
+    for (let z = 0; z <= 60; z += 1) {
+      frames.push({
+        position: new THREE.Vector3(0, 0, z),
+        tangent: new THREE.Vector3(0, 0, 1),
+        up: new THREE.Vector3(0, 1, 0),
+        right: new THREE.Vector3(1, 0, 0),
+        s: z,
+        solid: true,
+      });
+    }
+    const blockZ = 30;
+    const physics = await createPhysics(frames, {
+      obstacles: [
+        {
+          position: new THREE.Vector3(0, 0.45, blockZ),
+          quaternion: new THREE.Quaternion(),
+          halfExtents: new THREE.Vector3(0.5, 0.45, 0.45),
+          pieceIndex: 0,
+        },
+      ],
+    });
+    physics.reset(frames[0]!);
+
+    let impact = 0;
+    for (let step = 0; step < 120 * 5; step += 1) {
+      const state = physics.read();
+      const index = Math.max(
+        0,
+        Math.min(frames.length - 1, Math.floor(state.position.z)),
+      );
+      physics.step(
+        FIXED_STEP,
+        { throttle: 1, brake: false, steer: 0 },
+        frames[index]!,
+      );
+      impact = Math.max(impact, physics.takeImpact());
+    }
+
+    const end = physics.read();
+    physics.dispose();
+    // The block is solid: the car cannot drive through it, and the contact
+    // force is reported as an impact so the race can add damage.
+    expect(impact).toBeGreaterThan(0);
+    expect(end.position.z).toBeLessThan(blockZ);
+  }, 30_000);
+});
+
 describe('bridges', () => {
   it('drives up the ramp and across the raised deck', async () => {
     let frames: TrackFrame[] | null = null;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { ObstacleSpec } from './obstacles';
 import {
   advanceTravel,
   circuitLength,
@@ -60,6 +61,8 @@ export interface OpponentState extends VehicleState {
 export interface PhysicsOptions {
   /** Rivals to drive around the circuit as kinematic bodies. */
   opponents?: OpponentSpec[];
+  /** Solid hazard blocks on the obstacle segments. */
+  obstacles?: readonly ObstacleSpec[];
 }
 
 export interface PhysicsHandle {
@@ -85,6 +88,7 @@ const GROUP_TRACK = 1;
 const GROUP_RAIL = 2;
 const GROUP_CHASSIS = 4;
 const GROUP_OPPONENT = 8;
+const GROUP_OBSTACLE = 16;
 const groups = (membership: number, filter: number): number =>
   (membership << 16) | filter;
 
@@ -200,6 +204,29 @@ export async function createPhysics(
     }
   }
 
+  // Hazard blocks are fixed and only touch the player's chassis. They do not
+  // collide with the deck or rails, and rivals pass through them along their
+  // own lanes (which stay clear of every block).
+  for (const obstacle of options.obstacles ?? []) {
+    world.createCollider(
+      RAPIER.ColliderDesc.cuboid(
+        obstacle.halfExtents.x,
+        obstacle.halfExtents.y,
+        obstacle.halfExtents.z,
+      )
+        .setTranslation(
+          obstacle.position.x,
+          obstacle.position.y,
+          obstacle.position.z,
+        )
+        .setRotation(obstacle.quaternion)
+        .setFriction(0.55)
+        .setRestitution(0.1)
+        .setCollisionGroups(groups(GROUP_OBSTACLE, GROUP_CHASSIS)),
+      track,
+    );
+  }
+
   const start = first.position
     .clone()
     .addScaledVector(first.up, PHYSICS_RIDE_HEIGHT);
@@ -223,7 +250,10 @@ export async function createPhysics(
       .setFriction(0.02)
       .setRestitution(0.05)
       .setCollisionGroups(
-        groups(GROUP_CHASSIS, GROUP_TRACK | GROUP_RAIL | GROUP_OPPONENT),
+        groups(
+          GROUP_CHASSIS,
+          GROUP_TRACK | GROUP_RAIL | GROUP_OPPONENT | GROUP_OBSTACLE,
+        ),
       )
       .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
       .setContactForceEventThreshold(IMPACT_THRESHOLD),

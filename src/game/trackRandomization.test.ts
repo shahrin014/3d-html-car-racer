@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { BRIDGE_HEIGHT, JUMP_LANDING_WIDTH, MIN_TURN_RADIUS, SPIRAL_RADIUS, TRACK_WIDTH } from './constants';
+import {
+  BRIDGE_HEIGHT,
+  JUMP_LANDING_WIDTH,
+  MIN_TURN_RADIUS,
+  OBSTACLE_SEGMENT_LENGTH,
+  SPIRAL_RADIUS,
+  TRACK_WIDTH,
+} from './constants';
 import {
   buildFrames,
   generateCircuit,
@@ -82,6 +89,24 @@ describe('track randomization', () => {
     expect(combinations.size).toBeGreaterThan(1);
   });
 
+  it('puts obstacle segments on some seeded circuits', () => {
+    const lengths = new Set<number>();
+    let found = 0;
+    for (const seed of SEEDS) {
+      for (const level of LEVELS) {
+        for (const piece of generateCircuit(seed, level).pieces) {
+          if (piece.kind !== 'obstacles') {
+            continue;
+          }
+          lengths.add(piece.length);
+          found += 1;
+        }
+      }
+    }
+    expect(found).toBeGreaterThan(0);
+    expect([...lengths]).toEqual([OBSTACLE_SEGMENT_LENGTH]);
+  });
+
   it('changes the combination when the level changes', () => {
     for (const seed of ['alpha', 'charlie']) {
       const easy = generateCircuit(seed, 1);
@@ -115,6 +140,7 @@ describe('track randomization', () => {
       'turn',
       'loop',
       'hill',
+      'obstacles',
       'boost',
       'shift',
       'kicker',

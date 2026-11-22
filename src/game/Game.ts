@@ -31,6 +31,12 @@ import {
   jumpSpans,
   type JumpSpan,
 } from './jumps';
+import {
+  buildObstacleMesh,
+  obstacleSpecs,
+  type ObstacleMesh,
+  type ObstacleSpec,
+} from './obstacles';
 import { opponentSpecs, racingPose } from './opponents';
 import { DEFAULT_PAINT, opponentPaints, type Paint } from './palette';
 import { createPhysics, type PhysicsHandle } from './physics';
@@ -97,6 +103,8 @@ export class Game {
   private opponentCount: number;
   private opponents: { car: Car; spin: number }[] = [];
   private trackMesh!: TrackMesh;
+  private obstacleMesh: ObstacleMesh | null = null;
+  private obstacles: ObstacleSpec[] = [];
   private scenery: Scenery | null = null;
   private skyboxRevision = 0;
   private frames!: TrackFrame[];
@@ -240,6 +248,14 @@ export class Game {
     const mesh = buildTrackMesh(this.splitPieces(circuit.pieces));
     this.trackMesh = mesh;
     this.scene.add(mesh.group);
+
+    this.obstacles = obstacleSpecs(circuit);
+    if (this.obstacleMesh) {
+      this.scene.remove(this.obstacleMesh.group);
+      this.obstacleMesh.dispose();
+    }
+    this.obstacleMesh = buildObstacleMesh(this.obstacles);
+    this.scene.add(this.obstacleMesh.group);
 
     if (this.scenery) {
       this.scene.remove(this.scenery.group);
@@ -499,6 +515,7 @@ export class Game {
     this.physics?.dispose();
     this.pendingPhysics?.dispose();
     this.trackMesh.dispose();
+    this.obstacleMesh?.dispose();
     this.scenery?.dispose();
     this.skyboxRevision += 1;
     disposeSkyboxes();
@@ -523,6 +540,7 @@ export class Game {
     const revision = this.physicsRevision;
     this.physicsLoad = createPhysics(this.frames, {
       opponents: opponentSpecs(this.opponentCount),
+      obstacles: this.obstacles,
     })
       .then((handle) => {
         if (revision !== this.physicsRevision) {

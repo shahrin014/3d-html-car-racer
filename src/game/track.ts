@@ -23,6 +23,7 @@ import {
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
   MIN_TURN_RADIUS,
+  OBSTACLE_SEGMENT_LENGTH,
   SPIRAL_HEIGHT,
   SPIRAL_RADIUS,
   SPIRAL_TURNS,
@@ -78,6 +79,16 @@ export function straightPath(length: number): TrackPath {
     up: new THREE.Vector3(0, 1, 0),
     bank: 0,
   });
+}
+
+/**
+ * Flat deck for the obstacle segment. The hazard blocks are placed on it by
+ * `obstacleSpecs`, so the path itself is a plain straight.
+ */
+export function obstaclesPath(
+  length = OBSTACLE_SEGMENT_LENGTH,
+): TrackPath {
+  return straightPath(length);
 }
 
 export function turnPath(
@@ -491,6 +502,7 @@ export interface Piece {
     | 'turn'
     | 'loop'
     | 'hill'
+    | 'obstacles'
     | 'boost'
     | 'shift'
     | 'kicker'
@@ -824,9 +836,23 @@ function assembleCircuit(
       addTurn(turnAngle, false);
     }
 
+    // The closing vertical leg carries the boost. When this seed draws an
+    // obstacle corridor, it sits just before the boost strip so a car clears
+    // the blocks and is boosted out. The draw is made here, at the last
+    // decision in the figure-eight assembly, so it never re-rolls the bridge
+    // or elevation choices above.
+    const figureEightObstacle = random() < 0.4;
     addStraight(CIRCUIT_LEAD_STRAIGHT);
+    if (figureEightObstacle) {
+      addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
+    }
     addStraight(CIRCUIT_BOOST_LENGTH, true);
-    addStraight(legA - CIRCUIT_LEAD_STRAIGHT - CIRCUIT_BOOST_LENGTH);
+    addStraight(
+      legA -
+        CIRCUIT_LEAD_STRAIGHT -
+        CIRCUIT_BOOST_LENGTH -
+        (figureEightObstacle ? OBSTACLE_SEGMENT_LENGTH : 0),
+    );
     addTurn(turnAngle, false);
 
     // The loop sits exactly at the crossing, so the bridge threads its hole.
@@ -978,6 +1004,9 @@ function assembleCircuit(
     }
   }
 
+  // Up to one obstacle corridor per circuit, chosen during the leg loop below.
+  let obstacleHost: number | null = null;
+
   legs.forEach((leg, index) => {
     const feature =
       index === loopLeg
@@ -990,8 +1019,29 @@ function assembleCircuit(
     const boost = boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0;
     const transition = transitions.get(index);
     const transitionPlan = transition?.plan ?? 0;
+    // At most one obstacle corridor per circuit. The decision is made on the
+    // first leg that can carry one: it must not be the grid, the loop or hill
+    // leg, or a climb/descent leg, and it must have room in its pad. A boost
+    // strip is allowed on the same leg: the block corridor is placed just
+    // before the strip, so a car clears the blocks and is boosted out.
+    // Deciding here, inside the final assembly loop, means the obstacle never
+    // shrinks the pool of free legs that elevation and boosts draw from, so a
+    // seed with no obstacles assembles exactly as it always did.
+    if (
+      obstacleHost === null &&
+      index !== 0 &&
+      index !== loopLeg &&
+      index !== hillLeg &&
+      !transition &&
+      leg - CIRCUIT_LEAD_STRAIGHT - feature - boost - transitionPlan >=
+        OBSTACLE_SEGMENT_LENGTH &&
+      random() < 0.45
+    ) {
+      obstacleHost = index;
+    }
+    const obstacle = obstacleHost === index ? OBSTACLE_SEGMENT_LENGTH : 0;
     const pad =
-      leg - CIRCUIT_LEAD_STRAIGHT - feature - boost - transitionPlan;
+      leg - CIRCUIT_LEAD_STRAIGHT - feature - boost - transitionPlan - obstacle;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
     if (transition) {
@@ -1012,6 +1062,9 @@ function assembleCircuit(
       } else {
         addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
       }
+    }
+    if (obstacle > 0) {
+      addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
     }
     if (boost > 0) {
       addStraight(boost, true);
@@ -1084,6 +1137,15 @@ export function validateCircuit(circuit: Circuit): CircuitValidation {
   }
   if (boosts < 2) {
     reasons.add('needs at least two boost strips');
+  }
+
+  for (const piece of circuit.pieces) {
+    if (
+      piece.kind === 'obstacles' &&
+      Math.abs(piece.length - OBSTACLE_SEGMENT_LENGTH) > 1e-6
+    ) {
+      reasons.add('obstacle segment has the wrong length');
+    }
   }
 
   for (const piece of circuit.pieces) {

@@ -207,6 +207,20 @@ export const JUMP_LENGTH =
 export const JUMP_DOWN_LANDING_PER_LEVEL = 26;
 
 /**
+ * Obstacle segment: a straight deck lined with solid hazard blocks. The blocks
+ * sit near the rails so the centreline and every rival lane stay clear; a car
+ * that drifts wide hits one, slows, and takes damage. The 24 m length matches
+ * the hill and jump slot, so a leg can carry any one of the three features.
+ */
+export const OBSTACLE_SEGMENT_LENGTH = 24;
+export const OBSTACLE_ROWS = 5;
+export const OBSTACLE_WIDTH = 0.9;
+export const OBSTACLE_DEPTH = 0.9;
+export const OBSTACLE_HEIGHT = 0.9;
+/** Distance from the centreline to an obstacle's centre. */
+export const OBSTACLE_LATERAL_OFFSET = 2.5;
+
+/**
  * Bridge module: a ramp up to a raised deck, a flat crossing, and a ramp back
  * down. The deck sits at half the loop's height so a branch can pass through
  * the loop opening or over another leg of the circuit.

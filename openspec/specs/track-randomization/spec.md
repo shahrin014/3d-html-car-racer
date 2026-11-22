@@ -33,6 +33,8 @@ of the requirements.
 | Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
 | Spiral ramp rise | 8 m per turn; 16 m for two levels |
 | Spiral ramp levels | up to 2 |
+| Obstacle segment | 24 m straight with five seeded rows of edge blocks |
+| Obstacle block placement | 2.5 m from the centreline; clear centreline corridor |
 | Assembly attempts | 32 deterministic offsets |
 
 ## Requirements
@@ -137,10 +139,45 @@ bridge height, and back down in a different section, as set out below.
 
 - **GIVEN** one level and two different seeds
 - **WHEN** both circuits are generated
-- **THEN** every loop, hill, ramp, spiral, and shift keeps its authored size
+- **THEN** every loop, hill, obstacle segment, ramp, spiral, and shift keeps
+  its authored size
 - **AND** every turn keeps the level's authored radius
-- **AND** only the combination, corner count, straight lengths, and elevation
-  route differ
+- **AND** only the combination, corner count, straight lengths, obstacle rows,
+  and elevation route differ
+
+### Requirement: Obstacle segments are seeded and leave a clear line
+
+Some seeds SHALL include an obstacle segment as an authored straight from the
+catalog. The segment SHALL keep its authored 24 m length. The seed SHALL choose
+which rows carry a block on the left edge, the right edge, or both edges, and
+the same seed SHALL produce the same obstacle layout. Every block SHALL sit near
+a guide rail, inside the track, and above the deck. A clear corridor SHALL
+remain along the centreline and over every rival lane, so neither the player nor
+a rival is forced through a block. The obstacle segment SHALL NOT be combined
+with a climb/descent on the same leg; a leg MAY place the corridor just before
+its boost strip.
+
+#### Scenario: Obstacles are deterministic
+
+- **GIVEN** one seed and level
+- **WHEN** the circuit is generated twice
+- **THEN** every obstacle block has the same position and orientation
+- **AND** the obstacle segment keeps its authored length
+
+#### Scenario: Obstacles leave a clear line
+
+- **GIVEN** any generated obstacle segment
+- **WHEN** the blocks are measured against the centreline and the rival lanes
+- **THEN** no block reaches the centreline or a rival lane
+- **AND** every block stays inside the rails and above the deck
+
+#### Scenario: Not every seed carries obstacles
+
+- **GIVEN** several seeds at one level
+- **WHEN** the circuits are generated
+- **THEN** at least one circuit includes an obstacle segment
+- **AND** at least one circuit does not
+- **AND** every circuit still closes and satisfies the required features
 
 ### Requirement: Elevated sections climb in stages and descend elsewhere
 
