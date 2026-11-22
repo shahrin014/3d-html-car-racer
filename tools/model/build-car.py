@@ -45,6 +45,10 @@ car.rotation_euler = (math.radians(-90), 0, 0)
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
 car.rotation_euler = (0, 0, math.radians(-90))
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+# The generated mesh comes in roof-down relative to its wheel geometry; flip it
+# about the long axis so the tyres meet the road.
+car.rotation_euler = (0, math.radians(180), 0)
+bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
 bpy.context.view_layer.update()
 corners = [car.matrix_world @ Vector(c) for c in car.bound_box]
 lo = Vector((min(c[i] for c in corners) for i in range(3)))
@@ -58,6 +62,24 @@ lo = Vector((min(c[i] for c in corners) for i in range(3)))
 hi = Vector((max(c[i] for c in corners) for i in range(3)))
 car.location = (-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z)
 bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
+
+# --- Level it on its tyres --------------------------------------------------
+# The generated mesh carries a rake: the front tyres sit far above the rears,
+# so the car rests on its tail and reads as floating. Pitch it until both axles
+# meet the road, then ground on the tyres rather than on the underbody.
+car.rotation_euler = (math.radians(5.4), 0, 0)
+bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+bpy.context.view_layer.update()
+
+mesh = car.data
+tyre_low = min(
+    v.co.z
+    for v in mesh.vertices
+    if abs(v.co.x) > 0.36 and abs(v.co.y) > 0.5 and v.co.z < 0.45
+)
+car.location.z -= tyre_low
+bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
+bpy.context.view_layer.update()
 
 mesh = car.data
 for polygon in mesh.polygons:
