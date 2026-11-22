@@ -335,6 +335,25 @@ export function downJumpPlanarLength(stageLevels: number): number {
 }
 
 /**
+ * Per-point landing half-width: hold the doubled width where the car touches
+ * down, then funnel symmetrically back to the normal track width by the end of
+ * the landing. Both edges mirror this value, so the flare is always centred.
+ */
+export function landingWidthTaper(): (t: number) => number {
+  const full = JUMP_LANDING_WIDTH / 2;
+  const normal = TRACK_WIDTH / 2;
+  const held = 0.28;
+  return (t) => {
+    if (t <= held) {
+      return full;
+    }
+    const p = (t - held) / (1 - held);
+    const eased = p * p * (3 - 2 * p);
+    return full + (normal - full) * eased;
+  };
+}
+
+/**
  * Shared planar composition for the jump module. The gap and the landing are
  * placed on the tilted launch frame, so their forward distance is not the sum
  * of the three authored lengths. Compose the placement frames exactly instead
@@ -493,6 +512,14 @@ export interface Piece {
    * the normal half-width.
    */
   halfWidth?: number;
+  /**
+   * Optional per-point half-width, as a function of the piece's parameter t
+   * (0..1). A jump landing uses this to hold its doubled width where the car
+   * lands and then funnel symmetrically back to the normal track width, so the
+   * widened deck tapers instead of stepping down. When present, this overrides
+   * `halfWidth` for the sampled frames.
+   */
+  widthTaper?: (t: number) => number;
   /** Authored turn radius and angle, used by layout validation. */
   radius?: number;
   angleDegrees?: number;
@@ -700,6 +727,7 @@ function assembleCircuit(
     const landing = pieces[pieces.length - 1];
     if (landing && landing.kind === 'landing') {
       landing.halfWidth = JUMP_LANDING_WIDTH / 2;
+      landing.widthTaper = landingWidthTaper();
     }
   };
 
@@ -1183,7 +1211,9 @@ export function buildFrames(circuit: Circuit, step = 0.4): TrackFrame[] {
         right: new THREE.Vector3().crossVectors(upWorld, tangent).normalize(),
         s: distance + t * piece.length,
         solid: piece.kind !== 'gap',
-        halfWidth: piece.halfWidth ?? TRACK_WIDTH / 2,
+        halfWidth: piece.widthTaper
+          ? piece.widthTaper(t)
+          : (piece.halfWidth ?? TRACK_WIDTH / 2),
       });
     }
     distance += piece.length;

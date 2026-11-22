@@ -613,7 +613,9 @@ export class Game {
           right: new THREE.Vector3().crossVectors(upWorld, tangent).normalize(),
           s: offset + (index / count) * piece.length,
           solid: piece.kind !== 'gap',
-          halfWidth: piece.halfWidth ?? TRACK_WIDTH / 2,
+          halfWidth: piece.widthTaper
+            ? piece.widthTaper(index / count)
+            : (piece.halfWidth ?? TRACK_WIDTH / 2),
         });
       }
       grouped.push(

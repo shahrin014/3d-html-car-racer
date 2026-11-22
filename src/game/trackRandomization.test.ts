@@ -411,6 +411,53 @@ describe('track randomization', () => {
     expect(found).not.toBeNull();
   }, 20_000);
 
+  it('tapers the wide landing symmetrically back to normal width', () => {
+    let found: Circuit | null = null;
+    for (let index = 0; index < 120; index += 1) {
+      const circuit = generateCircuit(`taper-check-${index}`, 1);
+      if (!circuit.pieces.some((piece) => piece.kind === 'landing')) {
+        continue;
+      }
+      const frames = buildFrames(circuit);
+      let start = 0;
+      let landing: { from: number; to: number } | null = null;
+      for (const piece of circuit.pieces) {
+        if (piece.kind === 'landing' && piece.halfWidth != null) {
+          landing = { from: start, to: start + piece.length };
+          break;
+        }
+        start += piece.length;
+      }
+      if (!landing) {
+        continue;
+      }
+      const inLanding = frames.filter(
+        (f) => f.s >= landing!.from - 1e-6 && f.s <= landing!.to + 1e-6,
+      );
+      if (inLanding.length < 3) {
+        continue;
+      }
+      // First frame is full width; the last tapers to the normal half-width.
+      const first = inLanding[0]!;
+      const last = inLanding[inLanding.length - 1]!;
+      expect(first.halfWidth).toBeCloseTo(JUMP_LANDING_WIDTH / 2, 6);
+      expect(last.halfWidth).toBeCloseTo(TRACK_WIDTH / 2, 6);
+      // The flare is symmetric: both rails sit the same distance off-centre.
+      for (const frame of inLanding) {
+        const right = new THREE.Vector3().crossVectors(frame.up, frame.tangent);
+        const leftEdge = frame.position.clone().addScaledVector(right, -frame.halfWidth);
+        const rightEdge = frame.position.clone().addScaledVector(right, frame.halfWidth);
+        expect(leftEdge.distanceTo(frame.position)).toBeCloseTo(
+          rightEdge.distanceTo(frame.position),
+          6,
+        );
+      }
+      found = circuit;
+      break;
+    }
+    expect(found).not.toBeNull();
+  }, 20_000);
+
   it('keeps figure-eight jump and hill variants closed', () => {
     let jump: Circuit | null = null;
     let hill: Circuit | null = null;

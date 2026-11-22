@@ -75,22 +75,35 @@ function endFrame(matrix, path) {
   return matrix.clone().multiply(rotation.setPosition(s.position));
 }
 function place(matrix, path, halfW) {
-  const S = 48;
+  const S = 60;
   const pts = [];
   for (let i = 0; i <= S; i++) {
-    const s = path(i / S);
+    const t = i / S;
+    const s = path(t);
     const p = s.position.clone().applyMatrix4(matrix);
     const r = new THREE.Vector3().crossVectors(s.up, s.tangent).normalize();
-    pts.push({ center: p, left: p.clone().addScaledVector(r, -halfW),
-      right: p.clone().addScaledVector(r, halfW), up: s.up.clone() });
+    const hw = typeof halfW === 'function' ? halfW(t) : halfW;
+    pts.push({ center: p, left: p.clone().addScaledVector(r, -hw),
+      right: p.clone().addScaledVector(r, hw), up: s.up.clone() });
   }
   return pts;
+}
+function landingWidthTaper() {
+  const full = JUMP_LANDING_WIDTH / 2;
+  const normal = TRACK_WIDTH / 2;
+  const held = 0.28;
+  return (t) => {
+    if (t <= held) return full;
+    const p = (t - held) / (1 - held);
+    const e = p * p * (3 - 2 * p);
+    return full + (normal - full) * e;
+  };
 }
 function buildModule(drop) {
   const parts = [
     [kickerPath(), TRACK_WIDTH / 2],
     [gapPath(), TRACK_WIDTH / 2],
-    [landingPath(JUMP_LANDING_LENGTH, drop), JUMP_LANDING_WIDTH / 2],
+    [landingPath(JUMP_LANDING_LENGTH, drop), landingWidthTaper()],
   ];
   const ribbon = [];
   let m = new THREE.Matrix4();
@@ -252,5 +265,5 @@ function renderAll(name, drop, pitch, title) {
   console.log(`wrote renders/${name}.png  (title: ${title})`);
 }
 
-renderAll('jump-flat', 0, 0.5, 'Long jump: kicker 9m · gap 9m · landing 26m (2x wide)');
-renderAll('jump-down', 8, 0.36, 'Downhill jump: high kicker, gap, wide landing 8m lower');
+renderAll('jump-flat', 0, 1.05, 'Long jump: kicker 9m · gap 9m · landing 26m (2x wide, tapers out)');
+renderAll('jump-down', 8, 0.95, 'Downhill jump: high kicker, gap, wide landing 8m lower (tapers out)');

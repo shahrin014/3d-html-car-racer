@@ -386,8 +386,10 @@ upward launch angle, a deckless gap, and a lower landing ramp that enters along
 the launch line below the lip and sinks back to the deck. The car SHALL leave
 the lip, fly over the empty space, and land on the down-ramp. The kicker and
 landing SHALL end at the gap with a clear edge; no deck or rail SHALL cross the
-gap. The landing SHALL be twice as wide as the running track, so a fast,
-off-line landing has room to settle before the deck narrows again.
+gap. The landing SHALL be twice as wide as the running track, and SHALL hold
+that width where the car touches down then taper symmetrically back to the
+normal track width, so a fast, off-line landing has room to settle before the
+deck narrows again.
 
 #### Scenario: Track width
 
