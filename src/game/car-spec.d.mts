@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 
-/** Envelope and running gear of the Mach Speeder, in metres. */
+/** Envelope and running gear of the Mach, in metres. */
 export interface CarSpec {
   readonly length: number;
   readonly width: number;
@@ -28,3 +28,10 @@ export interface CarModel {
 export declare const CAR: CarSpec;
 
 export declare const DEFAULT_BODY_COLOR: number;
+
+export interface CarOption {
+  readonly id: string;
+  readonly name: string;
+}
+
+export declare const CARS: readonly CarOption[];

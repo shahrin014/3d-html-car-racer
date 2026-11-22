@@ -280,6 +280,9 @@ export const TILT_SMOOTHING = 10;
 export const BEST_TIME_KEY_PREFIX = 'neon-racer.best-time';
 /** Storage key for the chosen player paint. */
 export const PAINT_KEY = 'neon-racer.paint';
+
+/** Storage key for the chosen player car. */
+export const CAR_KEY = 'neon-racer.car';
 /** Storage key for the chosen number of opponents. */
 export const OPPONENTS_KEY = 'neon-racer.opponents';
 export const UNLOCKED_LEVEL_KEY = 'neon-racer.unlocked-level';

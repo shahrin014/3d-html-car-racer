@@ -49,7 +49,7 @@ TEXTURE_SIZE = int(config.get("textureSize", 512))
 WHEEL_RADIUS = float(config.get("wheelRadius", 0.26))
 NOSE = config.get("nose", "auto")
 UP_OVERRIDE = config.get("upAxis", "auto")
-out_dir = os.path.normpath(os.path.join(os.path.dirname(source), ".."))
+out_dir = os.path.join(repo_root, "assets/car")
 
 # --- Import -----------------------------------------------------------------
 bpy.ops.wm.read_factory_settings(use_empty=True)

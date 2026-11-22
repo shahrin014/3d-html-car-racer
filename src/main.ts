@@ -7,6 +7,7 @@ import {
   OPPONENT_COUNT_MAX,
   OPPONENTS_KEY,
   PAINT_KEY,
+  CAR_KEY,
 } from './game/constants';
 import {
   brakeFromKeys,
@@ -16,6 +17,7 @@ import {
 import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
 import { preloadCarModel } from './game/Car';
 import { placingLabel } from './game/placing';
+import { CARS } from './game/car-spec.mjs';
 import { DEFAULT_PAINT, PAINTS, paintById } from './game/palette';
 import { randomSeed } from './game/seed';
 import { steerFromTilt, tiltDegrees } from './game/tilt';
@@ -56,6 +58,7 @@ const newBest = mustQuery<HTMLElement>('#new-best');
 const finalPlacing = mustQuery<HTMLElement>('#final-placing');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const paintPicker = mustQuery<HTMLElement>('#paint-picker');
+const carPicker = mustQuery<HTMLElement>('#car-picker');
 const opponentsValue = mustQuery<HTMLOutputElement>('#opponents-value');
 const fewerOpponents = mustQuery<HTMLButtonElement>('#opponents-fewer');
 const moreOpponents = mustQuery<HTMLButtonElement>('#opponents-more');
@@ -107,6 +110,25 @@ function readPaint() {
 function writePaint(id: string): void {
   try {
     window.localStorage.setItem(PAINT_KEY, id);
+  } catch {
+    // Persistence is best effort.
+  }
+}
+
+const DEFAULT_CAR = CARS[0]!.id;
+
+function readCar(): string {
+  try {
+    const stored = window.localStorage.getItem(CAR_KEY);
+    return CARS.some((car) => car.id === stored) ? stored! : DEFAULT_CAR;
+  } catch {
+    return DEFAULT_CAR;
+  }
+}
+
+function writeCar(id: string): void {
+  try {
+    window.localStorage.setItem(CAR_KEY, id);
   } catch {
     // Persistence is best effort.
   }
@@ -280,6 +302,7 @@ async function enableTilt(): Promise<void> {
 }
 
 let game: Game | null = null;
+let carId = readCar();
 
 /**
  * Load the car model before building the scene: a race never starts with an
@@ -289,7 +312,7 @@ let game: Game | null = null;
 async function bootGame(): Promise<void> {
   startButton.disabled = true;
   try {
-    await preloadCarModel();
+    await preloadCarModel(carId);
   } catch (error) {
     console.error('The car model could not be loaded.', error);
     startButton.textContent = 'Car model unavailable';
@@ -343,6 +366,7 @@ async function bootGame(): Promise<void> {
     nextSeed,
     paint,
     opponentCount,
+    carId,
   );
   } catch (error) {
     console.error('WebGL could not be initialised.', error);
@@ -361,6 +385,70 @@ function markPaint(id: string): void {
     swatch.setAttribute('aria-pressed', String(swatch.dataset.paint === id));
   }
 }
+
+function markCar(id: string): void {
+  for (const button of carPicker.querySelectorAll<HTMLButtonElement>(
+    'button[data-car]',
+  )) {
+    button.setAttribute('aria-pressed', String(button.dataset.car === id));
+  }
+}
+
+for (const option of CARS) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'car-option';
+  button.dataset.car = option.id;
+  button.textContent = option.name;
+  button.setAttribute('aria-label', option.name);
+  button.setAttribute('aria-pressed', String(option.id === carId));
+  carPicker.append(button);
+}
+
+/**
+ * Switch cars: fetch the model, then let the game rebuild the player car. The
+ * picker is locked while the new set loads so a race can never start with a
+ * half-swapped model.
+ */
+async function chooseCar(id: string): Promise<void> {
+  if (id === carId) {
+    return;
+  }
+  const previous = carId;
+  carId = id;
+  markCar(id);
+  writeCar(id);
+  carPicker.setAttribute('aria-busy', 'true');
+  startButton.disabled = true;
+  for (const button of carPicker.querySelectorAll<HTMLButtonElement>('button')) {
+    button.disabled = true;
+  }
+  try {
+    await preloadCarModel(id);
+    game?.setPlayerCar(id);
+  } catch (error) {
+    console.error('The car model could not be loaded.', error);
+    carId = previous;
+    markCar(previous);
+    writeCar(previous);
+  } finally {
+    carPicker.removeAttribute('aria-busy');
+    startButton.disabled = false;
+    for (const button of carPicker.querySelectorAll<HTMLButtonElement>('button')) {
+      button.disabled = false;
+    }
+  }
+}
+
+carPicker.addEventListener('click', (event) => {
+  const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
+    'button[data-car]',
+  );
+  if (!button) {
+    return;
+  }
+  void chooseCar(button.dataset.car ?? DEFAULT_CAR);
+});
 
 for (const option of PAINTS) {
   const swatch = document.createElement('button');

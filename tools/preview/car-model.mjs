@@ -12,9 +12,9 @@ import {
  * same code, the same GLB, and the same transform.
  */
 
-/** Load the game's car assets once, then return a clone for the studio. */
-export async function createCar() {
-  await preloadCarModel('/public/models/', 'mach-speeder');
+/** Load one car's assets, then return a clone for the studio. */
+export async function createCar(id = 'mach') {
+  await preloadCarModel('/public/models/', id);
   return createRuntimeCar().group;
 }
 

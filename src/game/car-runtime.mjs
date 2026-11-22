@@ -88,7 +88,7 @@ function loadSet(base, id) {
  * Load one car's assets from `base` (ending in a slash). Resolves once the
  * set is ready; later calls for the same car reuse it.
  */
-export function preloadCarModel(base, id = 'mach-speeder') {
+export function preloadCarModel(base, id = 'mach') {
   const key = `${base}${id}`;
   if (!sets.has(key)) {
     sets.set(key, loadSet(base, id));

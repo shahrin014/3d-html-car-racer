@@ -5,9 +5,9 @@ against the clock on a generated circuit with banked turns, a vertical loop,
 crests, jumps, obstacle corridors lined with solid hazard blocks, boost
 straights, figure-eight layouts with bridges over the track, and spiral ramps
 that climb two levels around a landmark tower in a generated city skyline. The
-car is a white, blue, and orange Mach Speeder, shipped as a GLB and repainted by
-the menu's ten-colour picker, driven by a Rapier rigid-body simulation behind a
-small adapter.
+cars are the Mach and the GT, shipped as GLBs and repainted by the menu's
+ten-colour picker, driven by a Rapier rigid-body simulation behind a small
+adapter.
 
 **Play:** https://shahrin014.github.io/3d-html-car-racer/
 
@@ -137,7 +137,7 @@ src/game/
   track.ts           circuit generation and sampled track frames
   trackMesh.ts       orange swept track mesh, rails, boosts and gate
   Car.ts             loads the car GLB once, then clones and repaints it per car
-  car-spec.mjs       car envelope, wheel positions, default body colour
+  car-spec.mjs       car envelope, wheel positions, selectable cars, default colour
   cockpitCamera.ts   driver's-eye camera pose
   cockpit.ts         PNG cockpit frame and rotating steering wheel
   assets/            cockpit frame and wheel PNGs

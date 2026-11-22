@@ -429,26 +429,57 @@ const PIECES = {
   },
   car: {
     kind: 'car',
-    title: 'Mach Speeder · hero',
+    carId: 'mach',
+    title: 'Mach · hero',
     meta: '2.45 × 1.26 × 0.60 m · baked livery · repaintable body mask · orange aero',
   },
   'car-side': {
     kind: 'car',
     view: 'side',
-    title: 'Mach Speeder · side elevation',
+    carId: 'mach',
+    title: 'Mach · side elevation',
     meta: 'profile check · wheelbase 1.52 m · roof 0.60 m · open wheel arches',
   },
   'car-rear': {
     kind: 'car',
     view: 'rear',
-    title: 'Mach Speeder · rear',
+    carId: 'mach',
+    title: 'Mach · rear',
     meta: 'single-element orange wing · livery texture · Kamm tail',
   },
   'car-ref': {
     kind: 'car',
     view: 'ref',
-    title: 'Mach Speeder · reference angle',
+    carId: 'mach',
+    title: 'Mach · reference angle',
     meta: 'framed to match docs/reference/mach-speeder-hero.jpg for comparison',
+  },
+  'gt-hero': {
+    kind: 'car',
+    carId: 'gt',
+    title: 'GT · hero',
+    meta: '2.45 × 1.26 × 0.60 m · baked livery · repaintable body mask',
+  },
+  'gt-side': {
+    kind: 'car',
+    carId: 'gt',
+    view: 'side',
+    title: 'GT · side elevation',
+    meta: 'profile check · levelled on its tyres',
+  },
+  'gt-rear': {
+    kind: 'car',
+    carId: 'gt',
+    view: 'rear',
+    title: 'GT · rear',
+    meta: 'livery texture · Kamm tail',
+  },
+  'gt-ref': {
+    kind: 'car',
+    carId: 'gt',
+    view: 'ref',
+    title: 'GT · reference angle',
+    meta: 'framed to match the reference photos for comparison',
   },
   cockpit: {
     kind: 'cockpit',
@@ -1046,7 +1077,7 @@ function fitCamera(target, view, pad = 1.04) {
 if (piece.kind === 'car') {
   const track = buildTrack(straightPath(14), 14);
   assetGroup.add(track);
-  const car = await createCar();
+  const car = await createCar(piece.carId ?? 'mach');
   car.position.set(0, 0, 6);
   assetGroup.add(car);
   const shadow = createContactShadow(3.4, 2.2);

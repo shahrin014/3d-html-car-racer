@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildCar } from './Car';
 
-const MODEL = path.resolve(process.cwd(), 'assets/car/mach-speeder.glb');
+const MODEL = path.resolve(process.cwd(), 'assets/car/mach.glb');
 
 async function shippedScene() {
   const bytes = await readFile(MODEL);

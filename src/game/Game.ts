@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createCar, WHEEL_RADIUS, type Car } from './Car';
+import { createCar, PLAYER_CAR, WHEEL_RADIUS, type Car } from './Car';
 import { chasePose, createChaseRig, resetChaseRig } from './chaseCamera';
 import { createCockpit, type Cockpit } from './cockpit';
 import { cockpitPose } from './cockpitCamera';
@@ -146,6 +146,7 @@ export class Game {
   private physicsAccumulator = 0;
   private lastFrameIndex = 0;
   private wheelSpin = 0;
+  private carId: string;
   private readonly resizeObserver: ResizeObserver;
   private readonly reducedMotion: MediaQueryList;
   /** Reused scratch pose so the camera rigs allocate nothing per frame. */
@@ -166,7 +167,9 @@ export class Game {
     seed: string,
     paint: Paint = DEFAULT_PAINT,
     opponents = DEFAULT_OPPONENT_COUNT,
+    carId = PLAYER_CAR,
   ) {
+    this.carId = carId;
     this.container = container;
     this.callbacks = callbacks;
     this.playerPaint = paint;
@@ -429,6 +432,30 @@ export class Game {
    * next frame, and physics keeps its own state. Rivals are repainted at the
    * same time so they never share the player's new colour.
    */
+  /**
+   * Switch the player's car. The caller must have preloaded the new model;
+   * ignored once a race is under way, like the paint picker.
+   */
+  setPlayerCar(id: string): void {
+    if (id === this.carId) {
+      return;
+    }
+    if (
+      this.state === 'countdown' ||
+      this.state === 'racing' ||
+      this.state === 'paused'
+    ) {
+      return;
+    }
+    this.carId = id;
+    this.scene.remove(this.car.group);
+    this.car = createCar(this.playerPaint.color);
+    this.scene.add(this.car.group);
+    resetSmoothedPose(this.visualPose);
+    this.placeCar(0, 0);
+    this.rebuildOpponentCars();
+  }
+
   setPlayerPaint(paint: Paint): void {
     if (paint.id === this.playerPaint.id) {
       return;

@@ -7,7 +7,7 @@ import {
 } from './car-runtime.mjs';
 
 /**
- * The car the player drives: the Mach Speeder, loaded once from a binary glTF
+ * The car the player drives: the Mach, loaded once from a binary glTF
  * and cloned per car.
  *
  * The model, its transform, its re-paint shader, and its wheel pivots all live
@@ -26,11 +26,11 @@ export const PLAYER_PAINT = DEFAULT_BODY_COLOR;
 const MODELS = `${import.meta.env.BASE_URL}models/`;
 
 /** Which car the player drives. Add another id to cars.json to offer a choice. */
-export const PLAYER_CAR = 'mach-speeder';
+export const PLAYER_CAR = 'mach';
 
-/** Fetch the car model ahead of the first race. */
-export async function preloadCarModel(): Promise<void> {
-  await preloadRuntime(MODELS, PLAYER_CAR);
+/** Fetch one car's assets ahead of the first race. */
+export async function preloadCarModel(id = PLAYER_CAR): Promise<void> {
+  await preloadRuntime(MODELS, id);
 }
 
 /** Build one car from an already-loaded root (used by tests). */
