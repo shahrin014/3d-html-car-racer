@@ -104,22 +104,45 @@ function buildModule(drop) {
 // ---------------- projection ----------------
 let camPitch = 0.5;
 const camYaw = 0.62;
-const camDist = 150;
-const fScale = 130;
+const camDist = 90;
+const fScale = 400;
 const W = 640;
 const H = 480;
-const cx = W / 2;
-const cy = H / 2;
 
 function project(p) {
   const cyc = Math.cos(camYaw), syc = Math.sin(camYaw);
-  const x1 = p.x * cyc + (p.z + 30) * syc;
-  const z1 = -p.x * syc + (p.z + 30) * cyc;
+  const x1 = p.x * cyc + p.z * syc;
+  const z1 = -p.x * syc + p.z * cyc;
   const cxp = Math.cos(camPitch), sxp = Math.sin(camPitch);
   const y1 = p.y * cxp - z1 * sxp;
   const z2 = p.y * sxp + z1 * cxp;
   const scale = fScale / Math.max(1, camDist - z2);
-  return { x: cx + x1 * scale, y: cy - y1 * scale, z: z2 };
+  return { x: x1 * scale, y: -y1 * scale, z: z2 };
+}
+
+function fit(polygons) {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const poly of polygons) {
+    for (const p of poly.pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+  }
+  const margin = 40;
+  const s = Math.min(
+    (W - margin * 2) / Math.max(1, maxX - minX),
+    (H - margin * 2) / Math.max(1, maxY - minY),
+  );
+  const ox = W / 2 - ((minX + maxX) / 2) * s;
+  const oy = H / 2 - ((minY + maxY) / 2) * s;
+  for (const poly of polygons) {
+    for (const p of poly.pts) {
+      p.x = p.x * s + ox;
+      p.y = p.y * s + oy;
+    }
+  }
 }
 
 // ---------------- rasterizer ----------------
@@ -223,6 +246,7 @@ function renderAll(name, drop, pitch, title) {
   camPitch = pitch;
   const ribbon = buildModule(drop);
   const polys = buildPolygons(ribbon);
+  fit(polys);
   const png = encodePng(W, H, raster(polys));
   writeFileSync(new URL(`../renders/${name}.png`, import.meta.url), png);
   console.log(`wrote renders/${name}.png  (title: ${title})`);
