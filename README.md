@@ -42,9 +42,10 @@ npm run preview    # serve the production build on :4173
 `npm run test:e2e` needs Chromium once per machine: `npm run test:e2e:install`.
 
 The car model is committed. `npm run model:car` validates
-`assets/car/mach-speeder.glb` and publishes it to `public/models/car.glb`, which
-is the file the game loads and precaches. Rebuilding the mesh from the image-to-3D
-base needs Blender plus NumPy; see `tools/model/build-car.py`.
+`assets/car/mach-speeder.glb`, its livery, and its paint mask, then publishes
+them to `public/models/`; those are the files the game loads and precaches.
+Rebuilding the mesh from the image-to-3D base needs Blender plus NumPy; see
+`tools/model/build-car.py`.
 
 ### Worktrees and concurrent test runs
 
@@ -135,7 +136,7 @@ src/game/
   track.ts           circuit generation and sampled track frames
   trackMesh.ts       orange swept track mesh, rails, boosts and gate
   Car.ts             loads the car GLB once, then clones and repaints it per car
-  car-spec.mjs       car envelope, wheel positions, material names, livery maths
+  car-spec.mjs       car envelope, wheel positions, default body colour
   cockpitCamera.ts   driver's-eye camera pose
   cockpit.ts         PNG cockpit frame and rotating steering wheel
   assets/            cockpit frame and wheel PNGs

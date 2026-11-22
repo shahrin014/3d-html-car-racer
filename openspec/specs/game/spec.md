@@ -680,15 +680,14 @@ the three-lap race against the clock.
 ### Requirement: The player car is a Mach Speeder loaded from GLB
 
 The player car SHALL be the Mach Speeder: a low, wide endurance prototype with
-floating front fender pods, a wide central mouth, deep side scallops with an
-orange core, a teardrop canopy under an orange roof scoop, and a single-element
-orange rear wing. The model SHALL be loaded once from `models/car.glb` and
-cloned per car, and SHALL declare four separately named wheel nodes so the
-front pair can steer and every wheel can spin. The body SHALL expose named
-paint channels - body, lower body, and stripe - that the ten paints recolour;
-the orange aero, glass, tyres, and lamps SHALL stay fixed. The model SHALL sit
-on the road surface at the origin, face +Z, and stay inside the physics
-envelope.
+floating front fender pods, a wide central mouth, side scallops, a canopy, and a
+single-element orange rear wing. The model SHALL be loaded once from
+`models/car.glb` together with its baked livery and paint mask, and cloned per
+car. The GLB SHALL declare four named wheel pivots at the axles so the front
+pair can steer and every wheel can spin. The selected paint SHALL recolour only
+the white bodywork through the mask; the blue stripes, orange aero, glazing,
+and tyres SHALL stay as authored. The model SHALL sit on the road surface at
+the origin, face +Z, and stay inside the physics envelope.
 
 #### Scenario: Wheels come from the model
 
@@ -698,13 +697,13 @@ envelope.
 - **AND** each wheel spins about its own +X axis while the front pair steers
   about +Y
 
-#### Scenario: Paint channels recolour the model
+#### Scenario: Paint recolours only the bodywork
 
-- **GIVEN** a loaded car
+- **GIVEN** a loaded car and its paint mask
 - **WHEN** the player selects a paint
-- **THEN** the body, lower body, and stripe materials take tones derived from
-  that paint
-- **AND** the orange wing, scoop, and intake cores do not change colour
+- **THEN** the white bodywork takes that colour, keeping the livery's shading
+- **AND** the blue stripes, orange wing/scoop/intakes, glazing, and tyres do
+  not change colour
 
 #### Scenario: The car loads before a race
 
@@ -985,8 +984,9 @@ treated as absent. Storage failure SHALL NOT prevent play.
 Every catalog asset SHALL be exported as a binary glTF (`.glb`) file in its
 catalog folder: track pieces under `assets/track/`, buildings under
 `assets/buildings/`, and the car under `assets/car/`, with the same geometry
-and materials as the rendered preview. The car GLB SHALL also be published to
-`public/models/car.glb`, which is the file the game loads. Export SHALL be reproducible from the catalog definitions with
+and materials as the rendered preview. The car SHALL also ship its livery and
+paint-mask PNGs, and all three SHALL be published to `public/models/`, which is
+what the game loads. Export SHALL be reproducible from the catalog definitions with
 a single command. Every file SHALL be a valid glTF 2.0 binary and SHALL be
 committed alongside its preview.
 

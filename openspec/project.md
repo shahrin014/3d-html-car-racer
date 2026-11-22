@@ -157,15 +157,16 @@ calls.
 - **The deck floats.** There are no support columns under the track: the layout
   reads as an assembled plastic track, and the underside is part of the swept
   surface rather than a separate structure.
-- **The car is one authored GLB, recoloured by material name.** The Mach Speeder
-  is modelled offline (an image-to-3D base cleaned up in Blender) and loaded from
-  `public/models/car.glb`, which is precached with the shell. Each car is a clone
-  of that scene; the runtime clones only the three named paint channels (`Paint`,
-  `PaintDeep`, `Stripe`) and derives their tones from the selected paint, so ten
-  rivals share tyres, glass, lamps, and the fixed orange aero. Four named wheel
-  nodes carry the axles, so the front pair can steer while all four spin.
+- **The car is one authored GLB with a masked livery.** The Mach Speeder is
+  generated from the reference photos and cleaned up in Blender, then loaded from
+  `public/models/car.glb` with its livery PNG and paint mask, all precached with
+  the shell. Each car is a clone of that scene. The runtime binds the livery
+  texture and mixes the selected paint into the masked white bodywork, scaled by
+  the livery's luminance, so stripes, orange aero, glazing, and tyres stay as
+  authored. Four named wheel pivots carry the axles, so the front pair can steer
+  while all four spin.
 - **The car model is separate from its physics envelope.** `car-spec.mjs` holds
-  the dimensions, wheel positions, and livery maths. The model's visual width
+  the dimensions and the default body colour. The model's visual width
   across the fender pods may overhang the chassis collider; `CAR.width` stays at
   1.0 because track width is seven car widths and the collider is built from it.
 

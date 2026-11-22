@@ -25,29 +25,6 @@ export interface CarModel {
   setSteer: (value: number) => void;
 }
 
-/** Three tones derived from the one colour the player picks. */
-export interface Livery {
-  readonly body: number;
-  readonly deep: number;
-  readonly stripe: number;
-}
-
 export declare const CAR: CarSpec;
 
-export declare const CAR_MATERIALS: {
-  readonly paint: string;
-  readonly paintDeep: string;
-  readonly stripe: string;
-  readonly accent: string;
-  readonly trim: string;
-  readonly glass: string;
-  readonly tyre: string;
-  readonly brake: string;
-  readonly headlight: string;
-  readonly taillight: string;
-};
-
-export declare const ACCENT_COLOR: number;
 export declare const DEFAULT_BODY_COLOR: number;
-
-export declare function liveryFor(color: number): Livery;

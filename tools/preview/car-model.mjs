@@ -10,7 +10,22 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
  */
 
 export async function createCar() {
-  const gltf = await new GLTFLoader().loadAsync('/assets/car/mach-speeder.glb');
+  const [gltf, livery] = await Promise.all([
+    new GLTFLoader().loadAsync('/assets/car/mach-speeder.glb'),
+    new THREE.TextureLoader().loadAsync('/assets/car/mach-speeder-livery.png'),
+  ]);
+  livery.colorSpace = THREE.SRGBColorSpace;
+  livery.flipY = false;
+  gltf.scene.traverse((node) => {
+    const mesh = node;
+    if (!mesh.isMesh) return;
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      if (material.name === 'Livery') {
+        material.map = livery;
+        material.needsUpdate = true;
+      }
+    }
+  });
   return gltf.scene;
 }
 

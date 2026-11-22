@@ -70,40 +70,35 @@ colliders.
 ![car reference angle](car/car-ref.png)
 
 The Mach Speeder: a low, wide endurance prototype based on the Hot Wheels
-casting, modelled from the images in `docs/reference/`. It is 2.45 × 1.22 ×
-0.60 m with a 1.52 m wheelbase, 0.26 m wheel radius, and a visual body that
-overhangs the 1.0 m physics collider across the fender pods.
+casting, generated from the images in `docs/reference/` and cleaned up in
+Blender. It is 2.45 x 1.26 x 0.60 m with a 0.26 m wheel radius and a visual body
+that overhangs the 1.0 m physics collider across the fender pods.
 
-The silhouette is built from deliberately separate volumes rather than one
-shell. Front fender pods float over the wheels, joined to the tub by thin
-horizontal blades, so the air gap between the nose and the fenders stays open.
-A wide mouth intake is split by a paint blade over a dark recess, with the sharp
-centre tongue ahead of it. Deep side scallops expose an orange core between a
-dark sill and the upper lip. The canopy is a teardrop with an orange roof scoop
-and a spine running back to the engine deck, where three louvres sit on each
-side. The tail is a Kamm cut with a light bar, a four-strake diffuser, and a
-single-element orange wing on two thin pylons.
+The source is one fused, textured mesh. Its baked livery is what makes it read
+as the reference casting, so the game keeps that texture instead of repainting
+individual panels:
 
-The wheels are turbofans: a tyre, a dark face disc, an orange recessed ring and
-lip, a black hub, and a single notch. Each wheel is a named node in the GLB
-(`wheel-front-left`, and so on) so the game can steer the front pair and spin
-all four.
+| File | Role |
+| --- | --- |
+| `car/mach-speeder.glb` | Body shell, smoothing, and four wheel pivots |
+| `car/mach-speeder-livery.png` | Baked white/blue/orange livery |
+| `car/mach-speeder-paint-mask.png` | White bodywork mask used for repainting |
 
-Colour is split into channels that the game repaints:
+At runtime the livery texture and the mask are bound to the body material. The
+selected paint replaces only the masked white bodywork, scaled by the livery's
+own luminance so creases and shading survive; blue stripes, orange aero, the
+glazing, and the tyres stay exactly as authored. That is what keeps ten very
+different paint colours on the same livery layout.
 
-| Channel | Parts | Behaviour |
-| --- | --- | --- |
-| `Paint` | Outer body, fender pods, wing endplates | Takes the selected paint |
-| `PaintDeep` | Sills, splitter, diffuser, lower flank | A darkened tone of the paint |
-| `Stripe` | Twin strips over the nose and rear deck | Light on dark paints, dark on light |
-| `Accent` | Wing, roof scoop, intake cores, wheel rings | Fixed Hot Wheels orange |
-| `Glass` | Canopy | Fixed dark blue glass |
-| `Trim`, `Tyre`, `Brake`, `Headlight`, `Taillight` | Details | Fixed |
+The casting's wheels are part of the body surface, so the model ships four
+empty pivots named `wheel-rear-left`, `wheel-rear-right`, `wheel-front-left`,
+and `wheel-front-right` at the axle centres. The game turns the front pair for
+steering and spins all four; the visible turbofans are the casting's own rims.
 
-The committed model is `car/mach-speeder.glb`. `npm run model:car` checks its
-envelope, wheel nodes, and material channels, then publishes it to
-`public/models/car.glb`. The preview above is rendered from that same GLB, so
-the catalog cannot drift from the car in the game.
+`npm run model:car` validates and publishes the three files to
+`public/models/`, where the shell precaches them. The previews above are
+rendered from the shipped GLB and livery, so the catalog cannot drift from the
+car in the game.
 
 ## Cockpit
 

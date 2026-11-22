@@ -14,6 +14,8 @@ const CORE_ASSETS = [
   './index.html',
   './manifest.webmanifest',
   './models/car.glb',
+  './models/car-livery.png',
+  './models/car-paint-mask.png',
   './favicon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',

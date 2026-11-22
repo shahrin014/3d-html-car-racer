@@ -1,30 +1,25 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {
-  CAR,
-  CAR_MATERIALS,
-  DEFAULT_BODY_COLOR,
-  liveryFor,
-  type CarModel,
-  type Livery,
-} from './car-spec.mjs';
+import { CAR, DEFAULT_BODY_COLOR, type CarModel } from './car-spec.mjs';
 
 /**
- * The car the player drives: the Mach Speeder built as a binary glTF and
- * loaded once per session.
+ * The car the player drives: the Mach Speeder, loaded once from a binary glTF
+ * and cloned per car.
  *
- * The file is authored offline (see `tools/model/`) from the same spec in
- * `car-spec.mjs` that sizes the chassis collider, so the visual body and the
- * physics envelope cannot drift. Each car is a clone of the loaded scene; only
- * the three paint channels are cloned per car, so ten rivals still share one
- * set of tyres, glass, and lights.
+ * The model keeps its baked livery - that is what makes it read as the casting
+ * - and the selected paint is mixed into the white bodywork through a paint
+ * mask. Blue stripes, orange aero, glazing, and tyres are untouched, so ten
+ * very different paint colours all keep the same livery layout.
  */
 export type Car = CarModel;
 
-/** Paint of the reference casting: white body, blue stripe, orange accents. */
+/** Paint of the reference casting. */
 export const PLAYER_PAINT = DEFAULT_BODY_COLOR;
 
-const MODEL_URL = `${import.meta.env.BASE_URL}models/car.glb`;
+const BASE = import.meta.env.BASE_URL;
+const MODEL_URL = `${BASE}models/car.glb`;
+const LIVERY_URL = `${BASE}models/car-livery.png`;
+const MASK_URL = `${BASE}models/car-paint-mask.png`;
 
 /** Rear pair first: the game steers every wheel at index 2 and above. */
 const WHEEL_NAMES = [
@@ -35,10 +30,25 @@ const WHEEL_NAMES = [
 ] as const;
 
 let template: THREE.Object3D | null = null;
+let livery: THREE.Texture | null = null;
+let paintMask: THREE.Texture | null = null;
 let loading: Promise<THREE.Object3D> | null = null;
 
 function loadTemplate(): Promise<THREE.Object3D> {
-  loading ??= new GLTFLoader().loadAsync(MODEL_URL).then((gltf) => {
+  loading ??= Promise.all([
+    new GLTFLoader().loadAsync(MODEL_URL),
+    new THREE.TextureLoader().loadAsync(LIVERY_URL),
+    new THREE.TextureLoader().loadAsync(MASK_URL),
+  ]).then(([gltf, liveryTexture, mask]) => {
+    liveryTexture.colorSpace = THREE.SRGBColorSpace;
+    liveryTexture.flipY = false;
+    liveryTexture.anisotropy = 4;
+    livery = liveryTexture;
+    mask.colorSpace = THREE.NoColorSpace;
+    mask.flipY = false;
+    mask.needsUpdate = true;
+    paintMask = mask;
+
     const root = gltf.scene;
     root.traverse((node) => {
       const mesh = node as THREE.Mesh;
@@ -62,52 +72,45 @@ export async function preloadCarModel(): Promise<void> {
   await loadTemplate();
 }
 
-/** Recolour one paint channel, dropping any baked map that would mask it. */
-function paintChannel(
+/** A livery material that swaps the white bodywork for the chosen paint. */
+function paintedMaterial(
   source: THREE.Material,
   color: number,
-  clearcoat: number,
+  map: THREE.Texture | null,
+  mask: THREE.Texture | null,
 ): THREE.Material {
-  const material = source.clone() as THREE.MeshPhysicalMaterial;
-  material.name = source.name;
-  material.color.setHex(color);
-  if ('map' in material) {
-    material.map = null;
+  const material = source.clone();
+  material.userData.paint = color;
+  if ('map' in material && map) {
+    material.map = map;
+    material.needsUpdate = true;
   }
-  if ('emissive' in material) {
-    material.emissive.setHex(0x000000);
+  if (!map || !mask) {
+    return material;
   }
-  if ('clearcoat' in material) {
-    material.clearcoat = clearcoat;
-  }
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uPaintColor = { value: new THREE.Color(color) };
+    shader.uniforms.uPaintMask = { value: mask };
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+uniform vec3 uPaintColor;
+uniform sampler2D uPaintMask;`,
+      )
+      .replace(
+        '#include <map_fragment>',
+        `vec4 livery = texture2D( map, vMapUv );
+float paintMask = texture2D( uPaintMask, vMapUv ).r;
+float shade = dot( livery.rgb, vec3( 0.299, 0.587, 0.114 ) );
+vec3 painted = uPaintColor * ( 0.45 + 0.9 * shade );
+diffuseColor *= vec4( mix( livery.rgb, painted, paintMask ), livery.a );`,
+      );
+  };
+  // Three caches programs by material; a fresh key per colour is required.
+  material.customProgramCacheKey = () => `livery-${color}`;
+  material.needsUpdate = true;
   return material;
-}
-
-function materialFor(
-  source: THREE.Material,
-  livery: Livery,
-  cache: Map<THREE.Material, THREE.Material>,
-): THREE.Material {
-  const cached = cache.get(source);
-  if (cached) {
-    return cached;
-  }
-  let next = source;
-  switch (source.name) {
-    case CAR_MATERIALS.paint:
-      next = paintChannel(source, livery.body, 0.55);
-      break;
-    case CAR_MATERIALS.paintDeep:
-      next = paintChannel(source, livery.deep, 0.2);
-      break;
-    case CAR_MATERIALS.stripe:
-      next = paintChannel(source, livery.stripe, 0.45);
-      break;
-    default:
-      break;
-  }
-  cache.set(source, next);
-  return next;
 }
 
 /**
@@ -116,19 +119,32 @@ function materialFor(
  * tested against the shipped GLB without a browser.
  */
 export function buildCar(root: THREE.Object3D, color = PLAYER_PAINT): Car {
-  const livery = liveryFor(color);
   const group = root.clone(true) as THREE.Group;
   group.name = 'car';
 
+  const mask = paintMask;
+  const map = livery;
   const cache = new Map<THREE.Material, THREE.Material>();
   group.traverse((node) => {
-    if (!(node as THREE.Mesh).isMesh) {
+    const mesh = node as THREE.Mesh;
+    if (!mesh.isMesh) {
       return;
     }
-    const mesh = node as THREE.Mesh;
+    const swap = (material: THREE.Material): THREE.Material => {
+      if (material.name !== 'Livery') {
+        return material;
+      }
+      const cached = cache.get(material);
+      if (cached) {
+        return cached;
+      }
+      const painted = paintedMaterial(material, color, map, mask);
+      cache.set(material, painted);
+      return painted;
+    };
     mesh.material = Array.isArray(mesh.material)
-      ? mesh.material.map((material) => materialFor(material, livery, cache))
-      : materialFor(mesh.material, livery, cache);
+      ? mesh.material.map(swap)
+      : swap(mesh.material);
   });
 
   const wheels: THREE.Group[] = [];
