@@ -179,6 +179,11 @@ export async function createPhysics(
     const rotation = quaternionOf(frame);
     addSurface(middle, frame, length);
 
+    // A jump landing is open (no rails), so a car coming down from the jump
+    // never clips a barrier at the touchdown mouth.
+    if (!frame.rails) {
+      continue;
+    }
     for (const side of [-1, 1]) {
       const rail = middle
         .clone()

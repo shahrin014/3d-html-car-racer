@@ -49,6 +49,12 @@ export interface TrackFrame {
    * all widen where the car lands.
    */
   halfWidth: number;
+  /**
+   * Whether this frame carries a guide rail. A jump landing is left open so a
+   * car coming down from the jump does not clip a barrier at the touchdown
+   * mouth; rails resume on the normal-width track that follows.
+   */
+  rails: boolean;
 }
 
 export interface TrackSample {
@@ -1208,6 +1214,7 @@ export function buildFrames(circuit: Circuit, step = 0.4): TrackFrame[] {
         halfWidth: piece.widthTaper
           ? piece.widthTaper(t)
           : (piece.halfWidth ?? TRACK_WIDTH / 2),
+        rails: piece.kind !== 'landing',
       });
     }
     distance += piece.length;

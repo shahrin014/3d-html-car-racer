@@ -74,7 +74,7 @@ function endFrame(matrix, path) {
   );
   return matrix.clone().multiply(rotation.setPosition(s.position));
 }
-function place(matrix, path, halfW, gap = false) {
+function place(matrix, path, halfW, gap = false, rails = true) {
   const S = 220;
   const pts = [];
   for (let i = 0; i <= S; i++) {
@@ -84,7 +84,7 @@ function place(matrix, path, halfW, gap = false) {
     const r = new THREE.Vector3().crossVectors(s.up, s.tangent).normalize();
     const hw = typeof halfW === 'function' ? halfW(t) : halfW;
     pts.push({ center: p, left: p.clone().addScaledVector(r, -hw),
-      right: p.clone().addScaledVector(r, hw), up: s.up.clone(), gap });
+      right: p.clone().addScaledVector(r, hw), up: s.up.clone(), gap, rails });
   }
   return pts;
 }
@@ -96,14 +96,14 @@ function landingWidthTaper() {
 }
 function buildModule(drop) {
   const parts = [
-    [kickerPath(), TRACK_WIDTH / 2, false],
-    [gapPath(), TRACK_WIDTH / 2, true],
-    [landingPath(JUMP_LANDING_LENGTH, drop), landingWidthTaper(), false],
+    [kickerPath(), TRACK_WIDTH / 2, false, true],
+    [gapPath(), TRACK_WIDTH / 2, true, false],
+    [landingPath(JUMP_LANDING_LENGTH, drop), landingWidthTaper(), false, false],
   ];
   const ribbon = [];
   let m = new THREE.Matrix4();
-  for (const [path, halfW, gap] of parts) {
-    ribbon.push(...place(m, path, halfW, gap));
+  for (const [path, halfW, gap, rails] of parts) {
+    ribbon.push(...place(m, path, halfW, gap, rails));
     m = endFrame(m, path);
   }
   return ribbon;
@@ -221,6 +221,11 @@ function buildPolygons(ribbon) {
     }
     const p1 = project(a.right), p2 = project(a.left), p3 = project(b.left), p4 = project(b.right);
     polys.push({ pts: [p1, p2, p3, p4], z: (p1.z + p4.z) / 2, fill: shade(0.85, DECK_BASE) });
+    // Open landing (mouth): draw the deck but no rails, so a landing car never
+    // meets a barrier where it touches down.
+    if (!a.rails || !b.rails) {
+      continue;
+    }
     for (const [ea, eb] of [[a.left, b.left], [a.right, b.right]]) {
       const tA = ea.clone().addScaledVector(a.up, RAIL_HEIGHT);
       const tB = eb.clone().addScaledVector(b.up, RAIL_HEIGHT);

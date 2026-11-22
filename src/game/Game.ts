@@ -584,8 +584,13 @@ export class Game {
 
   private splitPieces(
     pieces: ReturnType<typeof generateCircuit>['pieces'],
-  ): { frames: TrackFrame[]; boost?: boolean; gap?: boolean }[] {
-    const grouped: { frames: TrackFrame[]; boost?: boolean; gap?: boolean }[] = [];
+  ): { frames: TrackFrame[]; boost?: boolean; gap?: boolean; rails?: boolean }[] {
+    const grouped: {
+      frames: TrackFrame[];
+      boost?: boolean;
+      gap?: boolean;
+      rails?: boolean;
+    }[] = [];
     let offset = 0;
     for (const piece of pieces) {
       const count = Math.max(8, Math.ceil(piece.length / 0.4));
@@ -616,14 +621,15 @@ export class Game {
           halfWidth: piece.widthTaper
             ? piece.widthTaper(index / count)
             : (piece.halfWidth ?? TRACK_WIDTH / 2),
+          rails: piece.kind !== 'landing',
         });
       }
       grouped.push(
         piece.kind === 'gap'
           ? { frames, gap: true }
           : piece.boost
-            ? { frames, boost: true }
-            : { frames },
+            ? { frames, boost: true, rails: piece.kind !== 'landing' }
+            : { frames, rails: piece.kind !== 'landing' },
       );
       offset += piece.length;
     }

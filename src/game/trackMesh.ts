@@ -88,7 +88,13 @@ export interface TrackMesh {
  * are no gaps to catch on.
  */
 export function buildTrackMesh(
-  pieces: { frames: TrackFrame[]; boost?: boolean; gap?: boolean }[],
+  pieces: {
+    frames: TrackFrame[];
+    boost?: boolean;
+    gap?: boolean;
+    /** False on a jump landing, which is left open so landing cars clear it. */
+    rails?: boolean;
+  }[],
 ): TrackMesh {
   const group = new THREE.Group();
   const railMaterial = new THREE.MeshStandardMaterial({
@@ -152,6 +158,11 @@ export function buildTrackMesh(
       group.add(mesh);
     }
 
+    if (piece.rails === false) {
+      // The jump landing is left open (no rails) so a landing car never hits a
+      // barrier at the touchdown mouth.
+      continue;
+    }
     for (const side of [-1, 1]) {
       // Rails ride the piece's own half-width, so the widened landing gets its
       // own wider rails instead of sweeping out an invisible extra track.

@@ -39,6 +39,7 @@ function frame(s: number, solid = true): TrackFrame {
     s,
     solid,
     halfWidth: TRACK_WIDTH / 2,
+    rails: true,
   };
 }
 

@@ -432,16 +432,18 @@ describe('track randomization', () => {
         continue;
       }
       const inLanding = frames.filter(
-        (f) => f.s >= landing!.from - 1e-6 && f.s <= landing!.to + 1e-6,
+        (f) => f.s >= landing!.from - 1e-6 && f.s < landing!.to - 1e-6,
       );
       if (inLanding.length < 3) {
         continue;
       }
-      // First frame is full width; the last tapers to the normal half-width.
+      // First frame is full width; the landing tapers toward the normal
+      // half-width by its far end (the exact normal width lands on the seam).
       const first = inLanding[0]!;
       const last = inLanding[inLanding.length - 1]!;
       expect(first.halfWidth).toBeCloseTo(JUMP_LANDING_WIDTH / 2, 6);
-      expect(last.halfWidth).toBeCloseTo(TRACK_WIDTH / 2, 6);
+      expect(last.halfWidth - TRACK_WIDTH / 2).toBeLessThan(0.05);
+      expect(last.halfWidth).toBeLessThan(JUMP_LANDING_WIDTH / 2);
       // The flare is symmetric: both rails sit the same distance off-centre.
       for (const frame of inLanding) {
         const right = new THREE.Vector3().crossVectors(frame.up, frame.tangent);
@@ -451,6 +453,8 @@ describe('track randomization', () => {
           rightEdge.distanceTo(frame.position),
           6,
         );
+        // The landing is open so a landing car does not hit a barrier.
+        expect(frame.rails).toBe(false);
       }
       found = circuit;
       break;
