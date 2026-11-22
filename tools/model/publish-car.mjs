@@ -3,49 +3,45 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Publish the authored car assets to the runtime.
+ * Publish every authored car to the runtime.
  *
- * The GLB, livery PNG, and paint mask in assets/car are the source of truth:
- * they are authored offline in Blender (tools/model/build-car.py), checked
- * here, and copied to public/models/, which is what the game loads and
- * precaches.
+ * Cars are listed in tools/model/cars.json. For each id this copies
+ * `<id>.glb`, `<id>-livery.png`, and `<id>-paint-mask.png` from
+ * assets/car/ to public/models/, which is what the game loads and precaches.
  *
  *   npm run model:car
- *
- * Structural checks (four wheel nodes, materials, envelope) run in
- * src/game/carModel.test.ts, where a GLTFLoader is available.
  */
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const files = [
-  ['assets/car/mach-speeder.glb', 'public/models/car.glb', 4 * 1024 * 1024],
-  ['assets/car/mach-speeder-livery.png', 'public/models/car-livery.png', 1024 * 1024],
-  [
-    'assets/car/mach-speeder-paint-mask.png',
-    'public/models/car-paint-mask.png',
-    256 * 1024,
-  ],
-];
 
+const cars = JSON.parse(
+  await readFile(path.join(repoRoot, 'tools/model/cars.json'), 'utf8'),
+);
+
+const limits = { glb: 4 * 1024 * 1024, livery: 1024 * 1024, mask: 256 * 1024 };
 const failures = [];
-for (const [from, to, limit] of files) {
-  const source = path.join(repoRoot, from);
-  const bytes = await readFile(source);
-  if (bytes.length > limit) {
-    failures.push(`${from} is ${(bytes.length / 1024).toFixed(0)} kB, over ${(limit / 1024).toFixed(0)} kB`);
+
+for (const id of Object.keys(cars)) {
+  for (const kind of ['glb', 'livery', 'mask']) {
+    const suffix = kind === 'glb' ? '.glb' : kind === 'livery' ? '-livery.png' : '-paint-mask.png';
+    const from = `assets/car/${id}${suffix}`;
+    const to = `public/models/${id}${suffix}`;
+    const bytes = await readFile(path.join(repoRoot, from));
+    if (bytes.length > limits[kind]) {
+      failures.push(
+        `${from} is ${(bytes.length / 1024).toFixed(0)} kB, over ${(limits[kind] / 1024).toFixed(0)} kB`,
+      );
+    }
+    if (kind === 'glb' && bytes.subarray(0, 4).toString('ascii') !== 'glTF') {
+      failures.push(`${from} is not a binary glTF`);
+    }
+    await mkdir(path.dirname(path.join(repoRoot, to)), { recursive: true });
+    await copyFile(path.join(repoRoot, from), path.join(repoRoot, to));
+    const size = (await stat(path.join(repoRoot, to))).size;
+    console.log(`published ${to} · ${(size / 1024).toFixed(0)} kB`);
   }
-  if (from.endsWith('.glb') && bytes.subarray(0, 4).toString('ascii') !== 'glTF') {
-    failures.push(`${from} is not a binary glTF`);
-  }
-  await mkdir(path.dirname(path.join(repoRoot, to)), { recursive: true });
-  await copyFile(source, path.join(repoRoot, to));
 }
 
 if (failures.length > 0) {
   console.error(`car publish failed:\n  - ${failures.join('\n  - ')}`);
   process.exit(1);
-}
-
-for (const [, to] of files) {
-  const size = (await stat(path.join(repoRoot, to))).size;
-  console.log(`published ${to} · ${(size / 1024).toFixed(0)} kB`);
 }

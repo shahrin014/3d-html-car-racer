@@ -41,11 +41,11 @@ npm run preview    # serve the production build on :4173
 
 `npm run test:e2e` needs Chromium once per machine: `npm run test:e2e:install`.
 
-The car model is committed. `npm run model:car` validates
-`assets/car/mach-speeder.glb`, its livery, and its paint mask, then publishes
-them to `public/models/`; those are the files the game loads and precaches.
-Rebuilding the mesh from the image-to-3D base needs Blender plus NumPy; see
-`tools/model/build-car.py`.
+Car models are committed. `npm run model:car` validates every car listed in
+`tools/model/cars.json` and publishes its GLB, livery, and paint mask to
+`public/models/`; those are the files the game loads and precaches. Rebuilding a
+mesh from its source needs Blender plus NumPy; see `tools/model/build-car.py`
+and the "Adding a car" section of the asset catalog.
 
 ### Worktrees and concurrent test runs
 
@@ -145,7 +145,7 @@ public/              manifest, service worker, generated icons, favicon
 scripts/             deterministic PWA icon generator
 assets/              rendered catalog: track pieces, car, cockpit, GLB models
 build/               bundle budgets, service worker cache stamping
-tools/               asset preview renderer; tools/model/ authors and publishes the car
+tools/               asset preview renderer; tools/model/ authors and publishes cars
 e2e/                 Playwright browser smoke tests
 openspec/            behavior, project, and deployment specs
 ```

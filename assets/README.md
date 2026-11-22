@@ -96,9 +96,44 @@ and `wheel-front-right` at the axle centres. The game turns the front pair for
 steering and spins all four; the visible turbofans are the casting's own rims.
 
 `npm run model:car` validates and publishes the three files to
-`public/models/`, where the shell precaches them. The previews above are
-rendered from the shipped GLB and livery, so the catalog cannot drift from the
-car in the game.
+`public/models/<id>.*`, where the shell precaches them. The previews above are
+rendered from those published files through the game's own runtime module, so
+the catalog cannot drift from the car in the game.
+
+## Adding a car
+
+The build is driven by `tools/model/cars.json`; nothing in it assumes the Mach
+Speeder's axes, rake, or ride height.
+
+1. Put the source mesh and its texture under `assets/car/source/<id>/`
+   (OBJ with an MTL, or a GLB).
+2. Add an entry to `tools/model/cars.json`:
+   ```json
+   "my-car": {
+     "label": "My Car",
+     "source": "assets/car/source/my-car/my-car.obj",
+     "target": { "length": 2.45, "width": 1.26, "height": 0.6 },
+     "wheelRadius": 0.26,
+     "textureSize": 512,
+     "nose": "auto"
+   }
+   ```
+3. Build and publish:
+   ```bash
+   PYTHONPATH=... blender -b -P tools/model/build-car.py -- my-car
+   npm run model:car
+   ```
+
+The builder detects which source axis is up (smallest extent), which is the
+nose (the taller end carries the rear wing), levels the car on its four tyre
+contacts, and grounds it on the tyres. If a mesh defeats those heuristics,
+override `nose` (`"-y"` or `"auto"`) or `upAxis` (`0`, `1`, `2`) for that car
+only. Scale, wheel radius, and texture size come from the same entry.
+
+At runtime, pass the id: `preloadCarModel('/models/', 'my-car')`. The catalog
+renderer takes the same id in `tools/preview/car-model.mjs`. To offer a choice
+in the garage, read the ids from `cars.json` and set `PLAYER_CAR` in
+`src/game/Car.ts`.
 
 ## Cockpit
 

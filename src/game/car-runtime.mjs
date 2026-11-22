@@ -5,10 +5,11 @@ import { DEFAULT_BODY_COLOR } from './car-spec.mjs';
 /**
  * Runtime car construction, shared by the game and the asset catalog.
  *
- * Both the game (src/game/Car.ts) and the preview renderer
- * (tools/preview/car-model.mjs) call this module with the folder that holds
- * car.glb, car-livery.png, and car-paint-mask.png. Having one path means the
- * catalog cannot show a differently transformed car than the one driven.
+ * Cars are addressed by id: `<id>.glb`, `<id>-livery.png`, and
+ * `<id>-paint-mask.png` under the given folder. Adding a car means publishing
+ * another set of files and passing its id - this module does not grow a branch
+ * per model, and both the game and the renderer go through it, so their
+ * orientation and materials cannot drift.
  */
 
 /** Rear pair first: the game steers every wheel at index 2 and above. */
@@ -19,10 +20,9 @@ const WHEEL_NAMES = [
   'wheel-front-right',
 ];
 
-let template = null;
-let livery = null;
-let paintMask = null;
-let loading = null;
+const sets = new Map();
+let active = null;
+let resolved = null;
 
 /** A livery material that swaps the white bodywork for the chosen paint. */
 function paintedMaterial(source, color, map, mask) {
@@ -60,23 +60,18 @@ diffuseColor *= vec4( mix( livery.rgb, painted, paintMask ), livery.a );`,
   return material;
 }
 
-/**
- * Load the model, livery, and mask from `base` (which must end with a slash).
- */
-export function preloadCarModel(base) {
-  loading ??= Promise.all([
-    new GLTFLoader().loadAsync(`${base}car.glb`),
-    new THREE.TextureLoader().loadAsync(`${base}car-livery.png`),
-    new THREE.TextureLoader().loadAsync(`${base}car-paint-mask.png`),
+function loadSet(base, id) {
+  return Promise.all([
+    new GLTFLoader().loadAsync(`${base}${id}.glb`),
+    new THREE.TextureLoader().loadAsync(`${base}${id}-livery.png`),
+    new THREE.TextureLoader().loadAsync(`${base}${id}-paint-mask.png`),
   ]).then(([gltf, liveryTexture, mask]) => {
     liveryTexture.colorSpace = THREE.SRGBColorSpace;
     liveryTexture.flipY = false;
     liveryTexture.anisotropy = 4;
-    livery = liveryTexture;
     mask.colorSpace = THREE.NoColorSpace;
     mask.flipY = false;
     mask.needsUpdate = true;
-    paintMask = mask;
 
     const root = gltf.scene;
     root.traverse((node) => {
@@ -85,10 +80,24 @@ export function preloadCarModel(base) {
         node.receiveShadow = false;
       }
     });
-    template = root;
-    return root;
+    return { template: root, livery: liveryTexture, mask };
   });
-  return loading;
+}
+
+/**
+ * Load one car's assets from `base` (ending in a slash). Resolves once the
+ * set is ready; later calls for the same car reuse it.
+ */
+export function preloadCarModel(base, id = 'mach-speeder') {
+  const key = `${base}${id}`;
+  if (!sets.has(key)) {
+    sets.set(key, loadSet(base, id));
+  }
+  active = sets.get(key);
+  return active.then((value) => {
+    resolved = value;
+    return value.template;
+  });
 }
 
 /** Build one car from an already-loaded model root. */
@@ -96,8 +105,8 @@ export function buildCar(root, color = DEFAULT_BODY_COLOR) {
   const group = root.clone(true);
   group.name = 'car';
 
-  const map = livery;
-  const mask = paintMask;
+  const map = resolved?.livery ?? null;
+  const mask = resolved?.mask ?? null;
   const cache = new Map();
   group.traverse((node) => {
     if (!node.isMesh) {
@@ -142,10 +151,11 @@ export function buildCar(root, color = DEFAULT_BODY_COLOR) {
   };
 }
 
-/** Build one car from the preloaded model. */
+/** Build one car from the preloaded set. */
 export function createCar(color = DEFAULT_BODY_COLOR) {
-  if (!template) {
+  const set = resolved;
+  if (!set) {
     throw new Error('car model is not loaded; await preloadCarModel()');
   }
-  return buildCar(template, color);
+  return buildCar(set.template, color);
 }

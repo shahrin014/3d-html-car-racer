@@ -25,9 +25,12 @@ export const PLAYER_PAINT = DEFAULT_BODY_COLOR;
 
 const MODELS = `${import.meta.env.BASE_URL}models/`;
 
+/** Which car the player drives. Add another id to cars.json to offer a choice. */
+export const PLAYER_CAR = 'mach-speeder';
+
 /** Fetch the car model ahead of the first race. */
 export async function preloadCarModel(): Promise<void> {
-  await preloadRuntime(MODELS);
+  await preloadRuntime(MODELS, PLAYER_CAR);
 }
 
 /** Build one car from an already-loaded root (used by tests). */

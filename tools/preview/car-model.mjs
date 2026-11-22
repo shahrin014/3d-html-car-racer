@@ -14,7 +14,7 @@ import {
 
 /** Load the game's car assets once, then return a clone for the studio. */
 export async function createCar() {
-  await preloadCarModel('/public/models/');
+  await preloadCarModel('/public/models/', 'mach-speeder');
   return createRuntimeCar().group;
 }
 
