@@ -74,8 +74,8 @@ function endFrame(matrix, path) {
   );
   return matrix.clone().multiply(rotation.setPosition(s.position));
 }
-function place(matrix, path, halfW) {
-  const S = 60;
+function place(matrix, path, halfW, gap = false) {
+  const S = 220;
   const pts = [];
   for (let i = 0; i <= S; i++) {
     const t = i / S;
@@ -84,31 +84,26 @@ function place(matrix, path, halfW) {
     const r = new THREE.Vector3().crossVectors(s.up, s.tangent).normalize();
     const hw = typeof halfW === 'function' ? halfW(t) : halfW;
     pts.push({ center: p, left: p.clone().addScaledVector(r, -hw),
-      right: p.clone().addScaledVector(r, hw), up: s.up.clone() });
+      right: p.clone().addScaledVector(r, hw), up: s.up.clone(), gap });
   }
   return pts;
 }
 function landingWidthTaper() {
   const full = JUMP_LANDING_WIDTH / 2;
   const normal = TRACK_WIDTH / 2;
-  const held = 0.28;
-  return (t) => {
-    if (t <= held) return full;
-    const p = (t - held) / (1 - held);
-    const e = p * p * (3 - 2 * p);
-    return full + (normal - full) * e;
-  };
+  const eased = (p) => p * p * (3 - 2 * p);
+  return (t) => full + (normal - full) * eased(t);
 }
 function buildModule(drop) {
   const parts = [
-    [kickerPath(), TRACK_WIDTH / 2],
-    [gapPath(), TRACK_WIDTH / 2],
-    [landingPath(JUMP_LANDING_LENGTH, drop), landingWidthTaper()],
+    [kickerPath(), TRACK_WIDTH / 2, false],
+    [gapPath(), TRACK_WIDTH / 2, true],
+    [landingPath(JUMP_LANDING_LENGTH, drop), landingWidthTaper(), false],
   ];
   const ribbon = [];
   let m = new THREE.Matrix4();
-  for (const [path, halfW] of parts) {
-    ribbon.push(...place(m, path, halfW));
+  for (const [path, halfW, gap] of parts) {
+    ribbon.push(...place(m, path, halfW, gap));
     m = endFrame(m, path);
   }
   return ribbon;
@@ -206,8 +201,24 @@ const RAIL_BASE = [198, 206, 219];   // light
 
 function buildPolygons(ribbon) {
   const polys = [];
+  const FLIGHT = [0, 190, 220]; // cyan dashed hint for the airborne arc
   for (let i = 0; i < ribbon.length - 1; i++) {
     const a = ribbon[i], b = ribbon[i + 1];
+    const emptyGap = a.gap && b.gap;
+    if (emptyGap) {
+      // No deck, no rails across the gap: leave it as clear empty space. A thin
+      // centred strip hints at the jump line so the intended arc still reads.
+      const p1 = project(a.center), p2 = project(b.center);
+      const w = 0.35;
+      const c1 = a.center.clone(); const c2 = b.center.clone();
+      const dir = c2.clone().sub(c1); const r = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+      const q1 = project(c1.clone().addScaledVector(r, w));
+      const q2 = project(c1.clone().addScaledVector(r, -w));
+      const q3 = project(c2.clone().addScaledVector(r, -w));
+      const q4 = project(c2.clone().addScaledVector(r, w));
+      polys.push({ pts: [q1, q2, q3, q4], z: (q1.z + q4.z) / 2, fill: FLIGHT });
+      continue;
+    }
     const p1 = project(a.right), p2 = project(a.left), p3 = project(b.left), p4 = project(b.right);
     polys.push({ pts: [p1, p2, p3, p4], z: (p1.z + p4.z) / 2, fill: shade(0.85, DECK_BASE) });
     for (const [ea, eb] of [[a.left, b.left], [a.right, b.right]]) {

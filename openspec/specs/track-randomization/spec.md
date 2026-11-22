@@ -24,7 +24,7 @@ of the requirements.
 | Loop radius | 10.5 m at level 1, shrinking to about 7.1 m |
 | Jump total | 44 m (kicker 9 + gap 9 + landing 26) |
 | Jump lip | 2.2 m above the launch deck |
-| Jump landing width | twice the running track (12 car widths), held then tapered back to normal |
+| Jump landing width | twice the running track (12 car widths), tapering smoothly back to normal |
 | Downhill jump landing ramp | 26 m per bridge level dropped |
 | Bridge level | 8 m above the lower deck |
 | Bridge ramp | 20 m up and 20 m down, easing to zero slope at both ends |
@@ -311,8 +311,8 @@ a downhill descent it picks between a ramp, a spiral, and a jump.
 - **GIVEN** the landing of a jump
 - **WHEN** its width is measured
 - **THEN** it is twice as wide as the running track where the car touches down
-- **AND** it stays centred and tapers symmetrically back to the normal track
-  width before the next piece begins
+- **AND** it stays centred and tapers along one smooth curve back to the normal
+  track width before the next piece begins, with no sharp corner
 - **AND** the rails and physics deck follow the same symmetric taper
 - **AND** the failure bound does not count a car parked on the doubled deck as
   having left the track

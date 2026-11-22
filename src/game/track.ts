@@ -335,22 +335,16 @@ export function downJumpPlanarLength(stageLevels: number): number {
 }
 
 /**
- * Per-point landing half-width: hold the doubled width where the car touches
- * down, then funnel symmetrically back to the normal track width by the end of
- * the landing. Both edges mirror this value, so the flare is always centred.
+ * Per-point landing half-width: full doubled width where the car touches down
+ * at the landing entry, then a single smooth curve down to the normal track
+ * width by the end of the landing. Both edges mirror this value, so the flare
+ * is always centred and has no sharp corner.
  */
 export function landingWidthTaper(): (t: number) => number {
   const full = JUMP_LANDING_WIDTH / 2;
   const normal = TRACK_WIDTH / 2;
-  const held = 0.28;
-  return (t) => {
-    if (t <= held) {
-      return full;
-    }
-    const p = (t - held) / (1 - held);
-    const eased = p * p * (3 - 2 * p);
-    return full + (normal - full) * eased;
-  };
+  const eased = (p: number): number => p * p * (3 - 2 * p);
+  return (t) => full + (normal - full) * eased(t);
 }
 
 /**
