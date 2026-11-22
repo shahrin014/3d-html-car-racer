@@ -1077,7 +1077,7 @@ function fitCamera(target, view, pad = 1.04) {
 if (piece.kind === 'car') {
   const track = buildTrack(straightPath(14), 14);
   assetGroup.add(track);
-  const car = await createCar();
+  const car = await createCar(piece.carId ?? 'mach');
   car.position.set(0, 0, 6);
   assetGroup.add(car);
   const shadow = createContactShadow(3.4, 2.2);
