@@ -794,19 +794,26 @@ kbd {
   transition: transform 90ms ease, border-color 120ms ease;
 }
 
+/* The stock livery is drawn as a no-parking sign: blue disc, red ring, one red
+   diagonal. It reads as "keep the car's own colours" instead of inventing a
+   paint colour for a choice that is not a paint. */
 .paint--stock {
-  background: #d21f2b;
+  border: 3px solid #c1121c;
+  background: #154889;
+  box-shadow: none;
 }
 
 .paint--stock::after {
   content: '';
   position: absolute;
-  top: 44%;
-  left: 13%;
-  right: 13%;
-  height: 12%;
-  border-radius: 3px;
-  background: #f7fafc;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    45deg,
+    transparent 0 39%,
+    #c1121c 39% 61%,
+    transparent 61%
+  );
 }
 
 .paint:hover {
@@ -818,6 +825,13 @@ kbd {
   box-shadow:
     0 0 0 2px rgba(53, 224, 232, 0.9),
     inset 0 -3px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Keep the sign's red ring when the stock livery is selected; the cyan halo
+   still marks it as the active choice. */
+.paint--stock[aria-pressed="true"] {
+  border-color: #c1121c;
+  box-shadow: 0 0 0 2px rgba(53, 224, 232, 0.9);
 }
 
 .paint:focus-visible {
