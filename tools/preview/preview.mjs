@@ -535,6 +535,33 @@ const PIECES = {
     title: 'Blade · reference angle',
     meta: 'framed like the other catalog cars for comparison',
   },
+  'manga-hero': {
+    kind: 'car',
+    carId: 'manga',
+    title: 'Manga · hero',
+    meta: '2.45 × 1.26 × 0.62 m · baked livery · repaintable body mask',
+  },
+  'manga-side': {
+    kind: 'car',
+    carId: 'manga',
+    view: 'side',
+    title: 'Manga · side elevation',
+    meta: 'profile check · levelled on its tyres',
+  },
+  'manga-rear': {
+    kind: 'car',
+    carId: 'manga',
+    view: 'rear',
+    title: 'Manga · rear',
+    meta: 'livery texture · Kamm tail',
+  },
+  'manga-ref': {
+    kind: 'car',
+    carId: 'manga',
+    view: 'ref',
+    title: 'Manga · reference angle',
+    meta: 'framed like the other catalog cars for comparison',
+  },
   cockpit: {
     kind: 'cockpit',
     title: 'Cockpit view · driver eye',

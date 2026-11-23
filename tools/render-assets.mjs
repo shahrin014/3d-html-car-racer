@@ -49,6 +49,10 @@ const PIECES = [
   { id: 'blade-side', folder: 'car', name: 'blade-side' },
   { id: 'blade-rear', folder: 'car', name: 'blade-rear' },
   { id: 'blade-ref', folder: 'car', name: 'blade-ref' },
+  { id: 'manga-hero', folder: 'car', name: 'manga-hero' },
+  { id: 'manga-side', folder: 'car', name: 'manga-side' },
+  { id: 'manga-rear', folder: 'car', name: 'manga-rear' },
+  { id: 'manga-ref', folder: 'car', name: 'manga-ref' },
   { id: 'mach-ref', folder: 'car', name: 'mach-ref' },
   { id: 'cockpit', folder: 'cockpit', name: 'cockpit-view' },
 ];

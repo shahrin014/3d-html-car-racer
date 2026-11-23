@@ -67,6 +67,8 @@ Add one entry. Start from a sibling entry, e.g. `twin`:
 | `paintBase` | sRGB colour of the bodywork to mask for repainting, or omit for "light neutral" detection. |
 | `paintTolerance` | Distance in sRGB space around `paintBase`; raise until the mask covers the panels, stop before it eats wheels, glass, or graphics. |
 | `paintExcludeWheels` | `true` when wheels or glazing share the body colour (dark cars). |
+| `paintExcludeCabin` | `true` when livery artwork maps onto the windows: keeps the whole cabin, roof included, out of the repaint. |
+| `symmetrize` | `true` when the authored mesh is lopsided: cuts the car on its centreline and mirrors one half, which also mirrors the livery. |
 | `preview` | Optional still published as `public/models/<id>-preview.png`. The menu now previews live 3D, so this is only needed for parity/older builds. |
 
 ## 3. Build
@@ -78,6 +80,9 @@ install numpy into Blender's Python.
 ```bash
 PYTHONPATH=... blender -b -P tools/model/build-car.py -- <id>
 ```
+
+If the source is lopsided, add `"symmetrize": true` to its entry; the build cuts
+on the centreline and mirrors one half before scaling.
 
 It prints one `CAR_BUILD {...}` line. Check that `size` matches the target,
 `triangles` is under ~60k, and all four wheel pivots are listed.
@@ -96,6 +101,8 @@ Pass criteria:
   runtime.
 - Four `wheel-*` pivots, roughly symmetric, at `wheelRadius` above the ground.
 - `MASK` between about 0.15 and 0.55 of the texture.
+- `SYMMETRY` mean/max near 0. A nonzero error means the mesh is lopsided; set
+  `"symmetrize": true` and rebuild.
 
 Then render the catalog views (step 7) and look at the hero and side renders.
 Reject a build that is upside down, nose-backwards, floating, or sunk.
@@ -194,6 +201,8 @@ suite locally.
 | Symptom | Cause / fix |
 | --- | --- |
 | Car upside down or on its side | `upAxis` auto-detect picked the wrong axis; set `"upAxis"` explicitly. |
+| Car looks lopsided or one side is stretched | The source mesh is asymmetric (common in image-to-3D meshes). Set `"symmetrize": true`; the builder bisects and mirrors on X. |
+| Repaint colours the windows or roof | Livery UVs map body colour onto the glass; set `"paintExcludeCabin": true`. |
 | Nose and tail swapped (wing at the front) | Set `"nose": "-y"` or `"+y"`. |
 | One corner floats, car raked | Geometry has no flat tyre contact; check the render, adjust the source or accept the levelling. Never add a runtime tilt. |
 | Paint hides wheels or glass | Add `"paintExcludeWheels": true`, or tighten `paintTolerance`. |
