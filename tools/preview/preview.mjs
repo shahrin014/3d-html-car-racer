@@ -427,27 +427,27 @@ const PIECES = {
     size: { width: 12, height: 10, depth: 6 },
     view: new THREE.Vector3(1, 0.55, 1),
   },
-  car: {
+  'mach-hero': {
     kind: 'car',
     carId: 'mach',
     title: 'Mach · hero',
     meta: '2.45 × 1.26 × 0.60 m · baked livery · repaintable body mask · orange aero',
   },
-  'car-side': {
+  'mach-side': {
     kind: 'car',
     view: 'side',
     carId: 'mach',
     title: 'Mach · side elevation',
     meta: 'profile check · wheelbase 1.52 m · roof 0.60 m · open wheel arches',
   },
-  'car-rear': {
+  'mach-rear': {
     kind: 'car',
     view: 'rear',
     carId: 'mach',
     title: 'Mach · rear',
     meta: 'single-element orange wing · livery texture · Kamm tail',
   },
-  'car-ref': {
+  'mach-ref': {
     kind: 'car',
     view: 'ref',
     carId: 'mach',

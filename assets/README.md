@@ -2,13 +2,13 @@
 
 Rendered references for every gameplay asset. Track, city, and cockpit geometry
 is still generated procedurally at runtime; the car is the one authored model and
-the game loads its GLB from `public/models/car.glb`.
+the game loads each car's GLB from `public/models/<id>.glb`.
 
 Regenerate the whole catalog with:
 
 ```bash
 npm run assets                 # all assets
-npm run assets -- car car-side cockpit  # only the named ones
+npm run assets -- mach-hero mach-side cockpit  # only the named ones
 ```
 
 Rendering is deterministic: `tools/preview/` rebuilds each asset from the same
@@ -62,7 +62,7 @@ colliders.
 
 ## Cars
 
-Three selectable cars share one pipeline. Both are 2.45 x 1.26 x 0.60 m with a
+Three selectable cars share one pipeline. All three are 2.45 x 1.26 x 0.60 m with a
 0.26 m wheel radius and a visual body that overhangs the 1.0 m physics collider.
 Each is a fused, textured mesh; the game keeps its baked livery and mixes the
 selected paint into the white bodywork through a paint mask, so nine paint
@@ -70,13 +70,13 @@ colours work on both without redrawing either livery.
 
 ### Mach
 
-![Mach hero](car/car-hero.png)
+![Mach hero](car/mach-hero.png)
 
-![Mach side](car/car-side.png)
+![Mach side](car/mach-side.png)
 
-![Mach rear](car/car-rear.png)
+![Mach rear](car/mach-rear.png)
 
-![Mach reference angle](car/car-ref.png)
+![Mach reference angle](car/mach-ref.png)
 
 Low, wide endurance prototype with floating fender pods, a wide central mouth,
 deep side scallops, a teardrop canopy, and an orange rear wing.

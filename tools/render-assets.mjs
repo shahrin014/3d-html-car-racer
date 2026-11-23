@@ -34,9 +34,9 @@ const PIECES = [
   { id: 'building-block', folder: 'buildings' },
   { id: 'building-tower', folder: 'buildings' },
   { id: 'building-wide', folder: 'buildings' },
-  { id: 'car', folder: 'car', name: 'car-hero' },
-  { id: 'car-side', folder: 'car', name: 'car-side' },
-  { id: 'car-rear', folder: 'car', name: 'car-rear' },
+  { id: 'mach-hero', folder: 'car', name: 'mach-hero' },
+  { id: 'mach-side', folder: 'car', name: 'mach-side' },
+  { id: 'mach-rear', folder: 'car', name: 'mach-rear' },
   { id: 'gt-hero', folder: 'car', name: 'gt-hero' },
   { id: 'gt-side', folder: 'car', name: 'gt-side' },
   { id: 'gt-rear', folder: 'car', name: 'gt-rear' },
@@ -45,7 +45,7 @@ const PIECES = [
   { id: 'twin-side', folder: 'car', name: 'twin-side' },
   { id: 'twin-rear', folder: 'car', name: 'twin-rear' },
   { id: 'twin-ref', folder: 'car', name: 'twin-ref' },
-  { id: 'car-ref', folder: 'car', name: 'car-ref' },
+  { id: 'mach-ref', folder: 'car', name: 'mach-ref' },
   { id: 'cockpit', folder: 'cockpit', name: 'cockpit-view' },
 ];
 
