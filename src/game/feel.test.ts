@@ -326,9 +326,9 @@ describe('handling feel', () => {
     );
 
     // A drift holds the nose well off its travel direction and carries the car
-    // wider than the same lock without drift.
-    expect(driftSlip).toBeGreaterThan(gripSlip + 5);
-    expect(Math.abs(driftMoved)).toBeGreaterThan(Math.abs(gripMoved) + 0.2);
+    // much wider than the same lock without drift.
+    expect(driftSlip).toBeGreaterThan(gripSlip + 15);
+    expect(Math.abs(driftMoved)).toBeGreaterThan(Math.abs(gripMoved) + 0.5);
 
     driftCar.dispose();
     gripCar.dispose();
