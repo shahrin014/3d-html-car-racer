@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { brakeFromKeys, HELD_KEYS, steerFromKeys } from './controls';
+import {
+  brakeFromKeys,
+  driftFromKeys,
+  HELD_KEYS,
+  steerFromKeys,
+} from './controls';
 
 /**
  * The keys are only half the contract: `steerFromKeys` returns the same sign
@@ -30,10 +35,16 @@ describe('keyboard controls', () => {
     expect(steerFromKeys(held('arrowup'))).toBe(0);
   });
 
-  it('brakes with space or the down arrow', () => {
-    expect(brakeFromKeys(held(' '))).toBe(true);
+  it('brakes with the down arrow', () => {
     expect(brakeFromKeys(held('arrowdown'))).toBe(true);
+    expect(brakeFromKeys(held(' '))).toBe(false);
     expect(brakeFromKeys(held('arrowup'))).toBe(false);
+  });
+
+  it('drifts with space', () => {
+    expect(driftFromKeys(held(' '))).toBe(true);
+    expect(driftFromKeys(held('arrowdown'))).toBe(false);
+    expect(driftFromKeys(held())).toBe(false);
   });
 
   it('prevents scrolling for every racing key', () => {

@@ -31,13 +31,14 @@ test('menu boots in landscape and starts a race', async ({ page }) => {
   // The race now runs on its own page.
   await expect(page).toHaveURL(new RegExp(GAME_PATH.replace('/', '\\/') + '$'));
   await expect(page.getByRole('button', { name: 'Brake' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Drift' })).toBeVisible();
   await expect(page.locator('#lap')).toHaveText('1 / 3');
   await expect(page.locator('#speed')).not.toHaveText('0', { timeout: 10_000 });
   await expect(page.locator('#time')).not.toHaveText('00:00.0', {
     timeout: 10_000,
   });
 
-  // Arrow keys and A/D share one steering channel, and space brakes. Holding
+  // Arrow keys and A/D share one steering channel, and space drifts. Holding
   // them must not throw inside the key handler or drop out of the race.
   for (const key of ['ArrowRight', 'ArrowLeft', 'KeyD', 'KeyA']) {
     await page.keyboard.down(key);

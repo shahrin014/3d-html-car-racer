@@ -119,6 +119,21 @@ export const PHYSICS_DRIFT_SPEED = 2.8;
 export const PHYSICS_LATERAL_GAIN = 16;
 /** Gentle pull back to the centreline once the player releases steering. */
 export const PHYSICS_CENTRE_GAIN = 5;
+
+/**
+ * Space-held drift. The nose is aimed further off the tangent than normal
+ * steering, while the tyres follow it more slowly and the centring spring is
+ * relaxed: the body slides wide with the nose pointing into the turn. The
+ * heading target still stays well inside the 45 degree limit that a held lock
+ * must not exceed.
+ */
+export const PHYSICS_DRIFT_STEER_MULT = 3.5;
+/** Sideways speed target while drifting, as a multiple of the grip-limit speed. */
+export const PHYSICS_DRIFT_SPEED_MULT = 1.6;
+/** Lower lateral gain lets the travel direction lag the nose, adding slip. */
+export const PHYSICS_DRIFT_LATERAL_GAIN = 9;
+/** Weaker centring so a drift carries the car wide instead of snapping back. */
+export const PHYSICS_DRIFT_CENTRE_GAIN = 1.5;
 /** Contact force above this is treated as a crash. */
 export const IMPACT_THRESHOLD = 40;
 

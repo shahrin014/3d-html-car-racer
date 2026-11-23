@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_STEP } from './constants';
+import * as THREE from 'three';
+import { FIXED_STEP, TRACK_WIDTH } from './constants';
 import { createPhysics } from './physics';
 import { buildFrames, generateCircuit, type TrackFrame } from './track';
 
@@ -246,6 +247,91 @@ describe('handling feel', () => {
 
     physics.dispose();
     control.dispose();
+  }, 60_000);
+
+  it('drifts wider than normal steering with the nose further into the turn', async () => {
+    // A straight deck isolates the handling: on a generated corner the car
+    // already carries slip from following the racing line into the test.
+    const frames: TrackFrame[] = [];
+    for (let z = 0; z <= 160; z += 1) {
+      frames.push({
+        position: new THREE.Vector3(0, 0, z),
+        tangent: new THREE.Vector3(0, 0, 1),
+        up: new THREE.Vector3(0, 1, 0),
+        right: new THREE.Vector3(1, 0, 0),
+        s: z,
+        solid: true,
+        halfWidth: TRACK_WIDTH / 2,
+        rails: true,
+      });
+    }
+    const driftCar = await createPhysics(frames);
+    const gripCar = await createPhysics(frames);
+    // Build up to racing speed with both cars on the centreline.
+    const warmup = { throttle: 1, brake: false, steer: 0 };
+    let driftIndex = 0;
+    let gripIndex = 0;
+    for (let step = 0; step < 90; step += 1) {
+      const driftState = driftCar.read();
+      driftIndex = nextIndex(frames, driftIndex, driftState.position);
+      driftCar.step(FIXED_STEP, warmup, frames[driftIndex]!);
+
+      const gripState = gripCar.read();
+      gripIndex = nextIndex(frames, gripIndex, gripState.position);
+      gripCar.step(FIXED_STEP, warmup, frames[gripIndex]!);
+    }
+
+    const before = driftCar.read();
+    const beforeFrame = frames[nextIndex(frames, driftIndex, before.position)]!;
+    const beforeLateral = lateralOffset(beforeFrame, before.position);
+
+    let driftSlip = 0;
+    let gripSlip = 0;
+    for (let step = 0; step < 42; step += 1) {
+      const driftState = driftCar.read();
+      driftIndex = nextIndex(frames, driftIndex, driftState.position);
+      driftCar.step(
+        FIXED_STEP,
+        { throttle: 1, brake: false, steer: 1, drift: true },
+        frames[driftIndex]!,
+      );
+      driftSlip = Math.max(
+        driftSlip,
+        Math.abs(slipDegrees(driftState, forwardOf(driftState))),
+      );
+
+      const gripState = gripCar.read();
+      gripIndex = nextIndex(frames, gripIndex, gripState.position);
+      gripCar.step(
+        FIXED_STEP,
+        { throttle: 1, brake: false, steer: 1 },
+        frames[gripIndex]!,
+      );
+      gripSlip = Math.max(
+        gripSlip,
+        Math.abs(slipDegrees(gripState, forwardOf(gripState))),
+      );
+    }
+
+    const afterDrift = driftCar.read();
+    const afterGrip = gripCar.read();
+    const driftFrame = frames[nextIndex(frames, driftIndex, afterDrift.position)]!;
+    const gripFrame = frames[nextIndex(frames, gripIndex, afterGrip.position)]!;
+    const driftMoved = lateralOffset(driftFrame, afterDrift.position) - beforeLateral;
+    const gripMoved = lateralOffset(gripFrame, afterGrip.position) - beforeLateral;
+
+    console.log(
+      `drift: slip ${gripSlip.toFixed(1)} -> ${driftSlip.toFixed(1)} deg, ` +
+        `lateral ${Math.abs(gripMoved).toFixed(2)} -> ${Math.abs(driftMoved).toFixed(2)} m`,
+    );
+
+    // A drift holds the nose well off its travel direction and carries the car
+    // wider than the same lock without drift.
+    expect(driftSlip).toBeGreaterThan(gripSlip + 5);
+    expect(Math.abs(driftMoved)).toBeGreaterThan(Math.abs(gripMoved) + 0.2);
+
+    driftCar.dispose();
+    gripCar.dispose();
   }, 60_000);
 
   it('does not spin out on a held full lock', async () => {
