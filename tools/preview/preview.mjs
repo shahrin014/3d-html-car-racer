@@ -207,6 +207,104 @@ function hillPath({ length, height }) {
   };
 }
 
+/** Bridge climb: flat at the foot, flat at the raised deck. */
+function bridgeRampUpPath(length = BRIDGE.ramp, height = BRIDGE.height) {
+  return (t) => {
+    const slope = (height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** Bridge descent: flat at the raised deck, flat at the foot. */
+function bridgeRampDownPath(length = BRIDGE.ramp, height = BRIDGE.height) {
+  return (t) => {
+    const slope = (-height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, -height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** S-curve that brings the loop's offset exit back to the centreline. */
+function shiftPath(
+  offset = LOOP_RETURN.offset,
+  length = LOOP_RETURN.length,
+) {
+  return (t) => {
+    const drift = t * t * (3 - 2 * t);
+    const driftRate = (6 * t * (1 - t)) / length;
+    return {
+      position: new THREE.Vector3(offset * (1 - drift), 0, length * t),
+      tangent: new THREE.Vector3(-offset * driftRate, 0, 1).normalize(),
+      up: new THREE.Vector3(0, 1, 0),
+      bank: 0,
+    };
+  };
+}
+
+const MULTI_CROSSING = {
+  /** Catalogue-scale curve; the game rolls 10–14 m from the seed. */
+  scale: 12,
+};
+
+/**
+ * The game's multi-crossing layout: the standard trefoil plan, whose projection
+ * crosses itself three times, with the third component as height. Game Y is up.
+ */
+function multiCrossingPath(scale = MULTI_CROSSING.scale) {
+  const lift = scale + 0.12 + 0.25;
+  return (t) => {
+    const angle = t * Math.PI * 2;
+    const rawX = scale * (Math.sin(angle) + 2 * Math.sin(2 * angle));
+    const rawY = scale * -Math.sin(3 * angle);
+    const rawZ = scale * (Math.cos(angle) - 2 * Math.cos(2 * angle));
+    const rawTx = scale * (Math.cos(angle) + 4 * Math.cos(2 * angle));
+    const rawTy = scale * (-3 * Math.cos(3 * angle));
+    const rawTz = scale * (-Math.sin(angle) + 4 * Math.sin(2 * angle));
+    const tangent = new THREE.Vector3(rawTx, rawTy, rawTz).normalize();
+    const right = new THREE.Vector3(tangent.z, 0, -tangent.x);
+    if (right.lengthSq() < 1e-10) {
+      right.set(1, 0, 0);
+    }
+    right.normalize();
+    const up = new THREE.Vector3().crossVectors(tangent, right).normalize();
+    return {
+      position: new THREE.Vector3(rawX, rawY + lift, rawZ),
+      tangent,
+      up,
+      bank: 0,
+    };
+  };
+}
+
+function pathLength(path, steps = 1600) {
+  let length = 0;
+  let previous = null;
+  for (let index = 0; index <= steps; index += 1) {
+    const point = path(index / steps).position;
+    if (previous) {
+      length += point.distanceTo(previous);
+    }
+    previous = point;
+  }
+  return length;
+}
+
+const MULTI_CROSSING_PATH = multiCrossingPath();
+const MULTI_CROSSING_LENGTH = pathLength(MULTI_CROSSING_PATH);
+
 const SPIRAL_ONE_LEVEL = {
   radius: 12,
   height: 8 / 1.5,
@@ -219,9 +317,20 @@ const SPIRAL_TWO_LEVELS = {
   turns: 2,
 };
 
+const BRIDGE = {
+  height: 8 / 1.5,
+  ramp: 20 / 1.5,
+  flat: 24 / 1.5,
+};
+
+const LOOP_RETURN = {
+  offset: TRACK.loopOffset,
+  length: 14,
+};
+
 const STEEP_RAMP = {
   height: (8 / 1.5) * 4,
-  angleDeg: 70,
+  angleDeg: 80,
   easeInRatio: 0.34375,
   easeOutRatio: 0.21875,
 };
@@ -236,7 +345,7 @@ function steepRampRun(
 }
 
 /**
- * 70 degree climb or descent, matching the game's steep ramp. The climb gets
+ * an 80 degree climb or descent, matching the game's steep ramp. The climb gets
  * the long entry and short exit; the descent reverses them. The boost chevrons
  * on the climb are part of the piece, not decoration.
  */
@@ -409,6 +518,52 @@ const PIECES = {
     view: new THREE.Vector3(0.02, 1, 0.02),
     showLeadIn: true,
   },
+  'loop-return-14': {
+    title: 'Loop return · 14 m',
+    meta: `S-curve returns the loop exit from its ${LOOP_RETURN.offset} m offset to the centreline`,
+    length: LOOP_RETURN.length,
+    path: shiftPath(),
+    view: new THREE.Vector3(0.8, 0.6, 1),
+    showLeadIn: true,
+    leadInX: LOOP_RETURN.offset,
+    leadOut: { x: 0, y: 0, z: LOOP_RETURN.length },
+  },
+  'bridge-ramp-up': {
+    title: 'Bridge ramp · up',
+    meta: `${BRIDGE.ramp.toFixed(1)} m · rises ${BRIDGE.height.toFixed(1)} m · flat at both ends`,
+    length: BRIDGE.ramp,
+    path: bridgeRampUpPath(),
+    view: new THREE.Vector3(0.9, 0.5, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: BRIDGE.height, z: BRIDGE.ramp },
+  },
+  'bridge-ramp-down': {
+    title: 'Bridge ramp · down',
+    meta: `${BRIDGE.ramp.toFixed(1)} m · drops ${BRIDGE.height.toFixed(1)} m · flat at both ends`,
+    length: BRIDGE.ramp,
+    path: bridgeRampDownPath(),
+    view: new THREE.Vector3(0.9, 0.5, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: -BRIDGE.height, z: BRIDGE.ramp },
+  },
+  'bridge-deck-16': {
+    title: 'Bridge deck · flat crossing',
+    meta: `${BRIDGE.flat.toFixed(1)} m · flat raised deck used at bridge height`,
+    length: BRIDGE.flat,
+    path: straightPath(BRIDGE.flat),
+    view: new THREE.Vector3(0.9, 0.55, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: 0, z: BRIDGE.flat },
+  },
+  'multi-crossing-trefoil': {
+    title: 'Multi-crossing layout · trefoil',
+    meta: 'closed 3D route · three plan crossings · two or three boost strips',
+    length: MULTI_CROSSING_LENGTH,
+    path: MULTI_CROSSING_PATH,
+    track: OBSTACLE_TRACK,
+    closed: true,
+    view: new THREE.Vector3(1, 0.62, 1),
+  },
   'spiral-r12-1': {
     title: 'Spiral ramp · R12 · one level',
     meta: `360° · rises ${SPIRAL_ONE_LEVEL.height.toFixed(1)} m · one bridge level`,
@@ -475,9 +630,9 @@ const PIECES = {
     path: landingPath(),
     view: new THREE.Vector3(0.9, 0.5, 1),
   },
-  'steep-ramp-70': {
-    title: 'Steep ramp · 70° · four levels',
-    meta: `70° face · rises ${STEEP_RAMP.height.toFixed(1)} m · boost strip · launches into a jump`,
+  'steep-ramp-80': {
+    title: 'Steep ramp · 80° · four levels',
+    meta: `80° face · rises ${STEEP_RAMP.height.toFixed(1)} m · boost strip · launches into a jump`,
     length: steepRampRun(),
     path: steepRampUpPath(),
     boost: true,
@@ -485,9 +640,9 @@ const PIECES = {
     showLeadIn: true,
     leadOut: { x: 0, y: STEEP_RAMP.height, z: steepRampRun() },
   },
-  'steep-ramp-70-down': {
-    title: 'Steep descent · 70° · four levels',
-    meta: `70° face · drops ${STEEP_RAMP.height.toFixed(1)} m · matching descent for the sky ramp`,
+  'steep-ramp-80-down': {
+    title: 'Steep descent · 80° · four levels',
+    meta: `80° face · drops ${STEEP_RAMP.height.toFixed(1)} m · matching descent for the sky ramp`,
     length: steepRampRun(),
     path: steepRampDownPath(),
     view: new THREE.Vector3(0.9, 0.45, 1),
@@ -973,7 +1128,7 @@ function addCap(group, frame, material, track = TRACK) {
   group.add(mesh);
 }
 
-function buildTrack(path, length, { boost = false, railFade, track: trackConfig } = {}) {
+function buildTrack(path, length, { boost = false, railFade, track: trackConfig, closed = false } = {}) {
   const group = new THREE.Group();
   const track = { ...TRACK, ...trackConfig };
   const railScale = (s) => {
@@ -1020,11 +1175,13 @@ function buildTrack(path, length, { boost = false, railFade, track: trackConfig 
 
   const firstFrame = frames[0];
   const lastFrame = frames[frames.length - 1];
-  if (firstFrame) {
-    addCap(group, firstFrame, surfaceMaterial, track);
-  }
-  if (lastFrame) {
-    addCap(group, lastFrame, surfaceMaterial, track);
+  if (!closed) {
+    if (firstFrame) {
+      addCap(group, firstFrame, surfaceMaterial, track);
+    }
+    if (lastFrame) {
+      addCap(group, lastFrame, surfaceMaterial, track);
+    }
   }
 
   // Continuous rails: four swept faces per rail.
@@ -1363,9 +1520,15 @@ if (piece.kind === 'car') {
   assetGroup.add(building);
   fitCamera(assetGroup, piece.view ?? new THREE.Vector3(1, 0.55, 1), 1.08);
 } else {
+  // A whole-layout preview is much wider than one catalog piece; the studio
+  // fog would swallow it before the camera fits its bounds.
+  if (piece.closed) {
+    scene.fog = new THREE.Fog(0x070a10, 80, 380);
+  }
   const track = buildTrack(piece.path, piece.length, {
     boost: piece.boost,
     track: piece.track,
+    closed: piece.closed,
   });
   assetGroup.add(track);
   if (piece.obstacles) {
@@ -1376,6 +1539,7 @@ if (piece.kind === 'car') {
     // entrance and exit rather than reading as a closed ring.
     const leadIn = buildTrack(straightPath(7), 7);
     leadIn.position.z = -7;
+    leadIn.position.x = piece.leadInX ?? 0;
     leadIn.position.y = piece.leadInY ?? 0;
     const leadOut = buildTrack(straightPath(7), 7);
     const exit = piece.leadOut ?? { x: TRACK.loopOffset, y: 0, z: 0 };

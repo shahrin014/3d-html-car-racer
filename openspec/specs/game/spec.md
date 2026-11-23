@@ -397,7 +397,7 @@ keep its left and right guide rails along its length; only the deckless gap and
 the touchdown mouth are left free, so a car coming down from the jump never
 crosses a barrier as it enters the landing.
 
-A steep ramp SHALL be an authored four-level climb whose face holds 70° between
+A steep ramp SHALL be an authored four-level climb whose face holds 80° between
 a long eased entry and a shorter eased exit. Its surface SHALL be a boost strip
 for the whole climb, with the usual chevrons facing the driving direction, so a
 car that reaches the foot slowly is pushed up rather than sliding back. The
@@ -435,9 +435,9 @@ route to the lower deck elsewhere.
   apart from a jump's intentional gap
 - **AND** seam lines come from the surface texture, not from separate pieces
 
-#### Scenario: Figure-eight crossing
+#### Scenario: Single-crossing layout
 
-- **GIVEN** a figure-eight circuit
+- **GIVEN** a single-crossing circuit
 - **WHEN** the two diagonals meet
 - **THEN** one branch is on a raised bridge at least 3.5 m above the other
 - **AND** the bridge rises and falls on a spiral or ramp long enough to drive at
@@ -446,6 +446,18 @@ route to the lower deck elsewhere.
   `openspec/specs/track-randomization/spec.md`
 - **AND** the loop's ring sits under the bridge at the crossing
 - **AND** no deck or rail of the two branches touches
+
+#### Scenario: Multi-crossing layout
+
+- **GIVEN** a multi-crossing circuit
+- **WHEN** the route passes over itself
+- **THEN** each of its three plan crossings has at least 3.5 m between the upper
+  and lower decks
+- **AND** the route is one closed continuous deck with no forks, jumps, or gaps
+- **AND** at least two boost strips push the car through the layout
+- **AND** the car, rivals, camera, and lap checkpoints use the same sampled
+  frames as every other layout
+- **AND** the car completes a lap without a rescue
 
 #### Scenario: Jump
 
@@ -470,7 +482,7 @@ route to the lower deck elsewhere.
 
 - **GIVEN** a circuit with a steep ramp
 - **WHEN** the car reaches the foot, even at low speed
-- **THEN** the ramp's boost strip pushes it up the 70° face
+- **THEN** the ramp's boost strip pushes it up the 80° face
 - **AND** it leaves the top, crosses the gap unsupported, and lands on the
   wide landing deck
 - **AND** it keeps racing without a rescue
@@ -1104,10 +1116,12 @@ treated as absent. Storage failure SHALL NOT prevent play.
 
 ### Requirement: Every 3D asset ships as binary glTF
 
-Every catalog asset SHALL be exported as a binary glTF (`.glb`) file in its
-catalog folder: track pieces under `assets/track/`, buildings under
+Every solid catalog asset SHALL be exported as a binary glTF (`.glb`) file in
+its catalog folder: track pieces under `assets/track/`, buildings under
 `assets/buildings/`, and the car under `assets/car/`, with the same geometry
-and materials as the rendered preview. The car SHALL also ship its livery and
+and materials as the rendered preview. The track catalog SHALL list every piece
+kind the generator can emit, including runtime connectors, and SHALL mark the
+intentional jump gap as having no mesh. The car SHALL also ship its livery and
 paint-mask PNGs, and all three SHALL be published to `public/models/`, which is
 what the game loads. Export SHALL be reproducible from the catalog definitions with
 a single command. Every file SHALL be a valid glTF 2.0 binary and SHALL be
@@ -1116,7 +1130,9 @@ committed alongside its preview.
 #### Scenario: Track pieces have models
 
 - **GIVEN** the track catalog
-- **THEN** every track piece has a matching `.glb` file under `assets/track/`
+- **THEN** every solid track piece has a matching `.glb` file under
+  `assets/track/`
+- **AND** the intentional jump gap is listed with no mesh
 - **AND** each file begins with the glTF binary magic
 
 #### Scenario: Buildings have models

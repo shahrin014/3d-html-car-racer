@@ -8,6 +8,23 @@ that carry the track above itself, overpass clearance, and validation. Race
 lifecycle, controls, and track-surface behavior live in
 `openspec/specs/game/spec.md`.
 
+## Layout terminology
+
+A **crossing** is a point where the route passes over and under itself. It is
+not the vertical loop: the loop is a separate catalog segment, while a crossing
+is a property of the plan and height of the whole layout. Layouts are classified
+by shape and crossing count:
+
+| Layout | Crossing count | Meaning |
+| --- | --- | --- |
+| Polygon | 0 | Three to six banked corners joined by legs; no self-crossing. |
+| Single-crossing | 1 | The current four-corner bridge layout, with one pass over another. |
+| Multi-crossing | 3 or 4 | A closed 3D route that passes over itself three or four times. |
+
+The former names "figure-eight" and "bowtie" are not used for any layout. The
+current multi-crossing variant is the 3-crossing trefoil; a fourth crossing
+would be a 4-crossing knot, not a "figure-eight".
+
 ## Default Values
 
 These values are provisional. Tuning them changes this section, not the intent
@@ -17,7 +34,13 @@ of the requirements.
 | --- | --- |
 | Circuit scale | 1.5× the base catalogue |
 | Corner counts | 3, 4, 5, or 6 |
-| Figure-eight share | about half of seeds |
+| Single-crossing share | about half of seeds |
+| Multi-crossing share | about a quarter of layout-enabled seeds |
+| Multi-crossing counts | 3 or 4 crossings |
+| Multi-crossing scale | 10–14 m for the base crossing curve |
+| Crossing clearance | at least 3.5 m between the upper and lower passes |
+| Multi-crossing boost strips | 2–3 per layout |
+| Multi-crossing segments | 12 sampled pieces for mesh, boost, and progress
 | Turn radius | 12–27 m across the level ladder |
 | Turn bank | 20–45° |
 | Straight lengths | 12–30 m across the level ladder |
@@ -33,12 +56,13 @@ of the requirements.
 | Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
 | Spiral ramp rise | 8 m per turn; 16 m for two levels |
 | Spiral ramp levels | up to 2 |
-| Steep ramp pitch | 70° held between eased entry and exit |
+| Steep ramp pitch | 80° held between eased entry and exit |
 | Steep ramp rise | 32 m (four bridge levels) |
-| Steep ramp plan run | about 20.6 m, including an 11 m entry ease and a 7 m exit ease |
+| Steep ramp plan run | about 8.3 m, including a 3.2 m entry ease and a 2.1 m exit ease |
 | Sky jump at the lip | 4 m kicker to a 1 m lip, 4 m gap, 18 m wide landing |
 | Steep ramp surface | boost strip along the whole climb |
-| Steep descent | same 70° face, 7 m entry ease and 11 m exit ease |
+| Steep descent | same 80° face, 2.1 m entry ease and 3.2 m exit ease |
+| Sky-jump leg extension | 24 m added to every leg when a seed selects the steep pair |
 | Obstacle segment | 24 m straight with five seeded rows of edge blocks |
 | Obstacle block placement | edge (2.5 m), centre, and double-edge rows; every row keeps a car-wide gap |
 | Assembly attempts | 32 deterministic offsets |
@@ -88,7 +112,7 @@ lengths. Rotational symmetry SHALL close the loop for any radius and leg length,
 so the player sees triangles, rectangles, pentagons, and hexagons rather than
 one oval.
 
-About half of seeds SHALL instead produce a figure-eight bowtie: four 135°
+About half of seeds SHALL instead produce a single-crossing layout: four 135°
 banked corners and two diagonals that cross once at their midpoints, with the
 vertical legs matching and the diagonals long enough to absorb the corner arcs. At the
 crossing, one diagonal SHALL rise on a bridge and the other SHALL pass beneath,
@@ -96,12 +120,26 @@ and the loop SHALL sit under the bridge so the crossing threads the loop's
 opening. The bridge SHALL rise on a spiral ramp, cross flat, and descend on a
 matching spiral ramp, at least 3.5 m above the lower deck. Each spiral SHALL
 turn one full circle per bridge level and SHALL support climbing or dropping
-multiple levels; the figure-eight bridge SHALL use two levels. Its radius SHALL
-leave a clear opening wide enough for a landmark building in the middle.
+multiple levels; the single-crossing bridge SHALL use two levels. Its radius
+SHALL leave a clear opening wide enough for a landmark building in the middle.
 
-Elevated routes SHALL NOT be limited to the figure-eight family. The seed SHALL
-be able to send a polygon circuit up a spiral or ramp, along the circuit at
-bridge height, and back down in a different section, as set out below.
+Elevated routes SHALL NOT be limited to the single-crossing family. The seed
+SHALL be able to send a polygon circuit up a spiral or ramp, along the circuit
+at bridge height, and back down in a different section, as set out below.
+
+Some seeds SHALL instead produce a multi-crossing layout: one closed 3D route
+whose plan passes over itself three or four times. At every crossing the upper
+pass SHALL clear the lower pass by at least the elevated clearance, so no two
+branches share a deck. The route SHALL be a single closed path with no forks
+and no rescue-forcing breaks. It SHALL carry at least two boost strips, and the
+car, rivals, lap checkpoints, rescue, and camera SHALL use the same sampled
+frames as every other layout. Crossings SHALL be achieved by vertical
+separation, not by a jump, gap, or disconnected bridge: the deck SHALL remain
+continuous through each crossing, with the lower branch visible beneath the
+upper deck. The multi-crossing scale SHALL keep the tightest turn drivable at
+racing speed. The layout family SHALL be chosen deterministically from the seed
+and SHALL be identical in the track preview and the race. A representative
+sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 
 #### Scenario: Every race is randomized
 
@@ -114,8 +152,8 @@ bridge height, and back down in a different section, as set out below.
 
 - **GIVEN** several seeds at one level
 - **WHEN** the circuits are generated
-- **THEN** more than one layout shape appears, including polygon circuits and
-  figure-eight bowties
+- **THEN** more than one layout shape appears, including polygon circuits,
+  single-crossing layouts, and multi-crossing layouts
 - **AND** some circuits carry a crest where others carry a jump
 - **AND** every circuit is closed
 - **AND** polygon layouts turn the same way at every corner, so they stay convex
@@ -134,12 +172,33 @@ bridge height, and back down in a different section, as set out below.
 - **THEN** turns tighten and loops shrink as the level rises
 - **AND** both circuits are closed and contain the required features
 
-#### Scenario: Spiral bridge
+#### Scenario: Single-crossing bridge
 
-- **GIVEN** a figure-eight circuit
+- **GIVEN** a single-crossing circuit
 - **WHEN** the bridge is assembled
 - **THEN** it rises on a two-level spiral and descends on a matching spiral
 - **AND** each spiral leaves an opening wide enough for a landmark building
+
+#### Scenario: Multi-crossing layout
+
+- **GIVEN** a seed selected for a multi-crossing layout
+- **WHEN** the circuit is generated
+- **THEN** its plan crosses itself three or four times
+- **AND** every crossing has at least the elevated clearance between passes
+- **AND** the route is one closed path with at least two boost strips
+- **AND** it carries the car through a lap without a rescue
+
+#### Scenario: Preview and race share the layout
+
+- **GIVEN** a previewed multi-crossing seed
+- **WHEN** the player starts the race from the preview
+- **THEN** the race uses the same multi-crossing circuit and crossing count
+
+#### Scenario: Multi-crossing is deterministic
+
+- **GIVEN** a seed selected for a multi-crossing layout
+- **WHEN** the circuit is generated twice
+- **THEN** every crossing, boost strip, and track frame is identical
 
 #### Scenario: Randomization never invents geometry
 
@@ -148,8 +207,10 @@ bridge height, and back down in a different section, as set out below.
 - **THEN** every loop, hill, obstacle segment, ramp, spiral, and shift keeps
   its authored size
 - **AND** every turn keeps the level's authored radius
-- **AND** only the combination, corner count, straight lengths, obstacle rows,
-  and elevation route differ
+- **AND** the multi-crossing curve keeps its authored shape; the seed only
+  scales and rotates it
+- **AND** only the layout family, crossing count, combination, corner count,
+  straight lengths, obstacle rows, and elevation route differ
 
 ### Requirement: Obstacle segments are seeded and leave a gap in every row
 
@@ -203,14 +264,21 @@ stage SHALL be an authored spiral or ramp and SHALL add or remove one or two
 bridge levels. A circuit MAY mix one-level and two-level stages, and MAY mix
 spiral and ramp stages, so both transition shapes and both spiral heights
 appear in the same circuit. A four-level climb MAY instead be an authored steep
-sky jump: a 70° ramp whose face holds between a long entry ease and a shorter
+sky jump: an 80° ramp whose face holds between a short entry ease and a shorter
 exit ease, ending on a compact kicker at the raised deck. The steep ramp SHALL
 carry a boost strip along the whole climb, so a car that reaches the foot
 slowly is pushed up instead of sliding back. The kicker SHALL launch the car
 over a short gap onto a wide landing deck at the same height, so the car flies
 off the top rather than staying planted. A matching steep descent SHALL return
 the route to the lower deck on a later leg; the climb and descent together
-SHALL move the route four bridge levels. The elevated stretch SHALL continue
+SHALL move the route four bridge levels. The seed SHALL pre-roll the steep sky
+jump independently of the level's straight lengths. When it selects the steep
+pair, the assembly SHALL extend every leg enough for the sky-jump module and
+SHALL use the pair, so the segment does not depend on a rare long leg. Other
+authored transitions SHALL likewise remain in rotation; a representative
+level-1 sample (at least 300 seeds) SHALL contain every piece kind the
+generator can emit.
+The elevated stretch SHALL continue
 through at least one authored straight or banked turn beyond a climb. The
 descent stages SHALL sit at a different plan position from the climb stages;
 the route SHALL NOT drop back onto the lower deck at the climbing point. The
@@ -256,12 +324,21 @@ the overpass rules for every lower section it passes over.
 
 - **GIVEN** a circuit whose four-level climb is a steep sky jump
 - **WHEN** the car reaches its foot, even at low speed
-- **THEN** the boost strip pushes it up the 70° face
+- **THEN** the boost strip pushes it up the 80° face
 - **AND** it leaves the lip, crosses the gap unsupported, and lands on the
   wide landing deck at the raised height
 - **AND** the deck continues at four bridge levels until a matching steep
   descent elsewhere
 - **AND** the ramp and descent meet the lower and upper decks at zero slope
+
+#### Scenario: Every segment stays in the stock rotation
+
+- **GIVEN** a representative sample of 300 level-1 seeds
+- **WHEN** the circuits are generated
+- **THEN** every authored piece kind appears: straight, turns, loop, loop
+  return, spirals, bridge ramps and deck, hill, jump pieces, steep ramp and
+  descent, boost, and obstacle corridor
+- **AND** the steep pair appears without requiring a rare long leg
 
 #### Scenario: Descent is a ramp or a spiral in another section
 
@@ -304,7 +381,7 @@ crossing SHALL NOT add support columns, braces, or any geometry that touches the
 lower deck or rails. Both branches SHALL remain fully drivable: a car on the
 lower branch SHALL pass under the upper deck, and a car on the upper branch
 SHALL pass over the lower route. Crossings SHALL NOT be limited to the
-figure-eight layout; the seed SHALL be able to route any elevated section over
+single-crossing layout; the seed SHALL be able to route any elevated section over
 a lower section.
 
 #### Scenario: Elevated route crosses a lower route
@@ -335,7 +412,7 @@ a lower section.
 - **WHEN** the space between the decks is inspected
 - **THEN** no column, brace, or support touches either deck
 
-#### Scenario: Crossings are not only figure-eights
+#### Scenario: Crossings are not only single-crossing layouts
 
 - **GIVEN** several seeds at one level
 - **WHEN** the circuits are generated

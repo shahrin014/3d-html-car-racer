@@ -121,7 +121,7 @@ describe('track randomization', () => {
     const first = generateCircuit('alpha', 1);
     const second = generateCircuit('charlie', 1);
 
-    // Seeds may choose different features (hill versus jump, figure-eight
+    // Seeds may choose different features (hill versus jump, single-crossing
     // versus polygon), so compare the sizes of the authored kinds both share.
     const firstSizes = authoredSizes(first);
     const secondSizes = authoredSizes(second);
@@ -171,14 +171,14 @@ describe('track randomization', () => {
         const circuit = generateCircuit(seed, level);
         const turns = circuit.pieces.filter((piece) => piece.kind === 'turn');
         corners.add(turns.length);
-        const figureEight = circuit.pieces.some(
+        const singleCrossover = circuit.pieces.some(
           (piece) => piece.kind === 'bridge',
         );
         for (const turn of turns) {
-          // A bowtie uses four 135 degree corners to cross itself; a polygon
+          // A single-crossing layout uses four 135 degree corners to cross itself; a polygon
           // uses n corners of 360/n.
           expect(turn.angleDegrees).toBeCloseTo(
-            figureEight ? 135 : 360 / turns.length,
+            singleCrossover ? 135 : 360 / turns.length,
             6,
           );
           expect(turn.radius ?? 0).toBeGreaterThanOrEqual(MIN_TURN_RADIUS);
@@ -230,10 +230,14 @@ describe('track randomization', () => {
   }, 20_000);
 
   it('sends some polygon seeds up a climb and back down elsewhere', () => {
+    const rotationSeeds = [
+      ...SEEDS,
+      ...Array.from({ length: 24 }, (_, index) => `rotation-extra-${index}`),
+    ];
     let elevated = 0;
     const climbs = new Set<string>();
     const descents = new Set<string>();
-    for (const seed of SEEDS) {
+    for (const seed of rotationSeeds) {
       for (const level of LEVELS) {
         const circuit = generateCircuit(seed, level);
         if (circuit.pieces.some((piece) => piece.kind === 'bridge')) {
@@ -274,7 +278,7 @@ describe('track randomization', () => {
     expect(descents.has('spiral-down')).toBe(true);
   }, 20_000);
 
-  it('climbs a 70 degree steep ramp as a two-level boost route', () => {
+  it('climbs an 80 degree steep ramp as a four-level boost route', () => {
     let circuit: Circuit | null = null;
     let rampIndex = -1;
     for (let index = 0; index < 400; index += 1) {
@@ -411,8 +415,12 @@ describe('track randomization', () => {
   }, 20_000);
 
   it('mixes ramp and spiral transitions in one circuit', () => {
+    const rotationSeeds = [
+      ...SEEDS,
+      ...Array.from({ length: 24 }, (_, index) => `rotation-extra-${index}`),
+    ];
     let mixed = false;
-    for (const seed of SEEDS) {
+    for (const seed of rotationSeeds) {
       for (const level of LEVELS) {
         const kinds = generateCircuit(seed, level).pieces
           .map((piece) => piece.kind)
@@ -548,7 +556,7 @@ describe('track randomization', () => {
     expect(found).not.toBeNull();
   }, 20_000);
 
-  it('keeps figure-eight jump and hill variants closed', () => {
+  it('keeps single-crossing jump and hill variants closed', () => {
     let jump: Circuit | null = null;
     let hill: Circuit | null = null;
     for (let index = 0; index < 120; index += 1) {

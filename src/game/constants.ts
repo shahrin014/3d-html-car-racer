@@ -251,7 +251,7 @@ export const BRIDGE_LENGTH =
 export const BRIDGE_CLEARANCE = 3.5;
 
 /**
- * Steep ramp module: a 70 degree climb to a raised deck, used as a sky-jump
+ * Steep ramp module: an 80 degree climb to a raised deck, used as a sky-jump
  * launch. The entry eases over a longer horizontal run than the exit so the
  * car rotates onto the face gradually; the top meets a compact kicker, gap, and
  * wide landing deck, so a car at racing speed flies off the top instead of
@@ -259,12 +259,18 @@ export const BRIDGE_CLEARANCE = 3.5;
  * up. Its rise is four bridge levels, and a matching steep descent closes the
  * route on another leg.
  */
-export const STEEP_RAMP_ANGLE = 70;
+export const STEEP_RAMP_ANGLE = 80;
 export const STEEP_RAMP_LEVELS = 4;
 export const STEEP_RAMP_HEIGHT = BRIDGE_HEIGHT * STEEP_RAMP_LEVELS;
-/** Horizontal length of the eased entry and exit, as shares of the rise. */
-export const STEEP_RAMP_EASE_IN_RATIO = 0.34375;
-export const STEEP_RAMP_EASE_OUT_RATIO = 0.21875;
+/**
+ * Horizontal length of the eased entry and exit, as shares of the rise. At
+ * 80 degrees the face run is only height/tan(80°) ≈ 5.6 m for a four-level
+ * rise, so the eases have to be short enough that they do not overlap and the
+ * face still holds the full pitch. The climb gets the longer entry; the
+ * descent gets the longer exit.
+ */
+export const STEEP_RAMP_EASE_IN_RATIO = 0.101;
+export const STEEP_RAMP_EASE_OUT_RATIO = 0.065;
 
 /**
  * Compact jump at the top of the steep ramp. The lip is lower and the landing
@@ -278,7 +284,25 @@ export const SKY_JUMP_GAP_LENGTH = 4;
 export const SKY_JUMP_LANDING_LENGTH = 18;
 
 /**
- * Spiral ramp module: one full turn per bridge level. The figure-eight bridge
+ * Multi-crossing layout: a closed 3D trefoil whose plan crosses itself three
+ * times. The seed scales and rotates the authored curve; it is not assembled
+ * from the catalog pieces. Crossings are separated by the curve's own height,
+ * so the car drives over and under its route without a gap.
+ */
+export const MULTI_CROSSING_SHARE = 0.25;
+export const MULTI_CROSSING_SCALE = 10;
+export const MULTI_CROSSING_SCALE_VARIANCE = 4;
+export const MULTI_CROSSING_SEGMENTS = 12;
+/**
+ * Extra leg length added to every leg when the seed plans a steep pair. The
+ * sky-jump module plus the lead straight and a boost strip is about 71 m; this
+ * keeps the climb eligible on short level-1 legs instead of starving the
+ * segment from the random rotation.
+ */
+export const SKY_JUMP_LEG_EXTRA = 24;
+
+/**
+ * Spiral ramp module: one full turn per bridge level. The single-crossing bridge
  * climbs two levels, which still threads the loop's opening while keeping the
  * deck clear of the lower crossing. The 18 m centreline radius leaves an
  * opening about 29 m across inside the inner rail, wide enough for a landmark

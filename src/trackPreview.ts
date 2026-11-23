@@ -226,7 +226,9 @@ export class TrackPreview {
 
   /** Rebuild the scene for a new seed. */
   setSeed(seed: string): void {
-    const circuit = generateCircuit(seed, DEFAULT_LEVEL);
+    const circuit = generateCircuit(seed, DEFAULT_LEVEL, {
+      allowMultiCrossing: true,
+    });
     const frames = buildFrames(circuit);
     this.disposeCircuit();
 
@@ -439,6 +441,15 @@ try {
 let seed = randomSeed();
 let busy = false;
 
+// A ?seed= query makes a previewed circuit reproducible, which is useful for
+// QA links and for reopening a specific layout after a reload.
+const requestedSeed = new URLSearchParams(window.location.search)
+  .get('seed')
+  ?.trim();
+if (requestedSeed) {
+  seed = requestedSeed;
+}
+
 function setBusy(value: boolean): void {
   busy = value;
   document.body.classList.toggle('is-building', value);
@@ -450,6 +461,9 @@ function showSeed(next: string): void {
   seed = next;
   seedElement.textContent = next;
   seedElement.title = next;
+  const url = new URL(window.location.href);
+  url.searchParams.set('seed', next);
+  window.history.replaceState(null, '', url);
 }
 
 function build(next: string): void {

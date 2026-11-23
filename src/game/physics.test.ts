@@ -477,25 +477,38 @@ describe('bridges', () => {
       if (rampIndex < 0) {
         continue;
       }
-      circuit = candidate;
+      let candidateStart = 0;
+      let candidateEnd = 0;
+      let candidateGap = 0;
+      let candidateLanding = 0;
       let distance = 0;
       const zones: { from: number; to: number }[] = [];
       candidate.pieces.forEach((piece, pieceIndex) => {
         if (pieceIndex === rampIndex) {
-          rampStart = distance;
-          rampEnd = distance + piece.length;
+          candidateStart = distance;
+          candidateEnd = distance + piece.length;
         }
         if (pieceIndex > rampIndex && piece.kind === 'gap') {
-          gapStart = distance;
+          candidateGap = distance;
         }
-        if (pieceIndex > rampIndex && piece.kind === 'landing' && gapStart > 0) {
-          landingEnd = distance + piece.length;
+        if (pieceIndex > rampIndex && piece.kind === 'landing' && candidateGap > 0) {
+          candidateLanding = distance + piece.length;
         }
         if (piece.boost) {
           zones.push({ from: distance, to: distance + piece.length });
         }
         distance += piece.length;
       });
+      // Give the car a real approach; the stock level-1 rotation can place the
+      // steep ramp near the start line, which is not a useful drive-through.
+      if (candidateStart < 24) {
+        continue;
+      }
+      circuit = candidate;
+      rampStart = candidateStart;
+      rampEnd = candidateEnd;
+      gapStart = candidateGap;
+      landingEnd = candidateLanding;
       boostZones = zones;
       break;
     }
@@ -509,10 +522,10 @@ describe('bridges', () => {
     ).toBe(true);
 
     const frames = buildFrames(circuit!);
-    const entryIndex = frames.findIndex(
-      (frame) => frame.s >= rampStart - 14,
+    const entryIndex = Math.max(
+      0,
+      frames.findIndex((frame) => frame.s >= rampStart - 14),
     );
-    expect(entryIndex).toBeGreaterThan(0);
     const entry = frames[entryIndex]!;
     const physics = await createPhysics(frames);
     physics.reset(entry);
@@ -677,5 +690,54 @@ describe('bridges', () => {
     );
     expect(maxGap).toBeLessThan(TRACK_WIDTH);
     expect(endSpeed).toBeGreaterThan(4);
+  }, 60_000);
+});
+
+describe('multi-crossing layout', () => {
+  it('drives the trefoil without leaving the deck', async () => {
+    let frames: TrackFrame[] | null = null;
+    for (let index = 0; index < 80; index += 1) {
+      const candidate = generateCircuit(`multi-drive-${index}`, 1, {
+        allowMultiCrossing: true,
+      });
+      if (candidate.layout === 'multi-crossing') {
+        frames = buildFrames(candidate);
+        break;
+      }
+    }
+    expect(frames).not.toBeNull();
+    const track = frames!;
+    const physics = await createPhysics(track);
+    physics.reset(track[0]!);
+
+    let index = 0;
+    let maxGap = 0;
+    let maxSpeed = 0;
+    for (let step = 0; step < 120 * 20; step += 1) {
+      const state = physics.read();
+      index = nextIndex(track, index, state.position);
+      const frame = track[index]!;
+      const latitude = lateralOffset(frame, state.position);
+      const lateralSpeed =
+        state.velocity.x * frame.right.x +
+        state.velocity.y * frame.right.y +
+        state.velocity.z * frame.right.z;
+      const steer = Math.max(
+        -1,
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
+      );
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer }, frame);
+      const after = physics.read();
+      if (frame.solid) {
+        maxGap = Math.max(maxGap, after.position.distanceTo(frame.position));
+      }
+      maxSpeed = Math.max(maxSpeed, after.speed);
+    }
+
+    physics.dispose();
+    // The trefoil's own height separates its three crossings, so a car that
+    // holds the line stays on the deck all the way round.
+    expect(maxGap).toBeLessThan(TRACK_WIDTH);
+    expect(maxSpeed).toBeGreaterThan(20);
   }, 60_000);
 });
