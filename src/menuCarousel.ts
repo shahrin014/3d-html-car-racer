@@ -24,10 +24,20 @@ export class CarPreview {
   /** Group that holds the current car so the idle spin has one pivot. */
   private readonly display = new THREE.Group();
   private readonly reducedMotion: MediaQueryList;
-  private readonly orbitRadius = 2.4;
-  private readonly orbitY = 0.9;
   private yaw = 0;
   private readonly resizeObserver: ResizeObserver;
+
+  /**
+   * Framing, in metres and radians. The car is 2.45 m long, so the turntable's
+   * widest silhouette is the diagonal (~2.62 m). Fitting that box to both
+   * fields of view keeps the whole car in frame while letting it fill a wide
+   * slide; a bounding-sphere fit left too much empty space.
+   */
+  private static readonly FRAME_WIDTH = 2.8;
+  private static readonly FRAME_HEIGHT = 1.6;
+  private static readonly VIEW_MARGIN = 1.12;
+  private static readonly VIEW_TARGET = new THREE.Vector3(0, 0.24, 0);
+  private static readonly VIEW_ELEVATION = 0.32;
 
   constructor(container: HTMLElement, paint: Paint, carId: string) {
     this.carId = carId;
@@ -141,10 +151,25 @@ export class CarPreview {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
-    const span = Math.max(width, height);
-    const z = this.orbitRadius * (span / 420);
-    this.camera.position.set(0, this.orbitY, z);
-    this.camera.lookAt(0, 0.28, 0);
+
+    // Fit the car's frame box to the tighter of the two fields of view. The old
+    // distance scaled with the container in pixels, so a small carousel placed
+    // the camera almost inside the car.
+    const verticalFov = THREE.MathUtils.degToRad(this.camera.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * this.camera.aspect);
+    const distance =
+      CarPreview.VIEW_MARGIN *
+      Math.max(
+        CarPreview.FRAME_HEIGHT / 2 / Math.tan(verticalFov / 2),
+        CarPreview.FRAME_WIDTH / 2 / Math.tan(horizontalFov / 2),
+      );
+    const target = CarPreview.VIEW_TARGET;
+    this.camera.position.set(
+      0,
+      target.y + Math.sin(CarPreview.VIEW_ELEVATION) * distance,
+      Math.cos(CarPreview.VIEW_ELEVATION) * distance,
+    );
+    this.camera.lookAt(target);
   }
 
   dispose(): void {
