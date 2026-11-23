@@ -27,13 +27,15 @@ Do not run the E2E suite locally.
 | --- | --- | --- |
 | Standalone piece | A leg or a fixed point in `assembleCircuit` | straight, turn, hill, obstacle |
 | Feature module | A reserved leg (loop, jump, hill) | kicker + gap + landing |
-| Level transition | `makeTransition` / `Transition` | ramp-up, spiral-down, steep-ramp |
+| Level transition | `makeTransition` or the paired-steep branch / `Transition` | ramp-up, spiral-down, steep-jump |
 | Feature surface | Any piece carrying a special flag | `boost: true` on a straight or ramp |
 
 Write down:
 
 - start and end frames: both should normally be flat (`tangent.y = 0`,
-  `up.y = 1`) so the piece joins any deck with zero slope;
+  `up.y = 1`) so the piece joins any deck with zero slope. An intentional jump
+  lip is the exception: it ends on a launch slope and must be followed by a
+  gap and a wide landing.
 - **progress length** (`Piece.length`, usually the horizontal/plan run, not the
   3D arc length);
 - **plan footprint** (`Transition.plan` for a transition, otherwise `length`);
@@ -265,28 +267,34 @@ generated `test-results/`/`playwright-report/`.
 
 Read these in order when you need a real reference:
 
-- `src/game/constants.ts` — `STEEP_RAMP_*` constants;
+- `src/game/constants.ts` — `STEEP_RAMP_*` and `SKY_JUMP_*` constants;
 - `src/game/track.ts` — `steepEaseIntegral`, `steepRampRun`,
-  `steepRampUpPath`, and the `makeTransition` branch that returns
-  `kind: 'steep-ramp'` with `boost: true`;
-- `src/game/track.ts` — `Piece['kind']` and `Transition` include the kind;
+  `steepRampUpPath`, `steepRampDownPath`, `skyJumpPlanarLength`, and the
+  `steep-jump` / `steep-ramp-down` pair in the elevation selection;
+- `src/game/track.ts` — `Piece['kind']` has both `steep-ramp` and
+  `steep-ramp-down`; `Transition` has `steep-jump` and `steep-ramp-down`;
+- `src/game/track.ts` — `addTransition` handles `steep-jump` by adding the
+  climb, setting `boost`, and calling the compact `addJump`;
 - `src/game/Game.ts` — boost zones are created from `piece.boost` and
   `splitPieces` draws the boost texture;
-- `src/game/track.test.ts` — 70° peak, exact height, zero-slope joins;
+- `src/game/track.test.ts` — 70° peak, exact height, flat lower joins, and the
+  matching descent;
 - `src/game/trackRandomization.test.ts` — finds a generated circuit, validates
-  it, checks the raised deck that follows;
-- `src/game/physics.test.ts` — drives the ramp with boost zones from a slow
-  entry and asserts the car stays on the deck;
+  it, checks the kicker/gap/landing and the matching steep descent;
+- `src/game/physics.test.ts` — drives the ramp with boost zones, observes the
+  gap, and asserts the car lands on the raised deck;
 - `tools/preview/preview.mjs`, `tools/render-assets.mjs`,
-  `tools/export-glb.mjs`, `assets/track/steep-ramp-70.*`, and the row in
-  `assets/README.md` — the catalog side.
+  `tools/export-glb.mjs`, `assets/track/steep-ramp-70.*` and
+  `assets/track/steep-ramp-70-down.*`, and the rows in `assets/README.md` — the
+  catalog side.
 
 ## Pitfalls
 
 | Symptom | Cause / fix |
 | --- | --- |
 | Car stops at the foot of a steep ramp | The entry ease is shorter than the car and its chassis jams on the face. Lengthen the entry ease and test from rest. Also verify `run`, height, and the 70° peak rather than only looking at the render. |
-| Car launches off the crest | The exit ease is too short or the car is too fast for the spring. Lengthen the exit ease, lower the height, or accept a deliberate jump with a landing. Test at racing speed, not only from rest. |
+| Car launches too far and misses the landing | The lip is too high or steep, or the gap/landing is too short. Lower `SKY_JUMP_LIP_HEIGHT`, shorten the kicker, or lengthen the landing; test at the fastest boost-assisted speed, not only from rest. |
+| Car never leaves the top | The lip ends flat and the guide spring holds it on the deck. End on a launch slope and add a gap with a wide landing, then verify the jump spans cover both. |
 | Piece joins with a visible step | The end tangent or up does not match the next piece. End with `tangent.y = 0` and `up.y = 1` for a flat join. |
 | Circuit will not close | The leg budget did not subtract the piece's plan length, or the transition height does not balance its descent. |
 | Colliders are missing | `Game.splitPieces` and `buildFrames` disagree, or the piece was marked `gap`. Update both samplers. |

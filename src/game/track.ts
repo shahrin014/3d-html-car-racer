@@ -24,6 +24,11 @@ import {
   LOOP_RETURN_LENGTH,
   MIN_TURN_RADIUS,
   OBSTACLE_SEGMENT_LENGTH,
+  SKY_JUMP_ENTRY_HEIGHT,
+  SKY_JUMP_GAP_LENGTH,
+  SKY_JUMP_KICKER_LENGTH,
+  SKY_JUMP_LANDING_LENGTH,
+  SKY_JUMP_LIP_HEIGHT,
   SPIRAL_HEIGHT,
   SPIRAL_RADIUS,
   SPIRAL_TURNS,
@@ -31,7 +36,6 @@ import {
   STEEP_RAMP_EASE_IN_RATIO,
   STEEP_RAMP_EASE_OUT_RATIO,
   STEEP_RAMP_HEIGHT,
-  STEEP_RAMP_LEVELS,
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
@@ -237,22 +241,34 @@ export function steepRampRun(
 }
 
 /**
- * Steep ramp: a 70 degree climb with eased entry and exit.
+ * Steep ramp profile shared by the climb and the matching descent.
  *
  * The slope rises from flat to 70 degrees over the entry ease, holds the
- * authored angle, then eases back to flat over the longer exit so a car at
- * racing speed does not launch off the crest. The height is exact, so the
- * piece joins a level elevated deck on both ends. The piece is drawn as a
- * boost strip by the circuit assembler, because a slow car needs a push to
- * make the climb.
+ * authored angle, then eases back to flat over the exit. The height is exact,
+ * so the piece joins a level deck at both ends. The climb uses longer bottom
+ * and top eases than a two-level ramp would, because a 70 degree face over a
+ * four-level rise needs room for the car to rotate onto it; the descent reuses
+ * the same curve so the pair always closes on the same height.
  */
-export function steepRampUpPath(
-  height = STEEP_RAMP_HEIGHT,
-  angleDegrees = STEEP_RAMP_ANGLE,
+function steepRampPath(
+  height: number,
+  angleDegrees: number,
+  direction: 1 | -1,
 ): TrackPath {
   const run = steepRampRun(height, angleDegrees);
-  const easeIn = height * STEEP_RAMP_EASE_IN_RATIO;
-  const easeOut = height * STEEP_RAMP_EASE_OUT_RATIO;
+  // The climb gets the long entry; the descent gets the long exit. Both keep
+  // the same total ease length, so the run and the 70 degree face are
+  // identical whichever way the car travels.
+  const easeIn =
+    height *
+    (direction === 1
+      ? STEEP_RAMP_EASE_IN_RATIO
+      : STEEP_RAMP_EASE_OUT_RATIO);
+  const easeOut =
+    height *
+    (direction === 1
+      ? STEEP_RAMP_EASE_OUT_RATIO
+      : STEEP_RAMP_EASE_IN_RATIO);
   const entryShare = easeIn / run;
   const exitShare = easeOut / run;
   const slopeArea = 1 - (entryShare + exitShare) / 2;
@@ -282,16 +298,32 @@ export function steepRampUpPath(
 
   const slopeScale = height / (run * slopeArea);
   return (t) => {
-    const slope = slopeScale * slopeShare(t);
+    const slope = direction * slopeScale * slopeShare(t);
     const tangent = new THREE.Vector3(0, slope, 1).normalize();
     const right = new THREE.Vector3(1, 0, 0);
     return {
-      position: new THREE.Vector3(0, height * riseShare(t), run * t),
+      position: new THREE.Vector3(0, direction * height * riseShare(t), run * t),
       tangent,
       up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
       bank: 0,
     };
   };
+}
+
+/** Four-level 70 degree climb. The circuit draws it as a boost strip. */
+export function steepRampUpPath(
+  height = STEEP_RAMP_HEIGHT,
+  angleDegrees = STEEP_RAMP_ANGLE,
+): TrackPath {
+  return steepRampPath(height, angleDegrees, 1);
+}
+
+/** Matching four-level 70 degree descent, placed on the raised deck. */
+export function steepRampDownPath(
+  height = STEEP_RAMP_HEIGHT,
+  angleDegrees = STEEP_RAMP_ANGLE,
+): TrackPath {
+  return steepRampPath(height, angleDegrees, -1);
 }
 
 /**
@@ -451,7 +483,15 @@ export function landingWidthTaper(): (t: number) => number {
  * seam. A `drop` reuses the same geometry but sinks the landing by that many
  * world metres and walks it a longer landing ramp.
  */
-function jumpModulePlanarLength(drop: number, landingLength: number): number {
+function jumpModulePlanarLength(
+  drop: number,
+  landingLength: number,
+  kickerLength = JUMP_KICKER_LENGTH,
+  kickerHeight = JUMP_HEIGHT,
+  gapLength = JUMP_GAP_LENGTH,
+  entryHeight = JUMP_LANDING_HEIGHT,
+  launchSlope = JUMP_LAUNCH_SLOPE,
+): number {
   const endFrame = (matrix: THREE.Matrix4, path: TrackPath): THREE.Matrix4 => {
     const sample = path(1);
     const rotation = new THREE.Matrix4().makeBasis(
@@ -461,15 +501,36 @@ function jumpModulePlanarLength(drop: number, landingLength: number): number {
     );
     return matrix.clone().multiply(rotation.setPosition(sample.position));
   };
-  let matrix = endFrame(new THREE.Matrix4(), kickerPath());
-  matrix = endFrame(matrix, gapPath());
+  let matrix = endFrame(
+    new THREE.Matrix4(),
+    kickerPath(kickerLength, kickerHeight, launchSlope),
+  );
+  matrix = endFrame(matrix, gapPath(gapLength));
   matrix = endFrame(
     matrix,
-    landingPath(landingLength, JUMP_HEIGHT, JUMP_LAUNCH_SLOPE,
-      JUMP_GAP_LENGTH, JUMP_LANDING_HEIGHT, drop),
+    landingPath(landingLength, kickerHeight, launchSlope,
+      gapLength, entryHeight, drop),
   );
   const end = new THREE.Vector3().setFromMatrixPosition(matrix);
   return Math.hypot(end.x, end.z);
+}
+
+/**
+ * Plan length of the steep climb plus the compact sky jump at its lip. The
+ * ramp ends flat, so the jump's plan adds directly to the ramp run.
+ */
+export function skyJumpPlanarLength(): number {
+  return (
+    steepRampRun(STEEP_RAMP_HEIGHT) +
+    jumpModulePlanarLength(
+      0,
+      SKY_JUMP_LANDING_LENGTH,
+      SKY_JUMP_KICKER_LENGTH,
+      SKY_JUMP_LIP_HEIGHT,
+      SKY_JUMP_GAP_LENGTH,
+      SKY_JUMP_ENTRY_HEIGHT,
+    )
+  );
 }
 
 /** Ramp up to the lip, ending on the launch slope. */
@@ -591,6 +652,7 @@ export interface Piece {
     | 'bridge'
     | 'ramp-down'
     | 'steep-ramp'
+    | 'steep-ramp-down'
     | 'spiral-up'
     | 'spiral-down';
   path: TrackPath;
@@ -775,7 +837,8 @@ function assembleCircuit(
       | 'spiral-down'
       | 'ramp-up'
       | 'ramp-down'
-      | 'steep-ramp'
+      | 'steep-jump'
+      | 'steep-ramp-down'
       | 'jump-down';
     path: TrackPath;
     length: number;
@@ -815,13 +878,17 @@ function assembleCircuit(
   const addJump = (
     drop = 0,
     landingLength: number = JUMP_LANDING_LENGTH,
+    kickerLength = JUMP_KICKER_LENGTH,
+    kickerHeight = JUMP_HEIGHT,
+    gapLength = JUMP_GAP_LENGTH,
+    entryHeight = JUMP_LANDING_HEIGHT,
   ): void => {
-    addPiece('kicker', kickerPath(), JUMP_KICKER_LENGTH);
-    addPiece('gap', gapPath(), JUMP_GAP_LENGTH);
+    addPiece('kicker', kickerPath(kickerLength, kickerHeight), kickerLength);
+    addPiece('gap', gapPath(gapLength), gapLength);
     addPiece(
       'landing',
-      landingPath(landingLength, JUMP_HEIGHT, JUMP_LAUNCH_SLOPE,
-        JUMP_GAP_LENGTH, JUMP_LANDING_HEIGHT, drop),
+      landingPath(landingLength, kickerHeight, JUMP_LAUNCH_SLOPE,
+        gapLength, entryHeight, drop),
       landingLength,
     );
     const landing = pieces[pieces.length - 1];
@@ -832,6 +899,28 @@ function assembleCircuit(
   };
 
   const addTransition = (transition: Transition): void => {
+    if (transition.kind === 'steep-jump') {
+      // The steep climb ends flat on the raised deck; the compact kicker then
+      // launches the car over a gap onto the wide landing at the same height.
+      addPiece(
+        'steep-ramp',
+        steepRampUpPath(STEEP_RAMP_HEIGHT),
+        steepRampRun(STEEP_RAMP_HEIGHT),
+      );
+      const ramp = pieces[pieces.length - 1];
+      if (ramp) {
+        ramp.boost = true;
+      }
+      addJump(
+        0,
+        SKY_JUMP_LANDING_LENGTH,
+        SKY_JUMP_KICKER_LENGTH,
+        SKY_JUMP_LIP_HEIGHT,
+        SKY_JUMP_GAP_LENGTH,
+        SKY_JUMP_ENTRY_HEIGHT,
+      );
+      return;
+    }
     if (transition.kind === 'jump-down') {
       addDownJump(transition.stageLevels ?? 1);
       return;
@@ -1025,26 +1114,6 @@ function assembleCircuit(
       const boost = boostLegs.has(legIndex) ? CIRCUIT_BOOST_LENGTH : 0;
       const available =
         (legs[legIndex] ?? 0) - CIRCUIT_LEAD_STRAIGHT - boost;
-      // A steep ramp is a two-level climb. It is much shorter in plan than a
-      // two-level ramp, so its authored 70 degree face fits almost any free
-      // leg. Its deck is always a boost strip, so a car that reaches the foot
-      // slowly still climbs instead of sliding back down.
-      const steepHeight = BRIDGE_HEIGHT * STEEP_RAMP_LEVELS;
-      const steepPlan = steepRampRun(steepHeight);
-      if (
-        direction === 'up' &&
-        stageLevels === STEEP_RAMP_LEVELS &&
-        available >= steepPlan &&
-        random() < 0.7
-      ) {
-        return {
-          kind: 'steep-ramp',
-          path: steepRampUpPath(steepHeight),
-          length: steepPlan,
-          plan: steepPlan,
-          boost: true,
-        };
-      }
       // A ramp uses the same authored slope at one or two levels, so its plan
       // length grows with the height. Use it whenever the leg has room, and
       // fall back to the spiral otherwise.
@@ -1095,26 +1164,74 @@ function assembleCircuit(
     // two-stage elevation: climb one level, keep driving, then either climb or
     // descend another level. That puts both one-level and two-level spirals in
     // the same circuit instead of forcing one height for the whole layout.
-    const combineLevels = freeLegs.length >= 3 && random() < 0.5;
-    if (combineLevels) {
-      const [first, second, third] = pickLegs(3);
-      if (random() < 0.5) {
-        transitions.set(first!, makeTransition('up', first!, 1, true));
-        transitions.set(second!, makeTransition('up', second!, 1, true));
-        transitions.set(third!, makeTransition('down', third!, 2, true));
-      } else {
-        transitions.set(first!, makeTransition('up', first!, 2, true));
-        transitions.set(second!, makeTransition('down', second!, 1, true));
-        transitions.set(third!, makeTransition('down', third!, 1, true));
-      }
-    } else {
-      const [upLeg, downLeg] = pickLegs(2);
-      const stageLevels = random() < 0.35 ? 2 : 1;
-      transitions.set(upLeg!, makeTransition('up', upLeg!, stageLevels, true));
-      transitions.set(
-        downLeg!,
-        makeTransition('down', downLeg!, stageLevels, true),
+    //
+    // Some seeds instead use the steep pair: a four-level sky jump on one leg
+    // and a matching steep descent on a later leg. Both legs must have room for
+    // their module after the lead straight, or the seed falls back to the
+    // staged route below.
+    const transitionAvailable = (legIndex: number): number =>
+      (legs[legIndex] ?? 0) -
+      CIRCUIT_LEAD_STRAIGHT -
+      (boostLegs.has(legIndex) ? CIRCUIT_BOOST_LENGTH : 0);
+    const steepUpPlan = skyJumpPlanarLength();
+    const steepDownPlan = steepRampRun(STEEP_RAMP_HEIGHT);
+    const steepUpLegs = freeLegs.filter(
+      (legIndex) => transitionAvailable(legIndex) >= steepUpPlan,
+    );
+    const steepDownLegs = freeLegs.filter(
+      (legIndex) => transitionAvailable(legIndex) >= steepDownPlan,
+    );
+    const steepUpCandidates = steepUpLegs.filter((upLeg) =>
+      steepDownLegs.some((downLeg) => downLeg > upLeg),
+    );
+    const useSteepPair =
+      steepUpCandidates.length > 0 && random() < 0.5;
+
+    if (useSteepPair) {
+      const upLeg =
+        steepUpCandidates[Math.floor(random() * steepUpCandidates.length)]!;
+      const downCandidates = steepDownLegs.filter(
+        (legIndex) => legIndex > upLeg,
       );
+      const downLeg =
+        downCandidates[Math.floor(random() * downCandidates.length)]!;
+      transitions.set(upLeg, {
+        kind: 'steep-jump',
+        path: gapPath(),
+        length: steepUpPlan,
+        plan: steepUpPlan,
+      });
+      transitions.set(downLeg, {
+        kind: 'steep-ramp-down',
+        path: steepRampDownPath(STEEP_RAMP_HEIGHT),
+        length: steepDownPlan,
+        plan: steepDownPlan,
+      });
+    } else {
+      const combineLevels = freeLegs.length >= 3 && random() < 0.5;
+      if (combineLevels) {
+        const [first, second, third] = pickLegs(3);
+        if (random() < 0.5) {
+          transitions.set(first!, makeTransition('up', first!, 1, true));
+          transitions.set(second!, makeTransition('up', second!, 1, true));
+          transitions.set(third!, makeTransition('down', third!, 2, true));
+        } else {
+          transitions.set(first!, makeTransition('up', first!, 2, true));
+          transitions.set(second!, makeTransition('down', second!, 1, true));
+          transitions.set(third!, makeTransition('down', third!, 1, true));
+        }
+      } else {
+        const [upLeg, downLeg] = pickLegs(2);
+        const stageLevels = random() < 0.35 ? 2 : 1;
+        transitions.set(
+          upLeg!,
+          makeTransition('up', upLeg!, stageLevels, true),
+        );
+        transitions.set(
+          downLeg!,
+          makeTransition('down', downLeg!, stageLevels, true),
+        );
+      }
     }
   }
 

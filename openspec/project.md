@@ -136,12 +136,13 @@ calls.
   both transition shapes and both spiral heights appear together. The elevated
   deck may cross over lower track, provided the decks stay at least 3.5 m apart
   and no support touches either deck.
-- **The steep ramp is a two-level shortcut upward.** A 70° face with a short
-  eased entry and a longer eased exit rises 16 m in an 11.3 m plan footprint.
-  The whole surface is a boost strip, so a car that arrives slowly is pushed up
-  rather than sliding back, and the exit ease keeps a fast car from launching
-  off the crest. It replaces the two-level spiral or ramp on some seeds and
-  pairs with an existing two-level descent.
+- **The steep ramp is a four-level sky jump.** A 70° face with an 11 m entry
+  ease and a 7 m exit ease rises 32 m in a 20.6 m plan footprint. The whole
+  surface is a boost strip, so a car that arrives slowly is pushed up. Its top
+  carries a compact kicker, a 4 m gap, and an 18 m wide landing deck at the
+  raised height, so a fast car flies off the top instead of staying planted.
+  It replaces the four-level staged climb on some seeds and pairs with a matching
+  steep descent on a later leg.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
   kicker ends on an upward launch slope and the landing ramp enters along the
   same launch line, but its top edge sits below the lip, so the car drops onto
@@ -277,7 +278,7 @@ calls.
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m per level · 20 m ramps · 24 m flat · 3.5 m overpass clearance |
 | Spiral | 18 m radius · 8 m per turn · up to 2 levels |
-| Steep ramp | 70° face · 16 m rise · 11.3 m plan run · boost strip along the climb |
+| Steep ramp | 70° face · 32 m rise (four levels) · 20.6 m plan run · boost strip along the climb · compact sky jump at the lip |
 | Maximum speed (flat) | 72 m/s |
 | Player engine force | 80 N, with 0.015432 quadratic drag |
 | Descent boost | 50% extra engine force while pointing downhill |

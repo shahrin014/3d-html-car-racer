@@ -298,12 +298,25 @@ describe('track randomization', () => {
     const start = new THREE.Vector3().setFromMatrixPosition(ramp.matrix);
     const end = ramp.path(1).position.clone().applyMatrix4(ramp.matrix);
     expect(end.y - start.y).toBeCloseTo(STEEP_RAMP_HEIGHT, 3);
-    // The deck that follows starts on the raised level, so the route carries
-    // on at two bridge levels until a descent elsewhere.
-    const next = pieces[rampIndex + 1];
-    expect(next).toBeDefined();
-    const nextStart = new THREE.Vector3().setFromMatrixPosition(next!.matrix);
-    expect(nextStart.y).toBeCloseTo(start.y + STEEP_RAMP_HEIGHT, 3);
+    // The deck continues into the compact sky jump: kicker, gap, landing.
+    expect(pieces[rampIndex + 1]?.kind).toBe('kicker');
+    expect(pieces[rampIndex + 2]?.kind).toBe('gap');
+    const landing = pieces[rampIndex + 3];
+    expect(landing?.kind).toBe('landing');
+    expect(landing?.halfWidth).toBe(JUMP_LANDING_WIDTH / 2);
+
+    const descent = pieces.find(
+      (piece, index) => index > rampIndex && piece.kind === 'steep-ramp-down',
+    );
+    expect(descent).toBeDefined();
+    const descentStart = new THREE.Vector3().setFromMatrixPosition(
+      descent!.matrix,
+    );
+    const descentEnd = descent!.path(1).position
+      .clone()
+      .applyMatrix4(descent!.matrix);
+    expect(descentStart.y - start.y).toBeCloseTo(STEEP_RAMP_HEIGHT, 3);
+    expect(descentEnd.y - start.y).toBeCloseTo(0, 3);
 
     const frames = buildFrames(circuit!);
     const first = frames[0]!;
@@ -314,6 +327,8 @@ describe('track randomization', () => {
       (frame) => frame.position.y - first.position.y >= STEEP_RAMP_HEIGHT - 1,
     );
     expect(climbed.length).toBeGreaterThan(8);
+    // The gap carries no deck or collider.
+    expect(frames.some((frame) => !frame.solid)).toBe(true);
   }, 20_000);
 
   it('uses both one-level and two-level spirals across seeds', () => {
