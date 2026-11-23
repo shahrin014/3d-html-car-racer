@@ -210,7 +210,7 @@ describe('track pieces', () => {
     throw new Error('no jump circuit found');
   });
 
-  it('builds a 70 degree steep ramp with flat joins at both ends', () => {
+  it('builds an 80 degree steep ramp with flat joins at both ends', () => {
     const height = STEEP_RAMP_HEIGHT;
     const run = steepRampRun(height);
     const path = steepRampUpPath(height);

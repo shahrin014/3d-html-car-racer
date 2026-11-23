@@ -692,3 +692,52 @@ describe('bridges', () => {
     expect(endSpeed).toBeGreaterThan(4);
   }, 60_000);
 });
+
+describe('multi-crossing layout', () => {
+  it('drives the trefoil without leaving the deck', async () => {
+    let frames: TrackFrame[] | null = null;
+    for (let index = 0; index < 80; index += 1) {
+      const candidate = generateCircuit(`multi-drive-${index}`, 1, {
+        allowMultiCrossing: true,
+      });
+      if (candidate.layout === 'multi-crossing') {
+        frames = buildFrames(candidate);
+        break;
+      }
+    }
+    expect(frames).not.toBeNull();
+    const track = frames!;
+    const physics = await createPhysics(track);
+    physics.reset(track[0]!);
+
+    let index = 0;
+    let maxGap = 0;
+    let maxSpeed = 0;
+    for (let step = 0; step < 120 * 20; step += 1) {
+      const state = physics.read();
+      index = nextIndex(track, index, state.position);
+      const frame = track[index]!;
+      const latitude = lateralOffset(frame, state.position);
+      const lateralSpeed =
+        state.velocity.x * frame.right.x +
+        state.velocity.y * frame.right.y +
+        state.velocity.z * frame.right.z;
+      const steer = Math.max(
+        -1,
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
+      );
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer }, frame);
+      const after = physics.read();
+      if (frame.solid) {
+        maxGap = Math.max(maxGap, after.position.distanceTo(frame.position));
+      }
+      maxSpeed = Math.max(maxSpeed, after.speed);
+    }
+
+    physics.dispose();
+    // The trefoil's own height separates its three crossings, so a car that
+    // holds the line stays on the deck all the way round.
+    expect(maxGap).toBeLessThan(TRACK_WIDTH);
+    expect(maxSpeed).toBeGreaterThan(20);
+  }, 60_000);
+});

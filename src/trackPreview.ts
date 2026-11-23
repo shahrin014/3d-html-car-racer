@@ -226,7 +226,9 @@ export class TrackPreview {
 
   /** Rebuild the scene for a new seed. */
   setSeed(seed: string): void {
-    const circuit = generateCircuit(seed, DEFAULT_LEVEL);
+    const circuit = generateCircuit(seed, DEFAULT_LEVEL, {
+      allowMultiCrossing: true,
+    });
     const frames = buildFrames(circuit);
     this.disposeCircuit();
 

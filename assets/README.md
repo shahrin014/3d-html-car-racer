@@ -34,17 +34,25 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Launch ramp | ![ramp up](track/ramp-up-1.6.png) | 8 m, 1.6 m lip | Ends on an 11° launch; an empty gap follows |
 | Landing ramp | ![ramp down](track/ramp-down-1.6.png) | 16 m, 1.6 m lip | Enters on the launch line and flattens to the deck |
 | Jump gap | — | No mesh | The intentional deckless space between a launch ramp and its landing |
-| Steep ramp | ![steep ramp](track/steep-ramp-70.png) | 70° face, four bridge levels | Long entry ease, boost strip, compact sky jump at the lip |
-| Steep descent | ![steep descent](track/steep-ramp-70-down.png) | 70° face, four bridge levels | Matching descent with a long bottom ease |
+| Steep ramp | ![steep ramp](track/steep-ramp-80.png) | 80° face, four bridge levels | Short entry ease, boost strip, compact sky jump at the lip |
+| Steep descent | ![steep descent](track/steep-ramp-80-down.png) | 80° face, four bridge levels | Matching descent with a short bottom ease |
 | Boost straight | ![boost](track/boost-12.png) | 12 m + armed strip | Chevrons face the driving direction |
 | Obstacle corridor | ![obstacle corridor](track/obstacle-corridor-24.png) | 24 m, five seeded rows across the deck | Edge, centre, and gate rows that rivals weave around. Shown at runtime scale (7 m deck) |
+
+## Circuit layouts
+
+| Layout | Image | Geometry | Notes |
+| --- | --- | --- | --- |
+| Multi-crossing | ![multi-crossing](track/multi-crossing-trefoil.png) | Closed trefoil, three plan crossings | The seed scales (10–14 m) and rotates the authored curve; crossings are separated by the curve's own height. Two or three boost strips. Shown at runtime scale (7 m deck) |
 
 All pieces are 3.0 m wide in the catalogue (three car widths), 0.12 m thick,
 with 0.35 m guide rails, and start and end unbanked so any two pieces join
 cleanly. Every solid piece has a PNG and a GLB. The jump gap is intentionally
 empty air and has no mesh. The loop return, bridge ramps, and bridge deck are
 runtime connectors, included so the inventory matches every `Piece.kind` the
-generator can emit. The launch and landing ramps are the exception: they intentionally
+generator can emit. The multi-crossing layout is a whole circuit rather than a
+catalog piece; it has its own render and GLB so the inventory also covers the
+`multi-crossing` kind. The launch and landing ramps are the exception: they intentionally
 share a launch tangent, with the empty gap between them. The deck floats: there
 are no support columns under elevated track. The game scales the catalogue by
 1.5× and widens the deck to 7 m at runtime, so the track in play is wider than
@@ -55,8 +63,8 @@ single-crossing bridge uses two turns, so it rises 16 m before the flat crossing
 Elevated sections are not limited to the single-crossing layout: a seed may keep the route
 aloft after the climb and bring it back down on a ramp or spiral in another
 section, crossing over lower track. The steep ramp is the dramatic alternative
-to a staged four-level climb: at runtime it rises 32 m over a 20.6 m plan
-footprint, its face holds 70° between an 11 m entry ease and a 7 m exit ease,
+to a staged four-level climb: at runtime it rises 32 m over an 8.3 m plan
+footprint, its face holds 80° between a 3.2 m entry ease and a 2.1 m exit ease,
 and its surface is a boost strip so a car that arrives slowly still makes the
 climb. Its top carries a compact kicker, a 4 m gap, and an 18 m wide landing
 deck at the raised height, so the car launches off the top and lands back on

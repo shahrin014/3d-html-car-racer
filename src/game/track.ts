@@ -23,6 +23,7 @@ import {
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
   MIN_TURN_RADIUS,
+  MULTI_CROSSING_SHARE,
   OBSTACLE_SEGMENT_LENGTH,
   SKY_JUMP_ENTRY_HEIGHT,
   SKY_JUMP_GAP_LENGTH,
@@ -40,6 +41,7 @@ import {
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
+import { assembleMultiCrossingCircuit } from './multiCrossing';
 
 /** A sampled point on the track with the frame needed to place mesh and car. */
 export interface TrackFrame {
@@ -244,12 +246,12 @@ export function steepRampRun(
 /**
  * Steep ramp profile shared by the climb and the matching descent.
  *
- * The slope rises from flat to 70 degrees over the entry ease, holds the
+ * The slope rises from flat to 80 degrees over the entry ease, holds the
  * authored angle, then eases back to flat over the exit. The height is exact,
- * so the piece joins a level deck at both ends. The climb uses longer bottom
- * and top eases than a two-level ramp would, because a 70 degree face over a
- * four-level rise needs room for the car to rotate onto it; the descent reuses
- * the same curve so the pair always closes on the same height.
+ * so the piece joins a level deck at both ends. The climb uses short bottom and
+ * top eases, because an 80-degree face over four bridge levels leaves little
+ * horizontal run for the car to rotate onto it; the descent reuses the same
+ * curve so the pair always closes on the same height.
  */
 function steepRampPath(
   height: number,
@@ -258,7 +260,7 @@ function steepRampPath(
 ): TrackPath {
   const run = steepRampRun(height, angleDegrees);
   // The climb gets the long entry; the descent gets the long exit. Both keep
-  // the same total ease length, so the run and the 70 degree face are
+  // the same total ease length, so the run and the 80 degree face are
   // identical whichever way the car travels.
   const easeIn =
     height *
@@ -311,7 +313,7 @@ function steepRampPath(
   };
 }
 
-/** Four-level 70 degree climb. The circuit draws it as a boost strip. */
+/** Four-level 80 degree climb. The circuit draws it as a boost strip. */
 export function steepRampUpPath(
   height = STEEP_RAMP_HEIGHT,
   angleDegrees = STEEP_RAMP_ANGLE,
@@ -319,7 +321,7 @@ export function steepRampUpPath(
   return steepRampPath(height, angleDegrees, 1);
 }
 
-/** Matching four-level 70 degree descent, placed on the raised deck. */
+/** Matching four-level 80 degree descent, placed on the raised deck. */
 export function steepRampDownPath(
   height = STEEP_RAMP_HEIGHT,
   angleDegrees = STEEP_RAMP_ANGLE,
@@ -1374,17 +1376,35 @@ function planPoints(circuit: Circuit): PlanPoint[] {
 export function validateCircuit(circuit: Circuit): CircuitValidation {
   const reasons = new Set<string>();
 
+  const multiCrossing = circuit.layout === 'multi-crossing';
   const loops = circuit.pieces.filter((piece) => piece.kind === 'loop').length;
   const turns = circuit.pieces.filter((piece) => piece.kind === 'turn').length;
-  const boosts = circuit.pieces.filter((piece) => piece.kind === 'boost').length;
-  if (loops < 1) {
-    reasons.add('missing a vertical loop');
-  }
-  if (turns < 2) {
-    reasons.add('needs at least two banked turns');
+  // A steep ramp is a boost strip too, even though its piece kind is not
+  // 'boost'. Count both so every layout is held to the same rule.
+  const boosts = circuit.pieces.filter(
+    (piece) => piece.kind === 'boost' || piece.boost === true,
+  ).length;
+  if (!multiCrossing) {
+    if (loops < 1) {
+      reasons.add('missing a vertical loop');
+    }
+    if (turns < 2) {
+      reasons.add('needs at least two banked turns');
+    }
   }
   if (boosts < 2) {
     reasons.add('needs at least two boost strips');
+  }
+  if (multiCrossing) {
+    if (circuit.pieces.length < 2) {
+      reasons.add('multi-crossing layout has no pieces');
+    }
+    for (const piece of circuit.pieces) {
+      if (piece.kind !== 'multi-crossing') {
+        reasons.add('multi-crossing layout mixes catalog pieces');
+        break;
+      }
+    }
   }
 
   for (const piece of circuit.pieces) {
@@ -1467,17 +1487,59 @@ export function validateCircuit(circuit: Circuit): CircuitValidation {
 }
 
 /**
+ * Options for circuit generation. Multi-crossing layouts are opt-in so the
+ * stock preview and existing seeds keep the polygon/single-crossing output.
+ */
+export interface CircuitOptions {
+  allowMultiCrossing?: boolean;
+}
+
+/**
  * Build a validated circuit. Each rejected attempt advances a deterministic
  * seed offset, so the same seed and level always settle on the same circuit.
+ *
+ * The layout family is rolled once from its own seed stream. Seeds that do not
+ * allow multi-crossing never consume that stream, so their output is unchanged.
  */
-export function generateCircuit(seed: string, level: number): Circuit {  const failures: string[] = [];
-  for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
-    const circuit = assembleCircuit(seed, level, offset);
+export function generateCircuit(
+  seed: string,
+  level: number,
+  options: CircuitOptions = {},
+): Circuit {
+  const failures: string[] = [];
+  const tryCircuit = (circuit: Circuit, label: string): Circuit | null => {
     const validation = validateCircuit(circuit);
     if (validation.ok) {
       return circuit;
     }
-    failures.push(`offset ${offset}: ${validation.reasons.join(', ')}`);
+    failures.push(`${label}: ${validation.reasons.join(', ')}`);
+    return null;
+  };
+
+  const multiCrossing =
+    options.allowMultiCrossing === true &&
+    seededRandom(`${seed}:${level}:layout`)() < MULTI_CROSSING_SHARE;
+  if (multiCrossing) {
+    for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
+      const circuit = assembleMultiCrossingCircuit(
+        seed,
+        level,
+        offset,
+        seededRandom(`${seed}:${level}:${offset}:multi-crossing`),
+      );
+      const accepted = tryCircuit(circuit, `multi-crossing offset ${offset}`);
+      if (accepted) {
+        return accepted;
+      }
+    }
+  }
+
+  for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
+    const circuit = assembleCircuit(seed, level, offset);
+    const accepted = tryCircuit(circuit, `offset ${offset}`);
+    if (accepted) {
+      return accepted;
+    }
   }
   throw new Error(
     `Could not assemble a playable circuit for ${seed} at level ${level}: ${failures

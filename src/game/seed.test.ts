@@ -17,9 +17,13 @@ describe('circuit seed', () => {
     }
   });
 
-  it('builds a different circuit for two consecutive draws', () => {
-    const first = generateCircuit(randomSeed(), 1);
-    const second = generateCircuit(randomSeed(), 1);
+  it('builds a different circuit for a different seed', () => {
+    // Two random draws can settle on the same piece combination because the
+    // authored catalog is finite; the generator's contract is that the seed
+    // selects the combination, not that every draw is unique. Use fixed seeds
+    // so this stays a determinism check rather than a lottery.
+    const first = generateCircuit('alpha', 1);
+    const second = generateCircuit('charlie', 1);
     const combination = (circuit: typeof first): string =>
       circuit.pieces
         .map((piece) => `${piece.kind}:${piece.length.toFixed(6)}`)

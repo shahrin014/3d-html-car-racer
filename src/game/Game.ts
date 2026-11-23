@@ -204,7 +204,9 @@ export class Game {
     this.clockLights();
 
     this.seed = seed;
-    this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
+    this.buildCircuit(
+      generateCircuit(seed, DEFAULT_LEVEL, { allowMultiCrossing: true }),
+    );
 
     this.car = createCar(paint.color, this.carId);
     this.scene.add(this.car.group);
@@ -339,7 +341,9 @@ export class Game {
    * load for the new layout starts lazily on the next step.
    */
   private replaceCircuit(seed: string): void {
-    this.buildCircuit(generateCircuit(seed, DEFAULT_LEVEL));
+    this.buildCircuit(
+      generateCircuit(seed, DEFAULT_LEVEL, { allowMultiCrossing: true }),
+    );
     this.invalidatePhysics();
     this.placeOpponents();
   }

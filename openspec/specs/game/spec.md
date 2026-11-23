@@ -397,7 +397,7 @@ keep its left and right guide rails along its length; only the deckless gap and
 the touchdown mouth are left free, so a car coming down from the jump never
 crosses a barrier as it enters the landing.
 
-A steep ramp SHALL be an authored four-level climb whose face holds 70° between
+A steep ramp SHALL be an authored four-level climb whose face holds 80° between
 a long eased entry and a shorter eased exit. Its surface SHALL be a boost strip
 for the whole climb, with the usual chevrons facing the driving direction, so a
 car that reaches the foot slowly is pushed up rather than sliding back. The
@@ -447,6 +447,18 @@ route to the lower deck elsewhere.
 - **AND** the loop's ring sits under the bridge at the crossing
 - **AND** no deck or rail of the two branches touches
 
+#### Scenario: Multi-crossing layout
+
+- **GIVEN** a multi-crossing circuit
+- **WHEN** the route passes over itself
+- **THEN** each of its three plan crossings has at least 3.5 m between the upper
+  and lower decks
+- **AND** the route is one closed continuous deck with no forks, jumps, or gaps
+- **AND** at least two boost strips push the car through the layout
+- **AND** the car, rivals, camera, and lap checkpoints use the same sampled
+  frames as every other layout
+- **AND** the car completes a lap without a rescue
+
 #### Scenario: Jump
 
 - **GIVEN** a circuit with a jump, and the car is at racing speed
@@ -470,7 +482,7 @@ route to the lower deck elsewhere.
 
 - **GIVEN** a circuit with a steep ramp
 - **WHEN** the car reaches the foot, even at low speed
-- **THEN** the ramp's boost strip pushes it up the 70° face
+- **THEN** the ramp's boost strip pushes it up the 80° face
 - **AND** it leaves the top, crosses the gap unsupported, and lands on the
   wide landing deck
 - **AND** it keeps racing without a rescue

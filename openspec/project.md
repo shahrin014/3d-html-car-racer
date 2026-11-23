@@ -129,6 +129,14 @@ calls.
   other keeps the loop at the crossing, so the bridge threads the loop's opening.
   Validation allows a plan-view overlap only when the decks are at least 3.5 m
   apart vertically.
+- **Multi-crossing layouts are one authored trefoil.** A seed can replace the
+  polygon and single-crossing families with a closed 3D trefoil whose plan
+  crosses itself three times. The seed only scales the curve (10–14 m) and
+  rotates it; it never reorders catalog pieces. The curve's own height
+  separates every crossing by at least 3.5 m, so the deck stays continuous and
+  the car drives over and under its route without a jump, gap, or fork. Two or
+  three sampled segments carry boost strips. The layout is opt-in, so the
+  stock preview and existing seeds keep their old output.
 - **Elevated sections can carry the route.** Beyond the single-crossing layout, a
   seed may send the circuit up one or two stages, along an elevated stretch, and
   back down in one or two stages on a different section. Any stage can be a
@@ -136,8 +144,8 @@ calls.
   both transition shapes and both spiral heights appear together. The elevated
   deck may cross over lower track, provided the decks stay at least 3.5 m apart
   and no support touches either deck.
-- **The steep ramp is a four-level sky jump.** A 70° face with an 11 m entry
-  ease and a 7 m exit ease rises 32 m in a 20.6 m plan footprint. The whole
+- **The steep ramp is a four-level sky jump.** An 80° face with a 3.2 m entry
+  ease and a 2.1 m exit ease rises 32 m in an 8.3 m plan footprint. The whole
   surface is a boost strip, so a car that arrives slowly is pushed up. Its top
   carries a compact kicker, a 4 m gap, and an 18 m wide landing deck at the
   raised height, so a fast car flies off the top instead of staying planted.
@@ -282,7 +290,7 @@ calls.
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m per level · 20 m ramps · 24 m flat · 3.5 m overpass clearance |
 | Spiral | 18 m radius · 8 m per turn · up to 2 levels |
-| Steep ramp | 70° face · 32 m rise (four levels) · 20.6 m plan run · boost strip along the climb · compact sky jump at the lip |
+| Steep ramp | 80° face · 32 m rise (four levels) · 8.3 m plan run · boost strip along the climb · compact sky jump at the lip |
 | Maximum speed (flat) | 72 m/s |
 | Player engine force | 80 N, with 0.015432 quadratic drag |
 | Descent boost | 50% extra engine force while pointing downhill |

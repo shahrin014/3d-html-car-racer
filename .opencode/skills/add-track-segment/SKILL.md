@@ -190,9 +190,9 @@ The catalog uses the same path definitions in `tools/preview/preview.mjs`.
 1. Add the path function and an entry in `PIECES` in
    `tools/preview/preview.mjs`:
    ```js
-   'my-ramp-70': {
-     title: 'Steep ramp · 70°',
-     meta: '70° face · boosts on the climb',
+   'my-ramp-80': {
+     title: 'Steep ramp · 80°',
+     meta: '80° face · boosts on the climb',
      length: myRampRun(),
      path: myRampUpPath(),
      boost: true,
@@ -204,18 +204,18 @@ The catalog uses the same path definitions in `tools/preview/preview.mjs`.
 2. Add the id to `PIECES` in `tools/render-assets.mjs` and
    `tools/export-glb.mjs`:
    ```js
-   { id: 'my-ramp-70', folder: 'track' },
+   { id: 'my-ramp-80', folder: 'track' },
    ```
 3. Render only the new piece, then export its model:
    ```bash
-   npm run assets -- my-ramp-70
-   npm run assets:glb -- my-ramp-70
+   npm run assets -- my-ramp-80
+   npm run assets:glb -- my-ramp-80
    ```
-4. Inspect `assets/track/my-ramp-70.png`. Reject a piece that is floating,
+4. Inspect `assets/track/my-ramp-80.png`. Reject a piece that is floating,
    inverted, has a stepped join, or hides its boost chevrons.
 5. Add a row to the **Track pieces** table in `assets/README.md`:
    ```md
-   | My ramp | ![my ramp](track/my-ramp-70.png) | 70° face | Short description |
+   | My ramp | ![my ramp](track/my-ramp-80.png) | 80° face | Short description |
    ```
    Use the same relative `track/<id>.png` path as the other rows.
 
@@ -226,6 +226,14 @@ and bridge deck. A segment with no standalone mesh (the intentional jump gap)
 still gets a row, with `—` in the image column and a note that it has no mesh.
 Never leave a new kind off the inventory because it is "only" a connector, and
 fix a missing row you notice while touching the catalog.
+
+A layout family (such as the multi-crossing trefoil) is not a `Piece`: it is a
+whole circuit assembled by its own module, so its sampled segments use one
+`Piece['kind']`. Give it a preview entry with `kind: 'layout'`, `closed: true`,
+and a runtime `track` config, add the same id to the render and GLB tools, and
+add a **Circuit layouts** row instead of a **Track pieces** row. Keep the
+preview curve identical to the game module, including its height axis and
+crossing count.
 
 Catalogue renders use catalogue scale. The game widens the deck to 7 m and
 scales the catalogue by 1.5× at runtime, so keep `tools/preview` in sync with
@@ -286,6 +294,8 @@ Before committing, confirm the inventory contract:
 
 - every `Piece['kind']` you added or touched has a row in the **Track pieces**
   table in `assets/README.md`;
+- a new layout family has a **Circuit layouts** row and a matching preview
+  entry, not a fake piece row;
 - every solid piece has a rendered PNG and a `.glb` under `assets/track/`, and
   both ids are in `tools/render-assets.mjs` and `tools/export-glb.mjs`;
 - the intentional no-mesh jump gap is listed as such;
@@ -296,7 +306,7 @@ Then commit the piece, its tests, the render, the GLB, and the spec/docs changes
 on the branch, push it, merge into `main`, and push. Do not commit `dist/` or a
 generated `test-results/`/`playwright-report/`.
 
-## Worked example: the 70° steep ramp
+## Worked example: the 80° steep ramp
 
 Read these in order when you need a real reference:
 
@@ -310,22 +320,22 @@ Read these in order when you need a real reference:
   climb, setting `boost`, and calling the compact `addJump`;
 - `src/game/Game.ts` — boost zones are created from `piece.boost` and
   `splitPieces` draws the boost texture;
-- `src/game/track.test.ts` — 70° peak, exact height, flat lower joins, and the
+- `src/game/track.test.ts` — 80° peak, exact height, flat lower joins, and the
   matching descent;
 - `src/game/trackRandomization.test.ts` — finds a generated circuit, validates
   it, checks the kicker/gap/landing and the matching steep descent;
 - `src/game/physics.test.ts` — drives the ramp with boost zones, observes the
   gap, and asserts the car lands on the raised deck;
 - `tools/preview/preview.mjs`, `tools/render-assets.mjs`,
-  `tools/export-glb.mjs`, `assets/track/steep-ramp-70.*` and
-  `assets/track/steep-ramp-70-down.*`, and the rows in `assets/README.md` — the
+  `tools/export-glb.mjs`, `assets/track/steep-ramp-80.*` and
+  `assets/track/steep-ramp-80-down.*`, and the rows in `assets/README.md` — the
   catalog side.
 
 ## Pitfalls
 
 | Symptom | Cause / fix |
 | --- | --- |
-| Car stops at the foot of a steep ramp | The entry ease is shorter than the car and its chassis jams on the face. Lengthen the entry ease and test from rest. Also verify `run`, height, and the 70° peak rather than only looking at the render. |
+| Car stops at the foot of a steep ramp | The entry ease is shorter than the car and its chassis jams on the face. Lengthen the entry ease and test from rest. Also verify `run`, height, and the 80° peak rather than only looking at the render. |
 | Car launches too far and misses the landing | The lip is too high or steep, or the gap/landing is too short. Lower `SKY_JUMP_LIP_HEIGHT`, shorten the kicker, or lengthen the landing; test at the fastest boost-assisted speed, not only from rest. |
 | Car never leaves the top | The lip ends flat and the guide spring holds it on the deck. End on a launch slope and add a gap with a wide landing, then verify the jump spans cover both. |
 | Piece joins with a visible step | The end tangent or up does not match the next piece. End with `tangent.y = 0` and `up.y = 1` for a flat join. |

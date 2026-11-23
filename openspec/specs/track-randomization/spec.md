@@ -56,12 +56,12 @@ of the requirements.
 | Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
 | Spiral ramp rise | 8 m per turn; 16 m for two levels |
 | Spiral ramp levels | up to 2 |
-| Steep ramp pitch | 70° held between eased entry and exit |
+| Steep ramp pitch | 80° held between eased entry and exit |
 | Steep ramp rise | 32 m (four bridge levels) |
-| Steep ramp plan run | about 20.6 m, including an 11 m entry ease and a 7 m exit ease |
+| Steep ramp plan run | about 8.3 m, including a 3.2 m entry ease and a 2.1 m exit ease |
 | Sky jump at the lip | 4 m kicker to a 1 m lip, 4 m gap, 18 m wide landing |
 | Steep ramp surface | boost strip along the whole climb |
-| Steep descent | same 70° face, 7 m entry ease and 11 m exit ease |
+| Steep descent | same 80° face, 2.1 m entry ease and 3.2 m exit ease |
 | Sky-jump leg extension | 24 m added to every leg when a seed selects the steep pair |
 | Obstacle segment | 24 m straight with five seeded rows of edge blocks |
 | Obstacle block placement | edge (2.5 m), centre, and double-edge rows; every row keeps a car-wide gap |
@@ -264,7 +264,7 @@ stage SHALL be an authored spiral or ramp and SHALL add or remove one or two
 bridge levels. A circuit MAY mix one-level and two-level stages, and MAY mix
 spiral and ramp stages, so both transition shapes and both spiral heights
 appear in the same circuit. A four-level climb MAY instead be an authored steep
-sky jump: a 70° ramp whose face holds between a long entry ease and a shorter
+sky jump: an 80° ramp whose face holds between a short entry ease and a shorter
 exit ease, ending on a compact kicker at the raised deck. The steep ramp SHALL
 carry a boost strip along the whole climb, so a car that reaches the foot
 slowly is pushed up instead of sliding back. The kicker SHALL launch the car
@@ -324,7 +324,7 @@ the overpass rules for every lower section it passes over.
 
 - **GIVEN** a circuit whose four-level climb is a steep sky jump
 - **WHEN** the car reaches its foot, even at low speed
-- **THEN** the boost strip pushes it up the 70° face
+- **THEN** the boost strip pushes it up the 80° face
 - **AND** it leaves the lip, crosses the gap unsupported, and lands on the
   wide landing deck at the raised height
 - **AND** the deck continues at four bridge levels until a matching steep

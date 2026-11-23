@@ -278,7 +278,7 @@ describe('track randomization', () => {
     expect(descents.has('spiral-down')).toBe(true);
   }, 20_000);
 
-  it('climbs a 70 degree steep ramp as a two-level boost route', () => {
+  it('climbs an 80 degree steep ramp as a four-level boost route', () => {
     let circuit: Circuit | null = null;
     let rampIndex = -1;
     for (let index = 0; index < 400; index += 1) {
