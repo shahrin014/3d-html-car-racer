@@ -17,13 +17,30 @@ const cars = JSON.parse(
   await readFile(path.join(repoRoot, 'tools/model/cars.json'), 'utf8'),
 );
 
-const limits = { glb: 4 * 1024 * 1024, livery: 1024 * 1024, mask: 256 * 1024 };
+const limits = {
+  glb: 4 * 1024 * 1024,
+  livery: 1024 * 1024,
+  mask: 256 * 1024,
+  preview: 1024 * 1024,
+};
 const failures = [];
 
-for (const id of Object.keys(cars)) {
-  for (const kind of ['glb', 'livery', 'mask']) {
-    const suffix = kind === 'glb' ? '.glb' : kind === 'livery' ? '-livery.png' : '-paint-mask.png';
-    const from = `assets/car/${id}${suffix}`;
+for (const [id, config] of Object.entries(cars)) {
+  const kinds = ['glb', 'livery', 'mask'];
+  if (config.preview) {
+    kinds.push('preview');
+  }
+  for (const kind of kinds) {
+    const suffix =
+      kind === 'glb'
+        ? '.glb'
+        : kind === 'livery'
+          ? '-livery.png'
+          : kind === 'mask'
+            ? '-paint-mask.png'
+            : '-preview.png';
+    const from =
+      kind === 'preview' ? config.preview : `assets/car/${id}${suffix}`;
     const to = `public/models/${id}${suffix}`;
     const bytes = await readFile(path.join(repoRoot, from));
     if (bytes.length > limits[kind]) {
