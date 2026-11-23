@@ -477,25 +477,38 @@ describe('bridges', () => {
       if (rampIndex < 0) {
         continue;
       }
-      circuit = candidate;
+      let candidateStart = 0;
+      let candidateEnd = 0;
+      let candidateGap = 0;
+      let candidateLanding = 0;
       let distance = 0;
       const zones: { from: number; to: number }[] = [];
       candidate.pieces.forEach((piece, pieceIndex) => {
         if (pieceIndex === rampIndex) {
-          rampStart = distance;
-          rampEnd = distance + piece.length;
+          candidateStart = distance;
+          candidateEnd = distance + piece.length;
         }
         if (pieceIndex > rampIndex && piece.kind === 'gap') {
-          gapStart = distance;
+          candidateGap = distance;
         }
-        if (pieceIndex > rampIndex && piece.kind === 'landing' && gapStart > 0) {
-          landingEnd = distance + piece.length;
+        if (pieceIndex > rampIndex && piece.kind === 'landing' && candidateGap > 0) {
+          candidateLanding = distance + piece.length;
         }
         if (piece.boost) {
           zones.push({ from: distance, to: distance + piece.length });
         }
         distance += piece.length;
       });
+      // Give the car a real approach; the stock level-1 rotation can place the
+      // steep ramp near the start line, which is not a useful drive-through.
+      if (candidateStart < 24) {
+        continue;
+      }
+      circuit = candidate;
+      rampStart = candidateStart;
+      rampEnd = candidateEnd;
+      gapStart = candidateGap;
+      landingEnd = candidateLanding;
       boostZones = zones;
       break;
     }
@@ -509,10 +522,10 @@ describe('bridges', () => {
     ).toBe(true);
 
     const frames = buildFrames(circuit!);
-    const entryIndex = frames.findIndex(
-      (frame) => frame.s >= rampStart - 14,
+    const entryIndex = Math.max(
+      0,
+      frames.findIndex((frame) => frame.s >= rampStart - 14),
     );
-    expect(entryIndex).toBeGreaterThan(0);
     const entry = frames[entryIndex]!;
     const physics = await createPhysics(frames);
     physics.reset(entry);

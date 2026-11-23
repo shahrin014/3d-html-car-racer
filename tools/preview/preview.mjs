@@ -207,6 +207,53 @@ function hillPath({ length, height }) {
   };
 }
 
+/** Bridge climb: flat at the foot, flat at the raised deck. */
+function bridgeRampUpPath(length = BRIDGE.ramp, height = BRIDGE.height) {
+  return (t) => {
+    const slope = (height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** Bridge descent: flat at the raised deck, flat at the foot. */
+function bridgeRampDownPath(length = BRIDGE.ramp, height = BRIDGE.height) {
+  return (t) => {
+    const slope = (-height * 6 * t * (1 - t)) / length;
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, -height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** S-curve that brings the loop's offset exit back to the centreline. */
+function shiftPath(
+  offset = LOOP_RETURN.offset,
+  length = LOOP_RETURN.length,
+) {
+  return (t) => {
+    const drift = t * t * (3 - 2 * t);
+    const driftRate = (6 * t * (1 - t)) / length;
+    return {
+      position: new THREE.Vector3(offset * (1 - drift), 0, length * t),
+      tangent: new THREE.Vector3(-offset * driftRate, 0, 1).normalize(),
+      up: new THREE.Vector3(0, 1, 0),
+      bank: 0,
+    };
+  };
+}
+
 const SPIRAL_ONE_LEVEL = {
   radius: 12,
   height: 8 / 1.5,
@@ -217,6 +264,17 @@ const SPIRAL_TWO_LEVELS = {
   radius: 12,
   height: (8 / 1.5) * 2,
   turns: 2,
+};
+
+const BRIDGE = {
+  height: 8 / 1.5,
+  ramp: 20 / 1.5,
+  flat: 24 / 1.5,
+};
+
+const LOOP_RETURN = {
+  offset: TRACK.loopOffset,
+  length: 14,
 };
 
 const STEEP_RAMP = {
@@ -408,6 +466,43 @@ const PIECES = {
     path: loopPath(7),
     view: new THREE.Vector3(0.02, 1, 0.02),
     showLeadIn: true,
+  },
+  'loop-return-14': {
+    title: 'Loop return · 14 m',
+    meta: `S-curve returns the loop exit from its ${LOOP_RETURN.offset} m offset to the centreline`,
+    length: LOOP_RETURN.length,
+    path: shiftPath(),
+    view: new THREE.Vector3(0.8, 0.6, 1),
+    showLeadIn: true,
+    leadInX: LOOP_RETURN.offset,
+    leadOut: { x: 0, y: 0, z: LOOP_RETURN.length },
+  },
+  'bridge-ramp-up': {
+    title: 'Bridge ramp · up',
+    meta: `${BRIDGE.ramp.toFixed(1)} m · rises ${BRIDGE.height.toFixed(1)} m · flat at both ends`,
+    length: BRIDGE.ramp,
+    path: bridgeRampUpPath(),
+    view: new THREE.Vector3(0.9, 0.5, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: BRIDGE.height, z: BRIDGE.ramp },
+  },
+  'bridge-ramp-down': {
+    title: 'Bridge ramp · down',
+    meta: `${BRIDGE.ramp.toFixed(1)} m · drops ${BRIDGE.height.toFixed(1)} m · flat at both ends`,
+    length: BRIDGE.ramp,
+    path: bridgeRampDownPath(),
+    view: new THREE.Vector3(0.9, 0.5, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: -BRIDGE.height, z: BRIDGE.ramp },
+  },
+  'bridge-deck-16': {
+    title: 'Bridge deck · flat crossing',
+    meta: `${BRIDGE.flat.toFixed(1)} m · flat raised deck used at bridge height`,
+    length: BRIDGE.flat,
+    path: straightPath(BRIDGE.flat),
+    view: new THREE.Vector3(0.9, 0.55, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: 0, z: BRIDGE.flat },
   },
   'spiral-r12-1': {
     title: 'Spiral ramp · R12 · one level',
@@ -1376,6 +1471,7 @@ if (piece.kind === 'car') {
     // entrance and exit rather than reading as a closed ring.
     const leadIn = buildTrack(straightPath(7), 7);
     leadIn.position.z = -7;
+    leadIn.position.x = piece.leadInX ?? 0;
     leadIn.position.y = piece.leadInY ?? 0;
     const leadOut = buildTrack(straightPath(7), 7);
     const exit = piece.leadOut ?? { x: TRACK.loopOffset, y: 0, z: 0 };

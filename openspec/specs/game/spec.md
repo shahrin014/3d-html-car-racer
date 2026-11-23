@@ -435,9 +435,9 @@ route to the lower deck elsewhere.
   apart from a jump's intentional gap
 - **AND** seam lines come from the surface texture, not from separate pieces
 
-#### Scenario: Figure-eight crossing
+#### Scenario: Single-crossing layout
 
-- **GIVEN** a figure-eight circuit
+- **GIVEN** a single-crossing circuit
 - **WHEN** the two diagonals meet
 - **THEN** one branch is on a raised bridge at least 3.5 m above the other
 - **AND** the bridge rises and falls on a spiral or ramp long enough to drive at
@@ -1104,10 +1104,12 @@ treated as absent. Storage failure SHALL NOT prevent play.
 
 ### Requirement: Every 3D asset ships as binary glTF
 
-Every catalog asset SHALL be exported as a binary glTF (`.glb`) file in its
-catalog folder: track pieces under `assets/track/`, buildings under
+Every solid catalog asset SHALL be exported as a binary glTF (`.glb`) file in
+its catalog folder: track pieces under `assets/track/`, buildings under
 `assets/buildings/`, and the car under `assets/car/`, with the same geometry
-and materials as the rendered preview. The car SHALL also ship its livery and
+and materials as the rendered preview. The track catalog SHALL list every piece
+kind the generator can emit, including runtime connectors, and SHALL mark the
+intentional jump gap as having no mesh. The car SHALL also ship its livery and
 paint-mask PNGs, and all three SHALL be published to `public/models/`, which is
 what the game loads. Export SHALL be reproducible from the catalog definitions with
 a single command. Every file SHALL be a valid glTF 2.0 binary and SHALL be
@@ -1116,7 +1118,9 @@ committed alongside its preview.
 #### Scenario: Track pieces have models
 
 - **GIVEN** the track catalog
-- **THEN** every track piece has a matching `.glb` file under `assets/track/`
+- **THEN** every solid track piece has a matching `.glb` file under
+  `assets/track/`
+- **AND** the intentional jump gap is listed with no mesh
 - **AND** each file begins with the glTF binary magic
 
 #### Scenario: Buildings have models

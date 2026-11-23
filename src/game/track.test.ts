@@ -380,7 +380,7 @@ describe('track pieces', () => {
     expect(Math.hypot(end.x, end.z)).toBeCloseTo(BRIDGE_LENGTH, 4);
   });
 
-  it('builds the figure-eight bridge from spiral ramps', () => {
+  it('builds the single-crossing bridge from spiral ramps', () => {
     let circuit: ReturnType<typeof generateCircuit> | null = null;
     for (let index = 0; index < 60; index += 1) {
       const candidate = generateCircuit(`spiral-bridge-${index}`, 1);
@@ -525,7 +525,7 @@ describe('track pieces', () => {
         .applyMatrix4(spiral.matrix);
       const exit = spiral.path(1).position.clone().applyMatrix4(spiral.matrix);
       // The spiral returns over its own entry, so a polygon circuit can carry
-      // an elevated deck across a lower approach without a figure-eight.
+      // an elevated deck across a lower approach without a single-crossing layout.
       expect(Math.hypot(exit.x - entry.x, exit.z - entry.z)).toBeLessThan(1e-6);
       expect(exit.y - entry.y).toBeGreaterThanOrEqual(BRIDGE_CLEARANCE);
       expect(validateCircuit(candidate).ok).toBe(true);
@@ -600,7 +600,7 @@ describe('track pieces', () => {
     throw new Error('no elevated-over-lower crossing found');
   });
 
-  it('sometimes keeps a figure-eight bridge elevated past the crossing', () => {
+  it('sometimes keeps a single-crossing bridge elevated past the crossing', () => {
     const patterns = new Set<'near' | 'far'>();
     let farCircuit: ReturnType<typeof generateCircuit> | null = null;
     for (let index = 0; index < 80; index += 1) {
@@ -665,7 +665,7 @@ describe('track pieces', () => {
     expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
   });
 
-  it('threads a bridge through the loop in a figure-eight circuit', () => {
+  it('threads a bridge through the loop in a single-crossing circuit', () => {
     let circuit: ReturnType<typeof generateCircuit> | null = null;
     for (let index = 0; index < 40; index += 1) {
       const candidate = generateCircuit(`figure-eight-${index}`, 1);

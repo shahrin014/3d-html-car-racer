@@ -122,14 +122,14 @@ calls.
 - **`frame.right` is the driver's left.** The frame is right-handed but a car
   facing `+Z` has its right toward `-X`; player steering is negated once in the
   physics and once for the wheel visuals, pinned by tests.
-- **Figure-eights cross on a bridge.** A bowtie of four 135° corners has two
+- **Single-crossing layouts cross on a bridge.** Four 135° corners have two
   diagonals that meet at their midpoints; closure needs diagonals of
   `√2·leg + 2·radius` because the corner arcs push the path forward. One
   diagonal climbs two bridge levels on a spiral, crosses flat, and descends; the
   other keeps the loop at the crossing, so the bridge threads the loop's opening.
   Validation allows a plan-view overlap only when the decks are at least 3.5 m
   apart vertically.
-- **Elevated sections can carry the route.** Beyond the figure-eight crossing, a
+- **Elevated sections can carry the route.** Beyond the single-crossing layout, a
   seed may send the circuit up one or two stages, along an elevated stretch, and
   back down in one or two stages on a different section. Any stage can be a
   spiral or a ramp, and a circuit can mix one-level and two-level stages, so
@@ -141,8 +141,11 @@ calls.
   surface is a boost strip, so a car that arrives slowly is pushed up. Its top
   carries a compact kicker, a 4 m gap, and an 18 m wide landing deck at the
   raised height, so a fast car flies off the top instead of staying planted.
-  It replaces the four-level staged climb on some seeds and pairs with a matching
-  steep descent on a later leg.
+  The seed pre-rolls the steep pair independently of the level's straights and
+  extends every leg by 24 m when it does, so the module fits on short level-1
+  legs and the segment stays in the normal rotation instead of depending on a
+  rare long leg. It replaces the four-level staged climb on some seeds and pairs
+  with a matching steep descent on a later leg.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
   kicker ends on an upward launch slope and the landing ramp enters along the
   same launch line, but its top edge sits below the lip, so the car drops onto
@@ -269,7 +272,8 @@ calls.
 | Opponents | 3 by default, 0–30 selectable in the menu |
 | Countdown | 3 s |
 | Track scale | 1.5× the base catalogue |
-| Figure-eight share | about half of seeds |
+| Single-crossing share | about half of seeds |
+| Multi-crossing share | about a quarter of layout-enabled seeds |
 | Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |

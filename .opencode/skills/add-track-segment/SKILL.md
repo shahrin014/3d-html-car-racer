@@ -136,6 +136,14 @@ leg
 If the budget goes negative, the sampled frames will not close. Add the piece to
 `buildFrames`'s normal path only; it already samples every `Piece`.
 
+A piece with a long plan footprint can be silently starved: it only fits on a
+rare long leg, so it never appears when the preview regenerates. Do not fix that
+by lowering the plan length until the piece is wrong. Instead, pre-roll the
+feature before the legs are sized and add enough to every leg for its module;
+the regular/alternating polygon still closes. Then force the feature when the
+pre-roll selected it. This is how the steep pair gets into the level-1
+rotation.
+
 ## 5. Keep frames, physics, mesh, and boost in sync
 
 `buildFrames` in `src/game/track.ts` produces `TrackFrame`s. `Game.splitPieces`
@@ -211,6 +219,14 @@ The catalog uses the same path definitions in `tools/preview/preview.mjs`.
    ```
    Use the same relative `track/<id>.png` path as the other rows.
 
+The inventory is part of the change, not an optional extra. Every
+`Piece['kind']` the generator can emit needs a row in the **Track pieces**
+table, including internal connectors such as the loop return, bridge ramps,
+and bridge deck. A segment with no standalone mesh (the intentional jump gap)
+still gets a row, with `—` in the image column and a note that it has no mesh.
+Never leave a new kind off the inventory because it is "only" a connector, and
+fix a missing row you notice while touching the catalog.
+
 Catalogue renders use catalogue scale. The game widens the deck to 7 m and
 scales the catalogue by 1.5× at runtime, so keep `tools/preview` in sync with
 `src/game/track.ts` rather than copying runtime widths.
@@ -231,6 +247,13 @@ At minimum:
   - assert the circuit closes;
   - add the new kind to the `allowed` set;
   - assert authored length and any `boost` flag.
+- **Rotation test** in `src/game/trackFrequency.test.ts`:
+  - sample at least 300 fixed seeds at level 1;
+  - assert the new kind and the existing rare kinds (steep ramp/descent, bridge
+    ramps) clear a minimum count;
+  - update the thresholds when the authored rotation intentionally changes.
+  A piece that is absent from this sample is effectively not generated for a
+  player who only looks at the stock preview.
 - **Physics test** in `src/game/physics.test.ts` if the piece changes driving:
   - reset a car on the approach, drive it through with throttle and the same
     boost-zone logic as `Game`;
@@ -258,6 +281,16 @@ Specs describe requirements, not the variable names. Keep it short and testable.
 npm run check
 git status --short
 ```
+
+Before committing, confirm the inventory contract:
+
+- every `Piece['kind']` you added or touched has a row in the **Track pieces**
+  table in `assets/README.md`;
+- every solid piece has a rendered PNG and a `.glb` under `assets/track/`, and
+  both ids are in `tools/render-assets.mjs` and `tools/export-glb.mjs`;
+- the intentional no-mesh jump gap is listed as such;
+- the rotation test still covers the new kind and the existing rare kinds;
+- the specs and the skill still describe the segment and its placement.
 
 Then commit the piece, its tests, the render, the GLB, and the spec/docs changes
 on the branch, push it, merge into `main`, and push. Do not commit `dist/` or a

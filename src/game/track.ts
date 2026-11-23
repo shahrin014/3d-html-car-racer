@@ -28,6 +28,7 @@ import {
   SKY_JUMP_GAP_LENGTH,
   SKY_JUMP_KICKER_LENGTH,
   SKY_JUMP_LANDING_LENGTH,
+  SKY_JUMP_LEG_EXTRA,
   SKY_JUMP_LIP_HEIGHT,
   SPIRAL_HEIGHT,
   SPIRAL_RADIUS,
@@ -654,7 +655,8 @@ export interface Piece {
     | 'steep-ramp'
     | 'steep-ramp-down'
     | 'spiral-up'
-    | 'spiral-down';
+    | 'spiral-down'
+    | 'multi-crossing';
   path: TrackPath;
   length: number;
   /** Matrix that places the piece's local frame in the circuit. */
@@ -687,8 +689,12 @@ export interface Circuit {
   level: number;
   /** Deterministic retry offset that produced the accepted combination. */
   seedOffset: number;
+  /** Layout family; absent means the original polygon family. */
+  layout?: 'polygon' | 'single-crossing' | 'multi-crossing';
   pieces: Piece[];
   frameCount: number;
+  /** Arc length of a multi-crossing layout; other layouts use their pieces. */
+  totalLength?: number;
 }
 
 export interface CircuitValidation {
@@ -970,10 +976,10 @@ function assembleCircuit(
   };
 
   const jump = random() < 0.5;
-  const figureEight = random() < 0.5;
+  const singleCrossover = random() < 0.5;
 
-  if (figureEight) {
-    // A bowtie closes when the two vertical legs match and the diagonals are
+  if (singleCrossover) {
+    // A single-crossing layout closes when the two vertical legs match and the diagonals are
     // long enough to absorb the four 135 degree bends. The diagonals cross at
     // their midpoints, where one carries the raised bridge and the other
     // carries the loop, so the bridge passes through the loop's opening.
@@ -1022,11 +1028,11 @@ function assembleCircuit(
     // The closing vertical leg carries the boost. When this seed draws an
     // obstacle corridor, it sits just before the boost strip so a car clears
     // the blocks and is boosted out. The draw is made here, at the last
-    // decision in the figure-eight assembly, so it never re-rolls the bridge
+    // decision in the single-crossing assembly, so it never re-rolls the bridge
     // or elevation choices above.
-    const figureEightObstacle = random() < 0.4;
+    const singleCrossoverObstacle = random() < 0.4;
     addStraight(CIRCUIT_LEAD_STRAIGHT);
-    if (figureEightObstacle) {
+    if (singleCrossoverObstacle) {
       addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
     }
     addStraight(CIRCUIT_BOOST_LENGTH, true);
@@ -1034,7 +1040,7 @@ function assembleCircuit(
       legA -
         CIRCUIT_LEAD_STRAIGHT -
         CIRCUIT_BOOST_LENGTH -
-        (figureEightObstacle ? OBSTACLE_SEGMENT_LENGTH : 0),
+        (singleCrossoverObstacle ? OBSTACLE_SEGMENT_LENGTH : 0),
     );
     addTurn(turnAngle, false);
 
@@ -1051,7 +1057,15 @@ function assembleCircuit(
   } else {
   // Every leg must be long enough for a lead straight plus any single feature
   // and a boost; the smallest leg is far larger than that.
-  const legBase = CIRCUIT_LEG_BASE + pick(straights);
+  //
+  // A seed that plans the steep pair gets longer legs up front, so the
+  // sky-jump module fits even when the level's straights are short. The extra
+  // applies to every leg, preserving the regular/alternating polygon closure.
+  const skyJump = corners >= 4 && random() < 0.3;
+  const legBase =
+    CIRCUIT_LEG_BASE +
+    pick(straights) +
+    (skyJump ? SKY_JUMP_LEG_EXTRA : 0);
   const alternating = corners % 2 === 0 && random() < 0.8;
   const legLong = legBase + 6 + Math.round(random() * 10);
   const legs = Array.from({ length: corners }, (_, index) =>
@@ -1184,8 +1198,10 @@ function assembleCircuit(
     const steepUpCandidates = steepUpLegs.filter((upLeg) =>
       steepDownLegs.some((downLeg) => downLeg > upLeg),
     );
-    const useSteepPair =
-      steepUpCandidates.length > 0 && random() < 0.5;
+    // A pre-rolled sky-jump seed uses the steep pair whenever both legs fit.
+    // Other seeds use the staged route, so the steep ramp stays a deliberate
+    // part of the rotation instead of depending on a rare long leg.
+    const useSteepPair = skyJump && steepUpCandidates.length > 0;
 
     if (useSteepPair) {
       const upLeg =
@@ -1311,6 +1327,7 @@ function assembleCircuit(
     seed,
     level,
     seedOffset,
+    layout: singleCrossover ? 'single-crossing' : 'polygon',
     pieces,
     frameCount: pieces.reduce(
       (total, piece) => total + Math.ceil(piece.length / 0.35),

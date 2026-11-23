@@ -3,7 +3,7 @@
 A mobile-first circuit racer inspired by orange plastic track sets. Three laps
 against the clock on a generated circuit with banked turns, a vertical loop,
 crests, jumps, obstacle corridors lined with solid hazard blocks, boost
-straights, a very high 70° boost ramp, figure-eight layouts with bridges over
+straights, a very high 70° boost ramp, single-crossing layouts with bridges and multi-crossing layouts over
 the track, and spiral ramps that climb two levels around a landmark tower in a
 generated city skyline. The
 cars are the Mach, GT, Twin, Blade, and Manga, shipped as GLBs and kept in their stock liveries or
