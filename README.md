@@ -29,9 +29,10 @@ pausing leaves fullscreen. Throttle is automatic. The HUD shows level, lap, lap 
 and damage. Damage reduces acceleration and top speed but never ends the race.
 Being stuck or off the track triggers a timed rescue at the last checkpoint.
 
-The track preview lists every segment kind with a round toggle. A toggled
-segment is forced into the generated circuit, Randomize picks a compatible set,
-and a race started from the preview uses the same seed and requirements.
+The track preview lists every segment kind with a round three-state control:
+click once to require it, again to exclude it, and again to clear the rule.
+Randomize picks a compatible mix, and a race started from the preview uses the
+same seed and rules.
 
 ## Local development
 

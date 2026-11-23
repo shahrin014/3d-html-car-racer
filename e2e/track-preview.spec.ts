@@ -8,19 +8,28 @@ test('preview forces segments, reports impossible sets, and races them', async (
   const issues = watchPage(page);
 
   // An impossible set leaves the preview usable and the start button disabled.
-  await page.goto('/track.html?seed=preview-impossible&require=bridge,steep-ramp');
+  await page.goto('/track.html?seed=preview-impossible&require=ramp-up,steep-ramp');
   await expect(page.locator('#preview-requirements-note')).toContainText(
     'cannot be fitted together',
     { timeout: 30_000 },
   );
   await expect(page.locator('#preview-start')).toBeDisabled();
 
-  // A feasible set builds, reports every requirement, and hands the same
-  // seed and requirements to the race page.
-  await page.goto('/track.html?seed=preview-required&require=obstacles,bridge');
-  await expect(page.locator('#preview-segments input')).toHaveCount(18);
+  // Excluding the loop removes it, and the rule is reported as met.
+  await page.goto('/track.html?seed=preview-excluded&exclude=loop');
+  await expect(page.locator('.preview__segment')).toHaveCount(18);
   await expect(page.locator('#preview-requirements-note')).toContainText(
-    'All 2 required segments present.',
+    '2 excluded · all met.',
+    { timeout: 30_000 },
+  );
+  await expect(page.locator('#preview-start')).toBeEnabled();
+
+  // A feasible set builds, reports every rule, and hands the same seed and
+  // rules to the race page.
+  await page.goto('/track.html?seed=preview-required&require=obstacles,bridge');
+  await expect(page.locator('.preview__segment')).toHaveCount(18);
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    'all met.',
     { timeout: 30_000 },
   );
   await expect(page.locator('#preview-start')).toBeEnabled();

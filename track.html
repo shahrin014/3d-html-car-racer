@@ -39,23 +39,36 @@
 
         <section class="preview__requirements" aria-labelledby="preview-requirements-title">
           <div class="preview__requirements-head">
-            <p class="eyebrow" id="preview-requirements-title">Required segments</p>
-            <button
-              type="button"
-              class="button button--ghost preview__randomize"
-              id="preview-randomize-requirements"
-            >
-              Randomize
-            </button>
+            <p class="eyebrow" id="preview-requirements-title">Segment rules</p>
+            <div class="preview__requirements-actions">
+              <button
+                type="button"
+                class="button button--ghost preview__randomize"
+                id="preview-randomize-requirements"
+              >
+                Randomize
+              </button>
+              <button
+                type="button"
+                class="button button--ghost preview__collapse"
+                id="preview-collapse-requirements"
+                aria-expanded="true"
+                aria-controls="preview-requirements-body"
+              >
+                Hide
+              </button>
+            </div>
           </div>
-          <p
-            class="preview__requirements-note"
-            id="preview-requirements-note"
-            aria-live="polite"
-          >
-            Select segments the track must contain.
-          </p>
-          <div id="preview-segments"></div>
+          <div id="preview-requirements-body">
+            <p
+              class="preview__requirements-note"
+              id="preview-requirements-note"
+              aria-live="polite"
+            >
+              Click a segment to require it; click again to exclude it.
+            </p>
+            <div id="preview-segments"></div>
+          </div>
         </section>
       </div>
 
