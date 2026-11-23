@@ -781,17 +781,17 @@ the origin, face +Z, and stay inside the physics envelope.
 ### Requirement: The player car's paint is selectable
 
 The menu SHALL offer the stock livery, which is the default and keeps each
-car's baked colours, plus ten named car paints, as labelled swatches that can be
+car's baked colours, plus nine named car paints, as labelled swatches that can be
 activated by touch, mouse, or keyboard. The selection SHALL apply to the car immediately, SHALL
 persist across reloads, and SHALL expose its state to assistive technology. An
 unknown or corrupt stored paint SHALL fall back to the default.
 
-#### Scenario: The stock livery and ten paints are offered
+#### Scenario: The stock livery and nine paints are offered
 
 - **GIVEN** the menu is shown
 - **WHEN** the paint picker is inspected
-- **THEN** the stock livery and ten paints are shown
-- **AND** the ten paints each have a name and a distinct colour
+- **THEN** the stock livery and nine paints are shown
+- **AND** the nine paints each have a name and a distinct colour
 - **AND** exactly one option is marked as the current paint
 - **AND** every swatch has an accessible name and a pressed state
 

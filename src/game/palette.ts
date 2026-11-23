@@ -4,7 +4,7 @@
  * Ids are stable because the chosen paint is persisted; names double as the
  * accessible label on each swatch. The first entry is the stock livery: each
  * car keeps its own baked colours until a paint is chosen, which matters for a
- * dark car like the GT. The ten paint colours follow. A full field of opponents
+ * dark car like the GT. The nine paint colours follow. A full field of opponents
  * can be larger than the palette, so rival paints cycle.
  */
 export interface Paint {
@@ -19,7 +19,6 @@ export const PAINTS: readonly Paint[] = [
   { id: 'pearl', name: 'Pearl white', color: 0xf2f4f7 },
   { id: 'candy', name: 'Candy red', color: 0xa30f1d },
   { id: 'gold', name: 'Champagne gold', color: 0xf2b705 },
-  { id: 'lemon', name: 'Lemon', color: 0xf7e04a },
   { id: 'lime', name: 'Lime', color: 0x7bd63a },
   { id: 'emerald', name: 'Emerald', color: 0x11a05a },
   { id: 'cyan', name: 'Ice cyan', color: 0x35e0e8 },
