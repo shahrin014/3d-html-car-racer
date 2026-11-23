@@ -6,6 +6,7 @@ import {
   MIN_TURN_RADIUS,
   OBSTACLE_SEGMENT_LENGTH,
   SPIRAL_RADIUS,
+  STEEP_RAMP_HEIGHT,
   TRACK_WIDTH,
 } from './constants';
 import {
@@ -13,6 +14,7 @@ import {
   generateCircuit,
   loopRadiusForLevel,
   spiralArcLength,
+  steepRampRun,
   turnRadiusForLevel,
   validateCircuit,
   type Circuit,
@@ -149,6 +151,7 @@ describe('track randomization', () => {
       'bridge',
       'ramp-up',
       'ramp-down',
+      'steep-ramp',
       'spiral-up',
       'spiral-down',
     ]);
@@ -269,6 +272,48 @@ describe('track randomization', () => {
     expect(climbs.has('spiral-up')).toBe(true);
     expect(descents.has('ramp-down')).toBe(true);
     expect(descents.has('spiral-down')).toBe(true);
+  }, 20_000);
+
+  it('climbs a 70 degree steep ramp as a two-level boost route', () => {
+    let circuit: Circuit | null = null;
+    let rampIndex = -1;
+    for (let index = 0; index < 400; index += 1) {
+      const candidate = generateCircuit(`steep-ramp-${index}`, 3);
+      const found = candidate.pieces.findIndex(
+        (piece) => piece.kind === 'steep-ramp',
+      );
+      if (found >= 0) {
+        circuit = candidate;
+        rampIndex = found;
+        break;
+      }
+    }
+    expect(circuit).not.toBeNull();
+    const pieces = circuit!.pieces;
+    const ramp = pieces[rampIndex]!;
+    expect(ramp.boost).toBe(true);
+    expect(ramp.length).toBeCloseTo(steepRampRun(STEEP_RAMP_HEIGHT), 6);
+    expect(validateCircuit(circuit!).ok).toBe(true);
+
+    const start = new THREE.Vector3().setFromMatrixPosition(ramp.matrix);
+    const end = ramp.path(1).position.clone().applyMatrix4(ramp.matrix);
+    expect(end.y - start.y).toBeCloseTo(STEEP_RAMP_HEIGHT, 3);
+    // The deck that follows starts on the raised level, so the route carries
+    // on at two bridge levels until a descent elsewhere.
+    const next = pieces[rampIndex + 1];
+    expect(next).toBeDefined();
+    const nextStart = new THREE.Vector3().setFromMatrixPosition(next!.matrix);
+    expect(nextStart.y).toBeCloseTo(start.y + STEEP_RAMP_HEIGHT, 3);
+
+    const frames = buildFrames(circuit!);
+    const first = frames[0]!;
+    const last = frames[frames.length - 1]!;
+    expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
+    expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
+    const climbed = frames.filter(
+      (frame) => frame.position.y - first.position.y >= STEEP_RAMP_HEIGHT - 1,
+    );
+    expect(climbed.length).toBeGreaterThan(8);
   }, 20_000);
 
   it('uses both one-level and two-level spirals across seeds', () => {

@@ -234,6 +234,22 @@ export const BRIDGE_LENGTH =
 export const BRIDGE_CLEARANCE = 3.5;
 
 /**
+ * Steep ramp module: a 70 degree climb to a raised deck. The entry and exit
+ * ease over authored horizontal distances so a car at racing speed stays on
+ * the surface instead of slamming into the foot or launching off the crest.
+ * The deck is always a boost strip: a car that arrives slowly is pushed up the
+ * climb, and a car that stalls mid-ramp is pushed again when the cooldown ends.
+ * Its rise is two bridge levels, so it pairs with the existing two-level
+ * descents and reads as a much taller alternative to a bridge ramp.
+ */
+export const STEEP_RAMP_ANGLE = 70;
+export const STEEP_RAMP_LEVELS = 2;
+export const STEEP_RAMP_HEIGHT = BRIDGE_HEIGHT * STEEP_RAMP_LEVELS;
+/** Horizontal length of the eased entry and exit, as shares of the rise. */
+export const STEEP_RAMP_EASE_IN_RATIO = 0.25;
+export const STEEP_RAMP_EASE_OUT_RATIO = 0.4375;
+
+/**
  * Spiral ramp module: one full turn per bridge level. The figure-eight bridge
  * climbs two levels, which still threads the loop's opening while keeping the
  * deck clear of the lower crossing. The 18 m centreline radius leaves an

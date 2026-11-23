@@ -136,6 +136,12 @@ calls.
   both transition shapes and both spiral heights appear together. The elevated
   deck may cross over lower track, provided the decks stay at least 3.5 m apart
   and no support touches either deck.
+- **The steep ramp is a two-level shortcut upward.** A 70° face with a short
+  eased entry and a longer eased exit rises 16 m in an 11.3 m plan footprint.
+  The whole surface is a boost strip, so a car that arrives slowly is pushed up
+  rather than sliding back, and the exit ease keeps a fast car from launching
+  off the crest. It replaces the two-level spiral or ramp on some seeds and
+  pairs with an existing two-level descent.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
   kicker ends on an upward launch slope and the landing ramp enters along the
   same launch line, but its top edge sits below the lip, so the car drops onto
@@ -239,7 +245,7 @@ calls.
 | Circuit | A closed track assembled from catalog pieces from a seed and level. |
 | Elevated section | A stretch where the deck is held one or more bridge levels above the lower route, entered on a spiral or ramp and left on a spiral or ramp in a different section. |
 | Seed | The input that selects the circuit combination; a fresh random seed is drawn on every page load and race start. |
-| Piece | An authored catalog module: straight, banked turn, loop, hill, jump, shift, boost straight, spiral, or bridge. |
+| Piece | An authored catalog module: straight, banked turn, loop, hill, jump, shift, boost straight, steep ramp, spiral, or bridge. |
 | Level | A difficulty rung controlling the piece pool, radii, bank angle, boost count, and damage sensitivity. |
 | Damage | Accumulated impact value that reduces acceleration and top speed; it never ends the race. |
 | Rescue | A timed return to the last checkpoint after the car is stuck, inverted, or off track. |
@@ -271,6 +277,7 @@ calls.
 | Scenery clearance | 16 m from every track frame, in plan view |
 | Bridge | 8 m per level · 20 m ramps · 24 m flat · 3.5 m overpass clearance |
 | Spiral | 18 m radius · 8 m per turn · up to 2 levels |
+| Steep ramp | 70° face · 16 m rise · 11.3 m plan run · boost strip along the climb |
 | Maximum speed (flat) | 72 m/s |
 | Player engine force | 80 N, with 0.015432 quadratic drag |
 | Descent boost | 50% extra engine force while pointing downhill |

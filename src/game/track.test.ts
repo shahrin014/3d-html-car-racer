@@ -23,6 +23,8 @@ import {
   SPIRAL_LEVELS,
   SPIRAL_RADIUS,
   SPIRAL_TURNS,
+  STEEP_RAMP_ANGLE,
+  STEEP_RAMP_HEIGHT,
   TRACK_WIDTH,
 } from './constants';
 import {
@@ -41,6 +43,8 @@ import {
   spiralDownPath,
   spiralInnerRadius,
   spiralUpPath,
+  steepRampRun,
+  steepRampUpPath,
   turnPath,
   validateCircuit,
   type Piece,
@@ -203,6 +207,36 @@ describe('track pieces', () => {
       return;
     }
     throw new Error('no jump circuit found');
+  });
+
+  it('builds a 70 degree steep ramp with flat joins at both ends', () => {
+    const height = STEEP_RAMP_HEIGHT;
+    const run = steepRampRun(height);
+    const path = steepRampUpPath(height);
+    const start = path(0);
+    const end = path(1);
+
+    expect(run).toBeGreaterThan(height / Math.tan((STEEP_RAMP_ANGLE * Math.PI) / 180));
+    expect(end.position.z).toBeCloseTo(run, 6);
+    expect(start.position.y).toBeCloseTo(0, 6);
+    expect(end.position.y).toBeCloseTo(height, 6);
+    // Both joins meet a level deck at zero slope.
+    expect(Math.abs(start.tangent.y)).toBeLessThan(1e-6);
+    expect(Math.abs(end.tangent.y)).toBeLessThan(1e-6);
+    expect(start.up.y).toBeCloseTo(1, 6);
+    expect(end.up.y).toBeCloseTo(1, 6);
+
+    let peakPitch = 0;
+    let previousY = start.position.y;
+    for (let index = 0; index <= 200; index += 1) {
+      const sample = path(index / 200);
+      const pitch =
+        (Math.atan2(sample.tangent.y, sample.tangent.z) * 180) / Math.PI;
+      peakPitch = Math.max(peakPitch, pitch);
+      expect(sample.position.y).toBeGreaterThanOrEqual(previousY - 1e-9);
+      previousY = sample.position.y;
+    }
+    expect(peakPitch).toBeCloseTo(STEEP_RAMP_ANGLE, 6);
   });
 
   it('joins the bridge ramps and deck into a level crossing', () => {

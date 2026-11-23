@@ -27,6 +27,11 @@ import {
   SPIRAL_HEIGHT,
   SPIRAL_RADIUS,
   SPIRAL_TURNS,
+  STEEP_RAMP_ANGLE,
+  STEEP_RAMP_EASE_IN_RATIO,
+  STEEP_RAMP_EASE_OUT_RATIO,
+  STEEP_RAMP_HEIGHT,
+  STEEP_RAMP_LEVELS,
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
@@ -208,6 +213,80 @@ export function bridgeRampDownPath(
     const right = new THREE.Vector3(1, 0, 0);
     return {
       position: new THREE.Vector3(0, -height * smoothStep(t), length * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
+/** Integral of a smooth-step slope ramp, in units of the ramp run. */
+function steepEaseIntegral(r: number): number {
+  return r * r * r - 0.5 * r * r * r * r;
+}
+
+/** Horizontal run of the steep ramp, including both eased ends. */
+export function steepRampRun(
+  height = STEEP_RAMP_HEIGHT,
+  angleDegrees = STEEP_RAMP_ANGLE,
+): number {
+  const easeIn = height * STEEP_RAMP_EASE_IN_RATIO;
+  const easeOut = height * STEEP_RAMP_EASE_OUT_RATIO;
+  const pitch = (angleDegrees * Math.PI) / 180;
+  return height / Math.tan(pitch) + (easeIn + easeOut) / 2;
+}
+
+/**
+ * Steep ramp: a 70 degree climb with eased entry and exit.
+ *
+ * The slope rises from flat to 70 degrees over the entry ease, holds the
+ * authored angle, then eases back to flat over the longer exit so a car at
+ * racing speed does not launch off the crest. The height is exact, so the
+ * piece joins a level elevated deck on both ends. The piece is drawn as a
+ * boost strip by the circuit assembler, because a slow car needs a push to
+ * make the climb.
+ */
+export function steepRampUpPath(
+  height = STEEP_RAMP_HEIGHT,
+  angleDegrees = STEEP_RAMP_ANGLE,
+): TrackPath {
+  const run = steepRampRun(height, angleDegrees);
+  const easeIn = height * STEEP_RAMP_EASE_IN_RATIO;
+  const easeOut = height * STEEP_RAMP_EASE_OUT_RATIO;
+  const entryShare = easeIn / run;
+  const exitShare = easeOut / run;
+  const slopeArea = 1 - (entryShare + exitShare) / 2;
+
+  const slopeShare = (t: number): number => {
+    if (t <= entryShare) {
+      return smoothStep(t / entryShare);
+    }
+    if (t >= 1 - exitShare) {
+      return smoothStep((1 - t) / exitShare);
+    }
+    return 1;
+  };
+
+  const riseShare = (t: number): number => {
+    if (t <= entryShare) {
+      return (entryShare * steepEaseIntegral(t / entryShare)) / slopeArea;
+    }
+    if (t < 1 - exitShare) {
+      return (entryShare / 2 + (t - entryShare)) / slopeArea;
+    }
+    const remaining = (1 - t) / exitShare;
+    return (
+      (slopeArea - exitShare * steepEaseIntegral(remaining)) / slopeArea
+    );
+  };
+
+  const slopeScale = height / (run * slopeArea);
+  return (t) => {
+    const slope = slopeScale * slopeShare(t);
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, height * riseShare(t), run * t),
       tangent,
       up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
       bank: 0,
@@ -511,6 +590,7 @@ export interface Piece {
     | 'ramp-up'
     | 'bridge'
     | 'ramp-down'
+    | 'steep-ramp'
     | 'spiral-up'
     | 'spiral-down';
   path: TrackPath;
@@ -690,11 +770,19 @@ function assembleCircuit(
 
   /** A climb or descent between the lower deck and the elevated stretch. */
   type Transition = {
-    kind: 'spiral-up' | 'spiral-down' | 'ramp-up' | 'ramp-down' | 'jump-down';
+    kind:
+      | 'spiral-up'
+      | 'spiral-down'
+      | 'ramp-up'
+      | 'ramp-down'
+      | 'steep-ramp'
+      | 'jump-down';
     path: TrackPath;
     length: number;
     /** Forward distance consumed in plan view; a spiral consumes none. */
     plan: number;
+    /** The piece is drawn as a boost strip. */
+    boost?: boolean;
     /** Bridge levels a jump-down drops; the landing sinks this far. */
     stageLevels?: number;
   };
@@ -758,6 +846,12 @@ function assembleCircuit(
       );
     } else {
       addPiece(transition.kind, transition.path, transition.length);
+      if (transition.boost) {
+        const piece = pieces[pieces.length - 1];
+        if (piece) {
+          piece.boost = true;
+        }
+      }
     }
   };
 
@@ -931,6 +1025,26 @@ function assembleCircuit(
       const boost = boostLegs.has(legIndex) ? CIRCUIT_BOOST_LENGTH : 0;
       const available =
         (legs[legIndex] ?? 0) - CIRCUIT_LEAD_STRAIGHT - boost;
+      // A steep ramp is a two-level climb. It is much shorter in plan than a
+      // two-level ramp, so its authored 70 degree face fits almost any free
+      // leg. Its deck is always a boost strip, so a car that reaches the foot
+      // slowly still climbs instead of sliding back down.
+      const steepHeight = BRIDGE_HEIGHT * STEEP_RAMP_LEVELS;
+      const steepPlan = steepRampRun(steepHeight);
+      if (
+        direction === 'up' &&
+        stageLevels === STEEP_RAMP_LEVELS &&
+        available >= steepPlan &&
+        random() < 0.7
+      ) {
+        return {
+          kind: 'steep-ramp',
+          path: steepRampUpPath(steepHeight),
+          length: steepPlan,
+          plan: steepPlan,
+          boost: true,
+        };
+      }
       // A ramp uses the same authored slope at one or two levels, so its plan
       // length grows with the height. Use it whenever the leg has room, and
       // fall back to the spiral otherwise.
