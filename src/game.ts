@@ -305,6 +305,15 @@ function takePendingStart(): boolean {
  * to the menu page rather than racing on its own.
  */
 async function bootGame(): Promise<void> {
+  // A direct load or refresh of game.html has no race to show. Leave for the
+  // menu before loading models or building the scene, so the redirect happens
+  // immediately instead of after a full boot. The menu sets the pending-start
+  // flag just before it navigates here.
+  if (!takePendingStart()) {
+    window.location.replace('./index.html');
+    return;
+  }
+
   try {
     // Every car is loaded so rivals can use any catalog model.
     await Promise.all(CARS.map((car) => preloadCarModel(car.id)));
@@ -375,15 +384,15 @@ async function bootGame(): Promise<void> {
     );
   } catch (error) {
     console.error('WebGL could not be initialised.', error);
+    try {
+      window.location.replace('./index.html');
+    } catch {
+      // Navigation is best-effort on a failing renderer.
+    }
     return;
   }
 
-  if (takePendingStart()) {
-    startRace();
-  } else {
-    // Gaming on a direct load/refresh: back to the menu page.
-    window.location.replace('./index.html');
-  }
+  startRace();
 }
 
 function startRace(): void {
