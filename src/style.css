@@ -228,6 +228,7 @@ body {
   z-index: 6;
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
   padding: 0 calc(var(--safe-right) + 20px) 0 calc(var(--safe-left) + 20px);
   pointer-events: none;
   transition: opacity 220ms ease;
@@ -257,6 +258,16 @@ body {
 .control:active {
   transform: scale(0.93);
   background: rgba(34, 211, 238, 0.16);
+}
+
+/* Drift is a hold, not a tap: keep the accent subtle but distinct. */
+.control--drift {
+  color: var(--amber);
+  border-color: rgba(251, 191, 36, 0.32);
+}
+
+.control--drift:active {
+  background: rgba(251, 191, 36, 0.18);
 }
 
 /* ---------- Overlays ---------- */

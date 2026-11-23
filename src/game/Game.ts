@@ -132,6 +132,7 @@ export class Game {
   private totalTime = 0;
   private countdownEndsAt = 0;
   private brake = false;
+  private drift = false;
   private boostCooldown = 0;
   private pausedFromCountdown = false;
   private stallTime = 0;
@@ -379,6 +380,8 @@ export class Game {
     this.physicsAccumulator = 0;
     this.lastFrameIndex = 0;
     this.wheelSpin = 0;
+    this.brake = false;
+    this.drift = false;
     if (this.pendingPhysics) {
       this.physics = this.pendingPhysics;
       this.pendingPhysics = null;
@@ -539,6 +542,10 @@ export class Game {
 
   setBrake(active: boolean): void {
     this.brake = active;
+  }
+
+  setDrift(active: boolean): void {
+    this.drift = active;
   }
 
   toggleCamera(): void {
@@ -781,6 +788,7 @@ export class Game {
     const damageScale = 1 - (this.damage / 100) * 0.45;
     let steer = this.steerTarget;
     let brake = this.brake;
+    let drift = this.drift;
     if (!racing) {
       // Finished: drive the racing line on autopilot. The results are frozen,
       // so this is presentation only.
@@ -796,11 +804,13 @@ export class Game {
         state.velocity.z * guide.right.z;
       steer = clamp(lateral / 0.9 + lateralSpeed * 0.15, -1, 1);
       brake = false;
+      drift = false;
     }
     const input = {
       throttle: damageScale,
       brake,
       steer,
+      drift,
     };
 
     // A fixed step keeps the solver and the loop contact stable regardless of

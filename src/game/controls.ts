@@ -1,5 +1,5 @@
 /**
- * Keyboard mapping for steering and braking.
+ * Keyboard mapping for steering, braking, and drifting.
  *
  * Steering is screen-relative: a right input turns the car toward the right of
  * the screen. The `left`/`right` keys and `A`/`D` must agree, and both must
@@ -7,13 +7,17 @@
  */
 export const STEER_LEFT_KEYS = ['arrowleft', 'a'] as const;
 export const STEER_RIGHT_KEYS = ['arrowright', 'd'] as const;
-export const BRAKE_KEYS = [' ', 'arrowdown'] as const;
+/** The down arrow and the on-screen Brake button brake the car. */
+export const BRAKE_KEYS = ['arrowdown'] as const;
+/** Space is the handbrake-style drift: the nose swings into the turn. */
+export const DRIFT_KEYS = [' '] as const;
 
 /** Keys that should not scroll the page while racing. */
 export const HELD_KEYS = [
   ...STEER_LEFT_KEYS,
   ...STEER_RIGHT_KEYS,
   ...BRAKE_KEYS,
+  ...DRIFT_KEYS,
   'arrowup',
 ] as const;
 
@@ -26,4 +30,8 @@ export function steerFromKeys(keys: ReadonlySet<string>): number {
 
 export function brakeFromKeys(keys: ReadonlySet<string>): boolean {
   return BRAKE_KEYS.some((key) => keys.has(key));
+}
+
+export function driftFromKeys(keys: ReadonlySet<string>): boolean {
+  return DRIFT_KEYS.some((key) => keys.has(key));
 }

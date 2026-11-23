@@ -900,11 +900,11 @@ velocity of its own.
 
 ### Requirement: Touch and keyboard controls
 
-A brake control, the `←`/`→` and `A`/`D` keys, `Escape`/`P` for pause, and a
-camera toggle SHALL be available during a race. Touch steering SHALL use the
-device's tilt; there SHALL be no on-screen left/right steering buttons. Each
-control SHALL have an accessible name, SHALL meet the minimum touch target, and
-SHALL remain reachable in landscape.
+A brake control, a drift control, the `←`/`→` and `A`/`D` keys, `Escape`/`P` for
+pause, and a camera toggle SHALL be available during a race. Touch steering
+SHALL use the device's tilt; there SHALL be no on-screen left/right steering
+buttons. Each control SHALL have an accessible name, SHALL meet the minimum
+touch target, and SHALL remain reachable in landscape.
 
 #### Scenario: Tilt steering
 
@@ -923,6 +923,28 @@ SHALL remain reachable in landscape.
 - **GIVEN** a race is in progress at speed
 - **WHEN** the player holds the brake control
 - **THEN** the car decelerates
+
+### Requirement: Space drifts the car
+
+The drift control — the `Space` key or the on-screen Drift button — SHALL swing
+the car's nose further into the turn and let the body slide wide with the travel
+direction lagging the nose. The normal guide and rescue SHALL remain active, and
+a drift SHALL NOT be needed to complete a lap. Releasing the control SHALL
+restore normal grip and centre the car again.
+
+#### Scenario: Drifting through a corner
+
+- **GIVEN** the car is on the track at speed
+- **WHEN** the player holds drift and steers into a corner
+- **THEN** the nose points further off the tangent than normal steering
+- **AND** the car travels wider toward the outside of the turn
+- **AND** it does not spin out or leave the guide
+
+#### Scenario: Releasing the drift
+
+- **GIVEN** the car is mid-drift
+- **WHEN** the player releases the drift control
+- **THEN** lateral grip returns and the car settles back onto its line
 
 ### Requirement: Boost strips accelerate the car
 

@@ -26,7 +26,11 @@ import {
   PHYSICS_CHASSIS_ROUNDING,
   PHYSICS_DESCENT_BOOST,
   PHYSICS_DRAG,
+  PHYSICS_DRIFT_CENTRE_GAIN,
+  PHYSICS_DRIFT_LATERAL_GAIN,
   PHYSICS_DRIFT_SPEED,
+  PHYSICS_DRIFT_SPEED_MULT,
+  PHYSICS_DRIFT_STEER_MULT,
   PHYSICS_ENGINE_FORCE,
   PHYSICS_GRIP,
   PHYSICS_HEADING_ASSIST,
@@ -48,6 +52,8 @@ export interface VehicleInput {
   throttle: number;
   brake: boolean;
   steer: number;
+  /** Hold the nose into the turn and let the body slide wide. */
+  drift?: boolean;
 }
 
 export interface VehicleState {
@@ -374,12 +380,20 @@ export async function createPhysics(
         );
       }
 
+      // Drift only makes sense with wheels on the deck; over a gap the guide is
+      // off and the body should fly ballistically.
+      const drift = input.drift === true && onTrack;
+
       // Steering aims the nose off the track tangent; the guide assist below
       // turns that target into yaw. Positive steer is the driver's right, and
       // `frame.right` is `up x tangent`, which for a car facing +Z points to
-      // the driver's left. Hence the negation.
+      // the driver's left. Hence the negation. A drift aims the nose further
+      // into the corner, so the body travels at an angle to its nose.
       const steerAngle =
-        -input.steer * PHYSICS_STEER_ANGLE * Math.min(1, speed / 6);
+        -input.steer *
+        PHYSICS_STEER_ANGLE *
+        (drift ? PHYSICS_DRIFT_STEER_MULT : 1) *
+        Math.min(1, speed / 6);
 
       // Guide assist: pull the body onto the track surface and align its
       // heading with the local tangent. This is what lets a toy car hold a
@@ -408,11 +422,22 @@ export async function createPhysics(
         // Positive steer is the driver's right, i.e. -frame.right. Cap the
         // sideways acceleration at the grip budget: steering may drift the car
         // across the track, but never fling it further than a tyre could hold.
-        const targetLateralSpeed = -input.steer * PHYSICS_DRIFT_SPEED;
+        // A drift raises the target speed and lets the travel direction lag the
+        // nose, so the car slides wide instead of tracking its heading.
+        const targetLateralSpeed =
+          -input.steer *
+          PHYSICS_DRIFT_SPEED *
+          (drift ? PHYSICS_DRIFT_SPEED_MULT : 1);
         const grip = PHYSICS_GRIP * Math.abs(GRAVITY);
+        const lateralGain = drift
+          ? PHYSICS_DRIFT_LATERAL_GAIN
+          : PHYSICS_LATERAL_GAIN;
+        const centreGain = drift
+          ? PHYSICS_DRIFT_CENTRE_GAIN
+          : PHYSICS_CENTRE_GAIN;
         const lateralAccel = THREE.MathUtils.clamp(
-          (targetLateralSpeed - lateralSpeed) * PHYSICS_LATERAL_GAIN -
-            lateralOffset * PHYSICS_CENTRE_GAIN,
+          (targetLateralSpeed - lateralSpeed) * lateralGain -
+            lateralOffset * centreGain,
           -grip,
           grip,
         );

@@ -11,6 +11,7 @@ import {
 } from './game/constants';
 import {
   brakeFromKeys,
+  driftFromKeys,
   HELD_KEYS,
   steerFromKeys,
 } from './game/controls';
@@ -44,6 +45,7 @@ const damageFill = mustQuery<HTMLElement>('#damage-fill');
 const pauseButton = mustQuery<HTMLButtonElement>('#pause');
 const cameraButton = mustQuery<HTMLButtonElement>('#camera');
 const brakeButton = mustQuery<HTMLButtonElement>('#brake');
+const driftButton = mustQuery<HTMLButtonElement>('#drift');
 const finalTime = mustQuery<HTMLElement>('#final-time');
 const finalDamage = mustQuery<HTMLElement>('#final-damage');
 const newBest = mustQuery<HTMLElement>('#new-best');
@@ -468,12 +470,20 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action]
 }
 
 const setBrake = (active: boolean) => game?.setBrake(active);
-brakeButton.addEventListener('pointerdown', (event) => {
-  event.preventDefault();
-  setBrake(true);
-});
-for (const event of ['pointerup', 'pointerleave', 'pointercancel'] as const) {
-  brakeButton.addEventListener(event, () => setBrake(false));
+const setDrift = (active: boolean) => game?.setDrift(active);
+
+/** Hold-to-activate control for the brake and drift buttons. */
+for (const [button, set] of [
+  [brakeButton, setBrake],
+  [driftButton, setDrift],
+] as const) {
+  button.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    set(true);
+  });
+  for (const event of ['pointerup', 'pointerleave', 'pointercancel'] as const) {
+    button.addEventListener(event, () => set(false));
+  }
 }
 
 const keys = new Set<string>();
@@ -500,12 +510,14 @@ window.addEventListener('keydown', (event) => {
   keySteer = steerFromKeys(keys);
   applySteer(game);
   setBrake(brakeFromKeys(keys));
+  setDrift(driftFromKeys(keys));
 });
 window.addEventListener('keyup', (event) => {
   keys.delete(event.key.toLowerCase());
   keySteer = steerFromKeys(keys);
   applySteer(game);
   setBrake(brakeFromKeys(keys));
+  setDrift(driftFromKeys(keys));
 });
 
 document.addEventListener('visibilitychange', () => {

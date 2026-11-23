@@ -306,7 +306,7 @@ calls.
 - Car: track position, velocity, lateral offset, heading, damage, last
   checkpoint.
 - Circuit: seed, level, pieces, sampled frames, checkpoints, boost zones.
-- Input: tilt target, keyboard steering, brake, camera mode.
+- Input: tilt target, keyboard steering, brake, drift, camera mode.
 - Presentation: camera position and roll, shake or rattle, reduced-motion
   preference.
 - Persistence: unlocked level, best time per level, chosen paint, and opponent

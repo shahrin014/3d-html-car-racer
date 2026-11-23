@@ -18,7 +18,8 @@ adapter.
 | --- | --- |
 | Tilt the phone | Steer (permission requested from Start) |
 | `←` / `→` or `A` / `D` | Steer |
-| Hold brake button / `Space` / `↓` | Brake |
+| Hold Drift button / `Space` | Drift |
+| Hold Brake button / `↓` | Brake |
 | Camera button / `C` | Toggle chase and cockpit views |
 | `Esc` / `P` | Pause or resume |
 
