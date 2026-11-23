@@ -114,7 +114,8 @@ named `wheel-rear-left`, `wheel-rear-right`, `wheel-front-left`, and
 steering and spins all four.
 
 `npm run model:car` validates and publishes every car in `tools/model/cars.json`
-to `public/models/<id>.*`, where the shell precaches them. The previews above
+to `public/models/<id>.*` (including `<id>-preview.png` for the menu carousel),
+where the shell precaches them. The previews above
 are rendered from those published files through the game's own runtime module,
 so the catalog cannot drift from the cars in the game.
 
@@ -134,7 +135,8 @@ The build is driven by `tools/model/cars.json`; nothing in it assumes the Mach's
      "textureSize": 512,
      "nose": "auto",
      "paintBase": [0.7, 0.7, 0.7],
-     "paintTolerance": 0.12
+     "paintTolerance": 0.12,
+     "preview": "assets/car/my-car-hero.png"
    }
    ```
 3. Build and publish:

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { expectNoIssues, gotoApp, watchPage } from './helpers.ts';
 
-test('car picker offers the catalog cars and remembers the choice', async ({
+test('car carousel shows the catalog cars and remembers the choice', async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -10,44 +10,43 @@ test('car picker offers the catalog cars and remembers the choice', async ({
   page.on('request', (request) => requested.push(request.url()));
   await gotoApp(page);
 
-  const options = page.locator('#car-picker button[data-car]');
-  await expect(options).toHaveCount(2);
-  await expect(options.first()).toHaveAttribute('aria-pressed', 'true');
-  await expect(options.first()).toHaveAttribute('aria-label', 'Mach');
-  await expect(page.locator('#car-picker button[data-car="gt"]')).toHaveAttribute(
-    'aria-label',
-    'GT',
+  // The first car is shown with its preview image and active dot.
+  await expect(page.locator('#car-name')).toHaveText('Mach');
+  await expect(page.locator('#car-image')).toHaveAttribute(
+    'src',
+    /mach-preview\.png$/,
   );
+  const dots = page.locator('#car-dots button[data-car]');
+  await expect(dots).toHaveCount(2);
+  await expect(dots.first()).toHaveAttribute('aria-pressed', 'true');
 
-  // Switch to GT; the loaded model must not block the start button.
-  const gt = page.locator('#car-picker button[data-car="gt"]');
-  await gt.click();
-  await expect(gt).toHaveAttribute('aria-pressed', 'true');
-  // The switch must load the GT asset, not just flip the button.
+  // Step forward to GT; it must load the GT asset and swap the preview.
+  await page.click('#car-next');
+  await expect(page.locator('#car-name')).toHaveText('GT');
+  await expect(page.locator('#car-image')).toHaveAttribute(
+    'src',
+    /gt-preview\.png$/,
+  );
   await expect
     .poll(() => requested.some((url) => url.endsWith('/models/gt.glb')), {
       timeout: 30_000,
     })
     .toBe(true);
-  await expect(
-    page.locator('#car-picker button[data-car="mach"]'),
-  ).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: 'Start race' })).toBeEnabled();
 
-  // It survives a reload, including the pressed state.
+  // It survives a reload, including the active dot and preview.
   await page.reload();
+  await expect(page.locator('#car-name')).toHaveText('GT');
   await expect(
-    page.locator('#car-picker button[data-car="gt"]'),
+    page.locator('#car-dots button[data-car="gt"]'),
   ).toHaveAttribute('aria-pressed', 'true');
 
-  // A corrupt stored id falls back to the default car instead of breaking the menu.
+  // A corrupt stored id falls back to the default car.
   await page.evaluate(() =>
     window.localStorage.setItem('neon-racer.car', 'not-a-car'),
   );
   await page.reload();
-  await expect(
-    page.locator('#car-picker button[data-car="mach"]'),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#car-name')).toHaveText('Mach');
 
   expectNoIssues(issues);
 });

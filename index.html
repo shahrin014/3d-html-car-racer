@@ -81,7 +81,21 @@
         <button type="button" class="button button--primary" id="start">Start race</button>
         <fieldset class="cars">
           <legend>Car</legend>
-          <div class="cars__grid" id="car-picker"></div>
+          <div
+            class="cars__carousel"
+            id="car-picker"
+            role="group"
+            aria-label="Choose a car"
+            aria-live="polite"
+          >
+            <button type="button" class="cars__arrow" id="car-prev" aria-label="Previous car">&#8249;</button>
+            <figure class="cars__slide">
+              <img id="car-image" alt="" draggable="false" />
+              <figcaption id="car-name">Mach</figcaption>
+            </figure>
+            <button type="button" class="cars__arrow" id="car-next" aria-label="Next car">&#8250;</button>
+          </div>
+          <div class="cars__dots" id="car-dots" role="group" aria-label="Car models"></div>
         </fieldset>
         <fieldset class="paints">
           <legend>Car paint</legend>

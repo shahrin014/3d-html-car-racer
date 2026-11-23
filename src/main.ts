@@ -59,6 +59,11 @@ const finalPlacing = mustQuery<HTMLElement>('#final-placing');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const paintPicker = mustQuery<HTMLElement>('#paint-picker');
 const carPicker = mustQuery<HTMLElement>('#car-picker');
+const carImage = mustQuery<HTMLImageElement>('#car-image');
+const carName = mustQuery<HTMLElement>('#car-name');
+const carDots = mustQuery<HTMLElement>('#car-dots');
+const carPrev = mustQuery<HTMLButtonElement>('#car-prev');
+const carNext = mustQuery<HTMLButtonElement>('#car-next');
 const opponentsValue = mustQuery<HTMLOutputElement>('#opponents-value');
 const fewerOpponents = mustQuery<HTMLButtonElement>('#opponents-fewer');
 const moreOpponents = mustQuery<HTMLButtonElement>('#opponents-more');
@@ -387,28 +392,39 @@ function markPaint(id: string): void {
   }
 }
 
-function markCar(id: string): void {
-  for (const button of carPicker.querySelectorAll<HTMLButtonElement>(
-    'button[data-car]',
+const CAR_MODELS = `${import.meta.env.BASE_URL}models/`;
+
+function setCarControlsDisabled(disabled: boolean): void {
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    '.cars button',
   )) {
-    button.setAttribute('aria-pressed', String(button.dataset.car === id));
+    button.disabled = disabled;
+  }
+}
+
+/** Show one car in the carousel: preview image, name, and the active dot. */
+function showCar(id: string): void {
+  const option = CARS.find((car) => car.id === id) ?? CARS[0]!;
+  carName.textContent = option.name;
+  carImage.src = `${CAR_MODELS}${option.id}-preview.png`;
+  carImage.alt = `${option.name} preview`;
+  for (const dot of carDots.querySelectorAll<HTMLButtonElement>('button')) {
+    dot.setAttribute('aria-pressed', String(dot.dataset.car === option.id));
   }
 }
 
 for (const option of CARS) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'car-option';
-  button.dataset.car = option.id;
-  button.textContent = option.name;
-  button.setAttribute('aria-label', option.name);
-  button.setAttribute('aria-pressed', String(option.id === carId));
-  carPicker.append(button);
+  const dot = document.createElement('button');
+  dot.type = 'button';
+  dot.dataset.car = option.id;
+  dot.setAttribute('aria-label', option.name);
+  dot.setAttribute('aria-pressed', String(option.id === carId));
+  carDots.append(dot);
 }
 
 /**
  * Switch cars: fetch the model, then let the game rebuild the player car. The
- * picker is locked while the new set loads so a race can never start with a
+ * carousel is locked while the new set loads so a race can never start with a
  * half-swapped model.
  */
 async function chooseCar(id: string): Promise<void> {
@@ -417,39 +433,47 @@ async function chooseCar(id: string): Promise<void> {
   }
   const previous = carId;
   carId = id;
-  markCar(id);
+  showCar(id);
   writeCar(id);
   carPicker.setAttribute('aria-busy', 'true');
   startButton.disabled = true;
-  for (const button of carPicker.querySelectorAll<HTMLButtonElement>('button')) {
-    button.disabled = true;
-  }
+  setCarControlsDisabled(true);
   try {
     await preloadCarModel(id);
     game?.setPlayerCar(id);
   } catch (error) {
     console.error('The car model could not be loaded.', error);
     carId = previous;
-    markCar(previous);
+    showCar(previous);
     writeCar(previous);
   } finally {
     carPicker.removeAttribute('aria-busy');
     startButton.disabled = false;
-    for (const button of carPicker.querySelectorAll<HTMLButtonElement>('button')) {
-      button.disabled = false;
-    }
+    setCarControlsDisabled(false);
   }
 }
 
-carPicker.addEventListener('click', (event) => {
-  const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
+function stepCar(delta: number): void {
+  const index = Math.max(
+    0,
+    CARS.findIndex((car) => car.id === carId),
+  );
+  const next = CARS[(index + delta + CARS.length) % CARS.length]!;
+  void chooseCar(next.id);
+}
+
+carPrev.addEventListener('click', () => stepCar(-1));
+carNext.addEventListener('click', () => stepCar(1));
+carDots.addEventListener('click', (event) => {
+  const dot = (event.target as Element | null)?.closest<HTMLButtonElement>(
     'button[data-car]',
   );
-  if (!button) {
-    return;
+  if (dot) {
+    void chooseCar(dot.dataset.car ?? DEFAULT_CAR);
   }
-  void chooseCar(button.dataset.car ?? DEFAULT_CAR);
 });
+
+showCar(carId);
 
 for (const option of PAINTS) {
   const swatch = document.createElement('button');

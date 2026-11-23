@@ -734,12 +734,14 @@ the white bodywork through the mask; the blue stripes, orange aero, glazing,
 and tyres SHALL stay as authored. The model SHALL sit on the road surface at
 the origin, face +Z, and stay inside the physics envelope.
 
-#### Scenario: Two cars are offered
+#### Scenario: The carousel offers the catalog cars
 
 - **GIVEN** the menu is shown
-- **WHEN** the car picker is inspected
-- **THEN** Mach and GT are offered as labelled options
-- **AND** exactly one is marked as the current car
+- **WHEN** the car carousel is inspected
+- **THEN** it shows a preview image and the name of the current car
+- **AND** previous and next controls cycle through every catalog car
+- **AND** a dot marks the current car
+- **AND** Mach and GT are both offered
 
 #### Scenario: Selecting a car applies and persists
 
