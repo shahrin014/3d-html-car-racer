@@ -10,11 +10,11 @@ test('car carousel shows the catalog cars and remembers the choice', async ({
   page.on('request', (request) => requested.push(request.url()));
   await gotoApp(page);
 
-  // The first car is shown with its preview image and active dot.
+  // The first car is shown with its live preview and active dot.
   await expect(page.locator('#car-name')).toHaveText('Mach');
-  await expect(page.locator('#car-image')).toHaveAttribute(
-    'src',
-    /mach-preview\.png$/,
+  await expect(page.locator('#car-preview canvas')).toHaveAttribute(
+    'aria-label',
+    'Car preview',
   );
   const dots = page.locator('#car-dots button[data-car]');
   await expect(dots).toHaveCount(3);
@@ -23,10 +23,6 @@ test('car carousel shows the catalog cars and remembers the choice', async ({
   // Step forward to GT; it must load the GT asset and swap the preview.
   await page.click('#car-next');
   await expect(page.locator('#car-name')).toHaveText('GT');
-  await expect(page.locator('#car-image')).toHaveAttribute(
-    'src',
-    /gt-preview\.png$/,
-  );
   await expect
     .poll(() => requested.some((url) => url.endsWith('/models/gt.glb')), {
       timeout: 30_000,
@@ -43,7 +39,7 @@ test('car carousel shows the catalog cars and remembers the choice', async ({
     })
     .toBe(true);
 
-  // It survives a reload, including the active dot and preview.
+  // It survives a reload, including the active dot.
   await page.reload();
   await expect(page.locator('#car-name')).toHaveText('Twin');
   await expect(
