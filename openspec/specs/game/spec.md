@@ -741,7 +741,7 @@ the origin, face +Z, and stay inside the physics envelope.
 - **THEN** it shows a live 3D preview of the current car and its name
 - **AND** previous and next controls cycle through every catalog car
 - **AND** a dot marks the current car
-- **AND** Mach, GT, and Twin are all offered
+- **AND** Mach, GT, Twin, and Blade are all offered
 
 #### Scenario: The preview car repaints with the chosen paint
 

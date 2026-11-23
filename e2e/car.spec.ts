@@ -17,7 +17,7 @@ test('car carousel shows the catalog cars and remembers the choice', async ({
     'Car preview',
   );
   const dots = page.locator('#car-dots button[data-car]');
-  await expect(dots).toHaveCount(3);
+  await expect(dots).toHaveCount(4);
   await expect(dots.first()).toHaveAttribute('aria-pressed', 'true');
 
   // Step forward to GT; it must load the GT asset and swap the preview.
@@ -39,11 +39,20 @@ test('car carousel shows the catalog cars and remembers the choice', async ({
     })
     .toBe(true);
 
+  // The last dot selects Blade and loads its asset.
+  await page.click('#car-dots button[data-car="blade"]');
+  await expect(page.locator('#car-name')).toHaveText('Blade');
+  await expect
+    .poll(() => requested.some((url) => url.endsWith('/models/blade.glb')), {
+      timeout: 30_000,
+    })
+    .toBe(true);
+
   // It survives a reload, including the active dot.
   await page.reload();
-  await expect(page.locator('#car-name')).toHaveText('Twin');
+  await expect(page.locator('#car-name')).toHaveText('Blade');
   await expect(
-    page.locator('#car-dots button[data-car="twin"]'),
+    page.locator('#car-dots button[data-car="blade"]'),
   ).toHaveAttribute('aria-pressed', 'true');
 
   // A corrupt stored id falls back to the default car.
