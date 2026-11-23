@@ -21,7 +21,11 @@ import { placingLabel } from './game/placing';
 import { CARS } from './game/car-spec.mjs';
 import { paintById } from './game/palette';
 import { randomSeed } from './game/seed';
-import { takePendingSeed, takePendingStart } from './game/session';
+import {
+  takePendingRequirements,
+  takePendingSeed,
+  takePendingStart,
+} from './game/session';
 import { steerFromTilt, tiltDegrees } from './game/tilt';
 
 interface DeviceOrientationEventWithPermission {
@@ -299,9 +303,12 @@ let carId = readCar();
  * without that flag falls back to the menu page rather than racing on its own.
  */
 async function bootGame(): Promise<void> {
-  // Read the seed before the start flag so a stale previewed seed is consumed
-  // even when this load is not a real race start.
+  // Read the preview handoff before the start flag so stale values are
+  // consumed even when this load is not a real race start. Requirements only
+  // apply when there is a previewed seed; a normal menu start ignores them.
   const previewSeed = takePendingSeed();
+  const pendingRequirements = takePendingRequirements();
+  const previewRequirements = previewSeed ? pendingRequirements : [];
   // A direct load or refresh of game.html has no race to show. Leave for the
   // menu before loading models or building the scene, so the redirect happens
   // immediately instead of after a full boot. The menu sets the pending-start
@@ -381,6 +388,7 @@ async function bootGame(): Promise<void> {
       paint,
       readOpponentCount(),
       carId,
+      previewRequirements,
     );
   } catch (error) {
     console.error('WebGL could not be initialised.', error);

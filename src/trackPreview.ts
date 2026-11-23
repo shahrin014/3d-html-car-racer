@@ -14,12 +14,17 @@ import {
   type Scenery,
 } from './game/scenery';
 import { randomSeed } from './game/seed';
-import { markPendingSeed, markPendingStart } from './game/session';
+import {
+  markPendingRequirements,
+  markPendingSeed,
+  markPendingStart,
+} from './game/session';
 import { buildSkybox } from './game/skybox';
 import {
   buildFrames,
   generateCircuit,
   type Circuit,
+  type Piece,
   type TrackFrame,
 } from './game/track';
 import {
@@ -36,6 +41,65 @@ const PREVIEW_FAR = 4000;
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
+
+interface SegmentChoice {
+  kind: Piece['kind'];
+  label: string;
+  note: string;
+}
+
+interface SegmentGroup {
+  title: string;
+  choices: readonly SegmentChoice[];
+}
+
+/**
+ * The segments a preview can require. The order is the order the builder meets
+ * them: core deck, authored features, elevation, then the whole-layout family.
+ * Some kinds are always present; requiring them is harmless and makes the list
+ * a complete inventory of `Piece['kind']`.
+ */
+const SEGMENT_GROUPS: readonly SegmentGroup[] = [
+  {
+    title: 'Core',
+    choices: [
+      { kind: 'straight', label: 'Straight', note: 'Plain deck between features' },
+      { kind: 'turn', label: 'Turn', note: 'Banked corner' },
+      { kind: 'boost', label: 'Boost strip', note: 'Chevron strip that pushes the car' },
+      { kind: 'loop', label: 'Loop', note: 'Vertical loop' },
+      { kind: 'shift', label: 'Loop return', note: 'S-curve after the loop' },
+    ],
+  },
+  {
+    title: 'Features',
+    choices: [
+      { kind: 'hill', label: 'Hill crest', note: 'Crest instead of a jump' },
+      { kind: 'kicker', label: 'Jump launch', note: 'Part of a jump; pairs with the gap and landing' },
+      { kind: 'gap', label: 'Jump gap', note: 'The deckless space in a jump' },
+      { kind: 'landing', label: 'Landing ramp', note: 'Wide ramp after the gap' },
+      { kind: 'obstacles', label: 'Obstacle corridor', note: 'Seeded block rows' },
+    ],
+  },
+  {
+    title: 'Elevation',
+    choices: [
+      { kind: 'spiral-up', label: 'Spiral up', note: 'Climb on a spiral ramp' },
+      { kind: 'spiral-down', label: 'Spiral down', note: 'Spiral descent' },
+      { kind: 'bridge', label: 'Bridge deck', note: 'Raised crossing deck' },
+      { kind: 'ramp-up', label: 'Bridge ramp up', note: 'Straight climb to a bridge level' },
+      { kind: 'ramp-down', label: 'Bridge ramp down', note: 'Straight descent from a bridge level' },
+      { kind: 'steep-ramp', label: 'Steep ramp', note: '80° boost climb; pairs with the steep descent' },
+      { kind: 'steep-ramp-down', label: 'Steep descent', note: '80° descent for the steep ramp' },
+    ],
+  },
+  {
+    title: 'Layout',
+    choices: [
+      { kind: 'multi-crossing', label: 'Multi-crossing', note: 'A whole trefoil layout; select it alone' },
+    ],
+  },
+];
+
 
 /**
  * Small orbit rig for the preview camera. Drag to orbit, wheel or pinch to
@@ -224,10 +288,14 @@ export class TrackPreview {
     this.resize();
   }
 
-  /** Rebuild the scene for a new seed. */
-  setSeed(seed: string): void {
+  /** Rebuild the scene for a new seed, requiring the chosen segments. */
+  setSeed(
+    seed: string,
+    requiredKinds: readonly Piece['kind'][] = [],
+  ): Circuit {
     const circuit = generateCircuit(seed, DEFAULT_LEVEL, {
       allowMultiCrossing: true,
+      requiredKinds,
     });
     const frames = buildFrames(circuit);
     this.disposeCircuit();
@@ -255,6 +323,7 @@ export class TrackPreview {
     }
     this.rig.frame(bounds);
     this.render();
+    return circuit;
   }
 
   dispose(): void {
@@ -421,11 +490,66 @@ function mustQuery<T extends Element>(selector: string): T {
 
 const canvasHost = mustQuery<HTMLElement>('#preview-canvas');
 const seedElement = mustQuery<HTMLElement>('#preview-seed');
+const segmentsHost = mustQuery<HTMLElement>('#preview-segments');
+const requirementsNote = mustQuery<HTMLElement>('#preview-requirements-note');
 const regenerateButton = mustQuery<HTMLButtonElement>('#preview-regenerate');
+const randomizeRequirementsButton = mustQuery<HTMLButtonElement>(
+  '#preview-randomize-requirements',
+);
 const startButton = mustQuery<HTMLButtonElement>('#preview-start');
 const backButton = mustQuery<HTMLButtonElement>('#preview-back');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const loading = mustQuery<HTMLElement>('#preview-loading');
+
+const segmentInputs = new Map<Piece['kind'], HTMLInputElement>();
+const selectableKinds = new Set<Piece['kind']>();
+for (const group of SEGMENT_GROUPS) {
+  const section = document.createElement('div');
+  section.className = 'preview__segment-group';
+  const heading = document.createElement('p');
+  heading.className = 'preview__segment-group-title';
+  heading.id = `preview-segment-group-${group.title.toLowerCase()}`;
+  heading.textContent = group.title;
+  section.append(heading);
+  const list = document.createElement('div');
+  list.className = 'preview__segment-list';
+  list.setAttribute('role', 'group');
+  list.setAttribute('aria-labelledby', heading.id);
+  for (const choice of group.choices) {
+    selectableKinds.add(choice.kind);
+    const label = document.createElement('label');
+    label.className = 'preview__segment';
+    label.title = choice.note;
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.name = 'required-segment';
+    input.value = choice.kind;
+    const text = document.createElement('span');
+    text.textContent = choice.label;
+    label.append(input, text);
+    list.append(label);
+    segmentInputs.set(choice.kind, input);
+  }
+  section.append(list);
+  segmentsHost.append(section);
+}
+
+function selectedKinds(): Piece['kind'][] {
+  const selected: Piece['kind'][] = [];
+  for (const [kind, input] of segmentInputs) {
+    if (input.checked) {
+      selected.push(kind);
+    }
+  }
+  return selected;
+}
+
+function setSelectedKinds(kinds: readonly Piece['kind'][]): void {
+  const wanted = new Set(kinds);
+  for (const [kind, input] of segmentInputs) {
+    input.checked = wanted.has(kind);
+  }
+}
 
 let preview: TrackPreview | null = null;
 try {
@@ -435,26 +559,40 @@ try {
   loading.textContent = 'The track preview needs WebGL.';
   loading.classList.add('is-error');
   regenerateButton.disabled = true;
+  randomizeRequirementsButton.disabled = true;
   startButton.disabled = true;
 }
 
 let seed = randomSeed();
 let busy = false;
+let buildFailed = false;
+let requirementsDirty = false;
+let hasCircuit = false;
+let buildQueued: string | null = null;
 
-// A ?seed= query makes a previewed circuit reproducible, which is useful for
-// QA links and for reopening a specific layout after a reload.
-const requestedSeed = new URLSearchParams(window.location.search)
-  .get('seed')
-  ?.trim();
+// A ?seed= query makes a previewed circuit reproducible, and ?require= keeps
+// the forced segments in the link, which is useful for QA and reloads.
+const initialParams = new URLSearchParams(window.location.search);
+const requestedSeed = initialParams.get('seed')?.trim();
 if (requestedSeed) {
   seed = requestedSeed;
+}
+const requestedRequirements = (initialParams.get('require') ?? '')
+  .split(',')
+  .map((kind) => kind.trim())
+  .filter((kind): kind is Piece['kind'] =>
+    selectableKinds.has(kind as Piece['kind']),
+  );
+if (requestedRequirements.length > 0) {
+  setSelectedKinds(requestedRequirements);
 }
 
 function setBusy(value: boolean): void {
   busy = value;
   document.body.classList.toggle('is-building', value);
   regenerateButton.disabled = value;
-  startButton.disabled = value;
+  randomizeRequirementsButton.disabled = value;
+  startButton.disabled = value || buildFailed || requirementsDirty;
 }
 
 function showSeed(next: string): void {
@@ -466,24 +604,165 @@ function showSeed(next: string): void {
   window.history.replaceState(null, '', url);
 }
 
+function showRequirements(kinds: readonly Piece['kind'][]): void {
+  const url = new URL(window.location.href);
+  if (kinds.length > 0) {
+    url.searchParams.set('require', kinds.join(','));
+  } else {
+    url.searchParams.delete('require');
+  }
+  window.history.replaceState(null, '', url);
+}
+
+function updateRequirementsNote(
+  required: readonly Piece['kind'][],
+  circuit: Circuit | null,
+): void {
+  requirementsNote.classList.remove('is-error');
+  if (!circuit) {
+    return;
+  }
+  if (required.length === 0) {
+    requirementsNote.textContent = 'Select segments the track must contain.';
+    return;
+  }
+  const present = new Set(circuit.pieces.map((piece) => piece.kind));
+  const missing = required.filter((kind) => !present.has(kind));
+  if (missing.length > 0) {
+    requirementsNote.textContent = `Missing: ${missing.join(', ')}`;
+    requirementsNote.classList.add('is-error');
+    return;
+  }
+  requirementsNote.textContent = `All ${required.length} required segment${
+    required.length === 1 ? '' : 's'
+  } present.`;
+}
+
 function build(next: string): void {
   if (!preview) {
     return;
   }
+  if (busy) {
+    buildQueued = next;
+    return;
+  }
+  buildFailed = false;
+  requirementsDirty = false;
   setBusy(true);
   // Let the busy state paint before the synchronous circuit build.
   requestAnimationFrame(() => {
+    const required = selectedKinds();
     try {
-      preview?.setSeed(next);
+      const circuit = preview?.setSeed(next, required) ?? null;
+      if (!circuit) {
+        return;
+      }
+      hasCircuit = true;
+      updateRequirementsNote(required, circuit);
       showSeed(next);
     } catch (error) {
-      console.error('The track preview could not be built.', error);
-      seedElement.textContent = 'Track unavailable';
-      loading.textContent = 'Track unavailable';
-      loading.classList.add('is-error');
+      // A requirement set the player chose is input, not an app fault; keep
+      // it out of the console-error channel so offline/e2e checks stay clean.
+      console.warn('The track preview could not be built.', error);
+      buildFailed = true;
+      const message = error instanceof Error ? error.message : 'Track unavailable';
+      requirementsNote.textContent = message.includes('cannot be combined')
+        ? 'Multi-crossing is a whole layout; select it alone.'
+        : message.includes('required segments')
+          ? 'Those segments cannot be fitted together. Turn one off or press Randomize.'
+          : message;
+      requirementsNote.classList.add('is-error');
+      if (!hasCircuit) {
+        seedElement.textContent = 'Track unavailable';
+        loading.textContent = 'Track unavailable';
+      }
     } finally {
       setBusy(false);
+      if (buildQueued) {
+        const queued = buildQueued;
+        buildQueued = null;
+        build(queued);
+      }
     }
+  });
+}
+
+function scheduleBuild(): void {
+  requirementsDirty = true;
+  startButton.disabled = true;
+  build(seed);
+}
+
+function randomRequirements(): Piece['kind'][] {
+  // A trefoil is a whole layout; it cannot coexist with catalog segments.
+  if (Math.random() < 0.12) {
+    return ['multi-crossing'];
+  }
+  const chosen = new Set<Piece['kind']>();
+  const perhaps = (kind: Piece['kind'], chance = 0.4): void => {
+    if (Math.random() < chance) {
+      chosen.add(kind);
+    }
+  };
+  const jumpGroup = (): void => {
+    chosen.add('kicker');
+    chosen.add('gap');
+    chosen.add('landing');
+  };
+  // Randomize within one compatible family. Mixing a bridge deck with the
+  // polygon-only ramps, or the jump with a hill crest on a single crossing,
+  // can be impossible to assemble; the generator search cannot invent a
+  // layout to hold both.
+  if (Math.random() < 0.5) {
+    chosen.add('bridge');
+    perhaps('obstacles', 0.5);
+    perhaps('loop', 0.3);
+    perhaps('shift', 0.3);
+    perhaps('boost', 0.3);
+    perhaps('spiral-up', 0.3);
+    perhaps('spiral-down', 0.3);
+    if (Math.random() < 0.5) {
+      if (Math.random() < 0.5) {
+        chosen.add('hill');
+      } else {
+        jumpGroup();
+      }
+    }
+  } else {
+    const elevation = Math.random();
+    if (elevation < 0.25) {
+      chosen.add('ramp-up');
+      chosen.add('ramp-down');
+    } else if (elevation < 0.45) {
+      chosen.add('steep-ramp');
+      chosen.add('steep-ramp-down');
+    } else if (elevation < 0.65) {
+      chosen.add('spiral-up');
+      chosen.add('spiral-down');
+    }
+    perhaps('obstacles', 0.5);
+    if (Math.random() < 0.5) {
+      if (Math.random() < 0.5) {
+        chosen.add('hill');
+      } else {
+        jumpGroup();
+      }
+    }
+    perhaps('loop', 0.3);
+    perhaps('shift', 0.3);
+    perhaps('boost', 0.3);
+  }
+  if (chosen.size === 0) {
+    chosen.add('obstacles');
+  }
+  return [...chosen];
+}
+
+for (const input of segmentInputs.values()) {
+  input.addEventListener('change', () => {
+    const required = selectedKinds();
+    showRequirements(required);
+    scheduleBuild();
   });
 }
 
@@ -491,13 +770,25 @@ regenerateButton.addEventListener('click', () => {
   if (busy) {
     return;
   }
+  showRequirements(selectedKinds());
   build(randomSeed());
 });
 
-startButton.addEventListener('click', () => {
+randomizeRequirementsButton.addEventListener('click', () => {
   if (busy) {
     return;
   }
+  const required = randomRequirements();
+  setSelectedKinds(required);
+  showRequirements(required);
+  scheduleBuild();
+});
+
+startButton.addEventListener('click', () => {
+  if (busy || buildFailed || requirementsDirty) {
+    return;
+  }
+  markPendingRequirements(selectedKinds());
   markPendingSeed(seed);
   markPendingStart();
   window.location.assign('./game.html');

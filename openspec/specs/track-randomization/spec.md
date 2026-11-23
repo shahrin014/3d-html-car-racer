@@ -212,6 +212,50 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 - **AND** only the layout family, crossing count, combination, corner count,
   straight lengths, obstacle rows, and elevation route differ
 
+### Requirement: The preview can require segments
+
+The track preview SHALL list every selectable `Piece` kind with a round toggle.
+When a toggle is on, the next generated circuit SHALL contain that kind. The
+generator SHALL search deterministic seed offsets and salted attempts until it
+finds a playable circuit that contains every selected kind, and the same seed
+and requirement list SHALL always settle on the same circuit. The preview SHALL
+provide a button that randomizes a compatible set of toggles and regenerates.
+Selecting a multi-crossing layout together with catalog segments SHALL be
+rejected, because the trefoil is one whole circuit. If a requirement set cannot
+be assembled, the preview SHALL report it, keep the previous circuit visible,
+and keep Start race disabled until a track builds. Starting the race from the
+preview SHALL pass the selected requirements to the race, so the race uses the
+same circuit.
+
+#### Scenario: Forced segment appears
+
+- **GIVEN** the preview and a selected segment
+- **WHEN** the track is regenerated
+- **THEN** the circuit contains at least one piece of that kind
+- **AND** the circuit is closed and playable
+- **AND** the preview reports that every selected segment is present
+
+#### Scenario: Randomize requirements
+
+- **GIVEN** the preview with no segments selected
+- **WHEN** the player presses Randomize
+- **THEN** a random compatible set of toggles is on
+- **AND** the track regenerates with every selected segment present
+
+#### Scenario: Impossible combination is reported
+
+- **GIVEN** a required set the generator cannot assemble
+- **WHEN** the player regenerates
+- **THEN** the preview reports that the set cannot be fitted
+- **AND** the previous circuit stays visible
+- **AND** Start race stays disabled until a track builds
+
+#### Scenario: Preview and race share required segments
+
+- **GIVEN** a preview with required segments
+- **WHEN** the player starts the race
+- **THEN** the race circuit contains every required segment
+
 ### Requirement: Obstacle segments are seeded and leave a gap in every row
 
 Some seeds SHALL include an obstacle segment as an authored straight from the

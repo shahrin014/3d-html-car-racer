@@ -137,6 +137,13 @@ calls.
   the car drives over and under its route without a jump, gap, or fork. Two or
   three sampled segments carry boost strips. The layout is opt-in, so the
   stock preview and existing seeds keep their old output.
+- **The preview can force segments.** The track preview lists every piece kind
+  with a round toggle. A selected kind becomes a requirement: generation
+  searches deterministic salted attempts for a playable circuit containing
+  every selected kind, and the list travels through session storage to the race
+  so the previewed circuit is the raced circuit. A multi-crossing layout is one
+  whole circuit, so it cannot be combined with catalog segments; an impossible
+  set is reported without replacing the current preview.
 - **Elevated sections can carry the route.** Beyond the single-crossing layout, a
   seed may send the circuit up one or two stages, along an elevated stretch, and
   back down in one or two stages on a different section. Any stage can be a
@@ -257,6 +264,7 @@ calls.
 | Circuit | A closed track assembled from catalog pieces from a seed and level. |
 | Elevated section | A stretch where the deck is held one or more bridge levels above the lower route, entered on a spiral or ramp and left on a spiral or ramp in a different section. |
 | Seed | The input that selects the circuit combination; a fresh random seed is drawn on every page load and race start. |
+| Requirement | A piece kind the track preview must force into the generated circuit. |
 | Piece | An authored catalog module: straight, banked turn, loop, hill, jump, shift, boost straight, steep ramp, spiral, or bridge. |
 | Level | A difficulty rung controlling the piece pool, radii, bank angle, boost count, and damage sensitivity. |
 | Damage | Accumulated impact value that reduces acceleration and top speed; it never ends the race. |

@@ -262,6 +262,11 @@ At minimum:
   - update the thresholds when the authored rotation intentionally changes.
   A piece that is absent from this sample is effectively not generated for a
   player who only looks at the stock preview.
+- **Requirement test** in `src/game/requiredSegments.test.ts`:
+  - add the new kind to the `SEGMENTS` list;
+  - generate with `requiredKinds: [kind]` and assert the circuit contains it;
+  - keep the impossible-combination cases honest when the new kind introduces
+    another family conflict.
 - **Physics test** in `src/game/physics.test.ts` if the piece changes driving:
   - reset a car on the approach, drive it through with throttle and the same
     boost-zone logic as `Game`;
@@ -294,6 +299,9 @@ Before committing, confirm the inventory contract:
 
 - every `Piece['kind']` you added or touched has a row in the **Track pieces**
   table in `assets/README.md`;
+- the new kind is in `SEGMENT_GROUPS` in `src/trackPreview.ts` and in
+  `SEGMENTS` in `src/game/requiredSegments.test.ts`, so the preview can force
+  it and the requirement test covers it;
 - a new layout family has a **Circuit layouts** row and a matching preview
   entry, not a fake piece row;
 - every solid piece has a rendered PNG and a `.glb` under `assets/track/`, and
