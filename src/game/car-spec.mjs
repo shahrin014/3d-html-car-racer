@@ -45,4 +45,5 @@ export const CARS = [
   { id: 'mach', name: 'Mach', paintBaseLuma: 0.7 },
   { id: 'gt', name: 'GT', paintBaseLuma: 0.0 },
   { id: 'twin', name: 'Twin', paintBaseLuma: 0.75 },
+  { id: 'blade', name: 'Blade', paintBaseLuma: 0.65 },
 ];

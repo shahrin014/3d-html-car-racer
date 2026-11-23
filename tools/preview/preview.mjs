@@ -508,6 +508,33 @@ const PIECES = {
     title: 'Twin · reference angle',
     meta: 'framed to match the reference photos for comparison',
   },
+  'blade-hero': {
+    kind: 'car',
+    carId: 'blade',
+    title: 'Blade · hero',
+    meta: '2.45 × 1.26 × 0.62 m · baked livery · repaintable body mask',
+  },
+  'blade-side': {
+    kind: 'car',
+    carId: 'blade',
+    view: 'side',
+    title: 'Blade · side elevation',
+    meta: 'profile check · levelled on its tyres',
+  },
+  'blade-rear': {
+    kind: 'car',
+    carId: 'blade',
+    view: 'rear',
+    title: 'Blade · rear',
+    meta: 'livery texture · Kamm tail',
+  },
+  'blade-ref': {
+    kind: 'car',
+    carId: 'blade',
+    view: 'ref',
+    title: 'Blade · reference angle',
+    meta: 'framed like the other catalog cars for comparison',
+  },
   cockpit: {
     kind: 'cockpit',
     title: 'Cockpit view · driver eye',

@@ -246,7 +246,7 @@ calls.
 | Checkpoint | An ordered gate that must be crossed before the finish line counts a lap. |
 | Best time | The fastest total time at a level, stored locally and kept across circuits. |
 | Paint | The stock livery or one of nine named car colours; the player picks one in the menu and it is stored locally. |
-| Car | One of the selectable models in the catalog (Mach, GT, Twin); the player picks one in the menu and it is stored locally. |
+| Car | One of the selectable models in the catalog (Mach, GT, Twin, Blade); the player picks one in the menu and it is stored locally. |
 | Opponent | A computer rival on the same circuit, driven along a kinematic racing line in a catalog car and palette paint. |
 | Scenery | Deterministic city blocks and towers around the circuit; presentation only. |
 | Chase camera | A following camera that rolls with the car through banks and loops. |
