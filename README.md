@@ -128,8 +128,11 @@ cannot leave players on stale assets.
 ## Project structure
 
 ```
-index.html           HUD, menu, pause and finish overlays
-src/main.ts          screen state, HUD wiring, tilt, install prompt, service worker
+index.html           the menu page: live 3D car carousel, paints, opponents
+game.html            the race page: HUD, pause and finish overlays, controls
+src/menu.ts          menu logic: carousel, paint picker, opponents, install
+src/game.ts          race entry: boot the game, HUD wiring, tilt, service worker
+src/menuCarousel.ts  live in-browser 3D car preview for the menu carousel
 src/style.css        landscape layout, safe areas, overlays, reduced motion
 src/game/
   Game.ts            race lifecycle, cameras, physics driving, HUD callbacks

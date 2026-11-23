@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gotoApp } from './helpers.ts';
+import { gotoApp, startRace } from './helpers.ts';
 
 test('best time is restored from storage and corrupt values are ignored', async ({
   page,
@@ -14,13 +14,16 @@ test('best time is restored from storage and corrupt values are ignored', async 
     { storageKey: key, value: '81.4' },
   );
   await page.reload();
-  await expect(page.locator('#best')).toHaveText('01:21.4');
   await expect(page.locator('#menu-best')).toHaveText('01:21.4');
+
+  // The same read reaches the race page's HUD once the race starts.
+  await startRace(page);
+  await expect(page.locator('#best')).toHaveText('01:21.4');
 
   await page.evaluate(
     ({ storageKey }) => window.localStorage.setItem(storageKey, 'not-a-time'),
     { storageKey: key },
   );
   await page.reload();
-  await expect(page.locator('#best')).toHaveText('--:--.-');
+  await expect(page.locator('#menu-best')).toHaveText('--:--.-');
 });

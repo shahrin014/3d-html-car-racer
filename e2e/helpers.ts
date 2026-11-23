@@ -3,6 +3,9 @@ import { E2E_BASE_URL } from './base-url.ts';
 
 export const APP_PATH = '/';
 
+/** The race lives on its own page; the menu starts there. */
+export const GAME_PATH = '/game.html';
+
 export async function gotoApp(page: Page): Promise<void> {
   await page.goto(APP_PATH);
 }
@@ -44,9 +47,10 @@ export function expectNoIssues(issues: PageIssues): void {
 
 export async function startRace(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Start race' }).click();
-  // The first race may spend a few seconds fetching and compiling the lazy
-  // Rapier chunk. The countdown is wall-clock based, so it catches up as soon
-  // as that work returns to the main thread.
+  // Starting navigates from the menu page to the race page, which then fetches
+  // and compiles the lazy Rapier chunk. The countdown is wall-clock based, so
+  // it catches up as soon as that work returns to the main thread.
+  await page.waitForURL(/game\.html$/);
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'racing', {
     timeout: 20_000,
   });

@@ -1,13 +1,13 @@
 import './style.css';
 import {
   BEST_TIME_KEY_PREFIX,
-  LAPS,
+  CAR_KEY,
   DEFAULT_LEVEL,
   DEFAULT_OPPONENT_COUNT,
+  LAPS,
   OPPONENT_COUNT_MAX,
   OPPONENTS_KEY,
   PAINT_KEY,
-  CAR_KEY,
 } from './game/constants';
 import {
   brakeFromKeys,
@@ -18,14 +18,9 @@ import { Game, type CameraMode, type RaceSnapshot } from './game/Game';
 import { preloadCarModel } from './game/Car';
 import { placingLabel } from './game/placing';
 import { CARS } from './game/car-spec.mjs';
-import { DEFAULT_PAINT, PAINTS, paintById } from './game/palette';
+import { paintById } from './game/palette';
 import { randomSeed } from './game/seed';
 import { steerFromTilt, tiltDegrees } from './game/tilt';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
 
 interface DeviceOrientationEventWithPermission {
   requestPermission?: () => Promise<'granted' | 'denied'>;
@@ -43,37 +38,24 @@ const app = mustQuery<HTMLElement>('#app');
 const timeElement = mustQuery<HTMLElement>('#time');
 const lapElement = mustQuery<HTMLElement>('#lap');
 const bestElement = mustQuery<HTMLElement>('#best');
-const menuBestElement = mustQuery<HTMLElement>('#menu-best');
 const speedElement = mustQuery<HTMLElement>('#speed');
 const damageElement = mustQuery<HTMLElement>('#damage');
 const damageFill = mustQuery<HTMLElement>('#damage-fill');
 const pauseButton = mustQuery<HTMLButtonElement>('#pause');
 const cameraButton = mustQuery<HTMLButtonElement>('#camera');
-const startButton = mustQuery<HTMLButtonElement>('#start');
-const installButton = mustQuery<HTMLButtonElement>('#install');
 const brakeButton = mustQuery<HTMLButtonElement>('#brake');
 const finalTime = mustQuery<HTMLElement>('#final-time');
 const finalDamage = mustQuery<HTMLElement>('#final-damage');
 const newBest = mustQuery<HTMLElement>('#new-best');
 const finalPlacing = mustQuery<HTMLElement>('#final-placing');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
-const paintPicker = mustQuery<HTMLElement>('#paint-picker');
-const carPicker = mustQuery<HTMLElement>('#car-picker');
-const carImage = mustQuery<HTMLImageElement>('#car-image');
-const carName = mustQuery<HTMLElement>('#car-name');
-const carDots = mustQuery<HTMLElement>('#car-dots');
-const carPrev = mustQuery<HTMLButtonElement>('#car-prev');
-const carNext = mustQuery<HTMLButtonElement>('#car-next');
-const opponentsValue = mustQuery<HTMLOutputElement>('#opponents-value');
-const fewerOpponents = mustQuery<HTMLButtonElement>('#opponents-fewer');
-const moreOpponents = mustQuery<HTMLButtonElement>('#opponents-more');
 
 // A fresh circuit every load: the seed is drawn at random, never from the
-// date. This first seed builds the track behind the menu and is the one the
-// first race runs on; every later start draws another. Best times are kept per
-// level so the record survives the new track.
+// date. Best times are kept per level so the record survives the new track.
 let nextSeed = randomSeed();
 const bestKey = `${BEST_TIME_KEY_PREFIX}.${DEFAULT_LEVEL}`;
+
+const DEFAULT_PAINT = paintById(undefined);
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -112,14 +94,6 @@ function readPaint() {
   }
 }
 
-function writePaint(id: string): void {
-  try {
-    window.localStorage.setItem(PAINT_KEY, id);
-  } catch {
-    // Persistence is best effort.
-  }
-}
-
 const DEFAULT_CAR = CARS[0]!.id;
 
 function readCar(): string {
@@ -128,14 +102,6 @@ function readCar(): string {
     return CARS.some((car) => car.id === stored) ? stored! : DEFAULT_CAR;
   } catch {
     return DEFAULT_CAR;
-  }
-}
-
-function writeCar(id: string): void {
-  try {
-    window.localStorage.setItem(CAR_KEY, id);
-  } catch {
-    // Persistence is best effort.
   }
 }
 
@@ -151,22 +117,12 @@ function readOpponentCount(): number {
   }
 }
 
-function writeOpponentCount(count: number): void {
-  try {
-    window.localStorage.setItem(OPPONENTS_KEY, String(count));
-  } catch {
-    // Persistence is best effort.
-  }
-}
-
 let paint = readPaint();
-let opponentCount = readOpponentCount();
 
 let best = readBest();
 bestElement.textContent = formatTime(best ?? 0);
-menuBestElement.textContent = formatTime(best ?? 0);
 
-function setScreen(screen: 'menu' | 'countdown' | 'racing' | 'paused' | 'finished'): void {
+function setScreen(screen: 'countdown' | 'racing' | 'paused' | 'finished' | 'menu'): void {
   document.body.dataset.screen = screen;
   rotatePrompt.setAttribute('aria-hidden', String(!isPortrait()));
 }
@@ -209,6 +165,29 @@ function enterFullscreen(): void {
   }
 }
 
+// The Start button lives on the menu page, and navigating here drops the
+// click's user activation, so fullscreen cannot engage in that same gesture.
+// Re-request it on the first interaction with the race page. This is a
+// one-shot listener: pausing/resuming re-enters fullscreen from its own clicks.
+let fullscreenArmed = false;
+function armFullscreenOnGesture(): void {
+  if (fullscreenArmed || fullscreenElement()) {
+    return;
+  }
+  fullscreenArmed = true;
+  for (const kind of ['pointerdown', 'keydown'] as const) {
+    window.addEventListener(kind, () => {
+      fullscreenArmed = false;
+      if (
+        document.body.dataset.screen === 'racing' ||
+        document.body.dataset.screen === 'countdown'
+      ) {
+        enterFullscreen();
+      }
+    });
+  }
+}
+
 function exitFullscreen(): void {
   if (!fullscreenElement()) {
     return;
@@ -234,8 +213,6 @@ let keySteer = 0;
 
 const TILT_DEAD_ZONE = 3;
 const TILT_FULL_LOCK = 25;
-// Each orientation event nudges the wheel toward the target. Smoothing keeps a
-// shaky hand from sawing at the wheel without making the response feel laggy.
 const TILT_SMOOTHING = 0.35;
 
 function screenAngleDegrees(): number {
@@ -309,221 +286,105 @@ async function enableTilt(): Promise<void> {
 let game: Game | null = null;
 let carId = readCar();
 
+/** Flag set by the menu page before navigating here; the race starts at once. */
+const PENDING_START_KEY = 'neon-racer.pending-start';
+function takePendingStart(): boolean {
+  try {
+    const pending = window.sessionStorage.getItem(PENDING_START_KEY);
+    window.sessionStorage.removeItem(PENDING_START_KEY);
+    return pending === '1';
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Load the car model before building the scene: a race never starts with an
- * empty car. The start button stays disabled until both the model and the
- * renderer are ready.
+ * Boot the race. The menu is a separate page, so the car models are loaded here
+ * before the scene is built and the race starts immediately (the menu set a
+ * pending-start flag). A direct load of game.html without that flag falls back
+ * to the menu page rather than racing on its own.
  */
 async function bootGame(): Promise<void> {
-  startButton.disabled = true;
   try {
     // Every car is loaded so rivals can use any catalog model.
     await Promise.all(CARS.map((car) => preloadCarModel(car.id)));
   } catch (error) {
+    // The race has no menu of its own; fall back to the menu page.
     console.error('The car model could not be loaded.', error);
-    startButton.textContent = 'Car model unavailable';
+    try {
+      window.location.replace('./index.html');
+    } catch {
+      // Navigation is best-effort on a failing model load.
+    }
     return;
   }
 
   try {
     game = new Game(
-    app,
-    {
-      onSnapshot: (snapshot: RaceSnapshot) => {
-        timeElement.textContent = formatTime(snapshot.totalTime);
-        lapElement.textContent = `${Math.min(snapshot.lap, LAPS)} / ${LAPS}`;
-        speedElement.textContent = String(Math.round(snapshot.speed * 3.6));
-        const damage = Math.round(snapshot.damage);
-        damageFill.style.width = `${damage}%`;
-        damageElement.setAttribute('aria-valuenow', String(damage));
-        damageElement.classList.toggle('is-heavy', damage > 60);
-        if (snapshot.state !== document.body.dataset.screen) {
-          setScreen(snapshot.state);
-        }
+      app,
+      {
+        onSnapshot: (snapshot: RaceSnapshot) => {
+          timeElement.textContent = formatTime(snapshot.totalTime);
+          lapElement.textContent = `${Math.min(snapshot.lap, LAPS)} / ${LAPS}`;
+          speedElement.textContent = String(Math.round(snapshot.speed * 3.6));
+          const damage = Math.round(snapshot.damage);
+          damageFill.style.width = `${damage}%`;
+          damageElement.setAttribute('aria-valuenow', String(damage));
+          damageElement.classList.toggle('is-heavy', damage > 60);
+          if (snapshot.state !== document.body.dataset.screen) {
+            setScreen(snapshot.state);
+          }
+        },
+        onPhysicsError: (message: string) => {
+          // The race has no menu of its own; send the player back to the menu
+          // page when the physics engine cannot start.
+          console.error(message);
+          try {
+            window.location.replace('./index.html');
+          } catch {
+            // Very defensive: navigation is best-effort on a failing engine.
+          }
+        },
+        onFinish: (
+          totalTime: number,
+          damage: number,
+          placing: number,
+          fieldSize: number,
+        ) => {
+          finalTime.textContent = formatTime(totalTime);
+          finalDamage.textContent = `${Math.round(damage)}%`;
+          finalPlacing.textContent = placingLabel(placing, fieldSize);
+          const improved = best === null || totalTime < best;
+          newBest.hidden = !improved;
+          if (improved) {
+            best = totalTime;
+            writeBest(totalTime);
+            bestElement.textContent = formatTime(totalTime);
+          }
+          setScreen('finished');
+          exitFullscreen();
+          document
+            .querySelector<HTMLButtonElement>('[data-overlay="finished"] .button--primary')
+            ?.focus({ preventScroll: true });
+        },
       },
-      onPhysicsError: (message: string) => {
-        startButton.disabled = true;
-        startButton.textContent = message;
-      },
-      onFinish: (
-        totalTime: number,
-        damage: number,
-        placing: number,
-        fieldSize: number,
-      ) => {
-        finalTime.textContent = formatTime(totalTime);
-        finalDamage.textContent = `${Math.round(damage)}%`;
-        finalPlacing.textContent = placingLabel(placing, fieldSize);
-        const improved = best === null || totalTime < best;
-        newBest.hidden = !improved;
-        if (improved) {
-          best = totalTime;
-          writeBest(totalTime);
-          bestElement.textContent = formatTime(totalTime);
-          menuBestElement.textContent = formatTime(totalTime);
-        }
-        setScreen('finished');
-        exitFullscreen();
-        document
-          .querySelector<HTMLButtonElement>('[data-overlay="finished"] .button--primary')
-          ?.focus({ preventScroll: true });
-      },
-    },
-    nextSeed,
-    paint,
-    opponentCount,
-    carId,
-  );
+      nextSeed,
+      paint,
+      readOpponentCount(),
+      carId,
+    );
   } catch (error) {
     console.error('WebGL could not be initialised.', error);
-    startButton.disabled = true;
-    startButton.textContent = 'WebGL unavailable';
     return;
   }
 
-  startButton.disabled = false;
-}
-
-void bootGame();
-
-function markPaint(id: string): void {
-  for (const swatch of paintPicker.querySelectorAll<HTMLButtonElement>('button[data-paint]')) {
-    swatch.setAttribute('aria-pressed', String(swatch.dataset.paint === id));
+  if (takePendingStart()) {
+    startRace();
+  } else {
+    // Gaming on a direct load/refresh: back to the menu page.
+    window.location.replace('./index.html');
   }
 }
-
-const CAR_MODELS = `${import.meta.env.BASE_URL}models/`;
-
-function setCarControlsDisabled(disabled: boolean): void {
-  for (const button of document.querySelectorAll<HTMLButtonElement>(
-    '.cars button',
-  )) {
-    button.disabled = disabled;
-  }
-}
-
-/** Show one car in the carousel: preview image, name, and the active dot. */
-function showCar(id: string): void {
-  const option = CARS.find((car) => car.id === id) ?? CARS[0]!;
-  carName.textContent = option.name;
-  carImage.src = `${CAR_MODELS}${option.id}-preview.png`;
-  carImage.alt = `${option.name} preview`;
-  for (const dot of carDots.querySelectorAll<HTMLButtonElement>('button')) {
-    dot.setAttribute('aria-pressed', String(dot.dataset.car === option.id));
-  }
-}
-
-for (const option of CARS) {
-  const dot = document.createElement('button');
-  dot.type = 'button';
-  dot.dataset.car = option.id;
-  dot.setAttribute('aria-label', option.name);
-  dot.setAttribute('aria-pressed', String(option.id === carId));
-  carDots.append(dot);
-}
-
-/**
- * Switch cars: fetch the model, then let the game rebuild the player car. The
- * carousel is locked while the new set loads so a race can never start with a
- * half-swapped model.
- */
-async function chooseCar(id: string): Promise<void> {
-  if (id === carId) {
-    return;
-  }
-  const previous = carId;
-  carId = id;
-  showCar(id);
-  writeCar(id);
-  carPicker.setAttribute('aria-busy', 'true');
-  startButton.disabled = true;
-  setCarControlsDisabled(true);
-  try {
-    await preloadCarModel(id);
-    game?.setPlayerCar(id);
-  } catch (error) {
-    console.error('The car model could not be loaded.', error);
-    carId = previous;
-    showCar(previous);
-    writeCar(previous);
-  } finally {
-    carPicker.removeAttribute('aria-busy');
-    startButton.disabled = false;
-    setCarControlsDisabled(false);
-  }
-}
-
-function stepCar(delta: number): void {
-  const index = Math.max(
-    0,
-    CARS.findIndex((car) => car.id === carId),
-  );
-  const next = CARS[(index + delta + CARS.length) % CARS.length]!;
-  void chooseCar(next.id);
-}
-
-carPrev.addEventListener('click', () => stepCar(-1));
-carNext.addEventListener('click', () => stepCar(1));
-carDots.addEventListener('click', (event) => {
-  const dot = (event.target as Element | null)?.closest<HTMLButtonElement>(
-    'button[data-car]',
-  );
-  if (dot) {
-    void chooseCar(dot.dataset.car ?? DEFAULT_CAR);
-  }
-});
-
-showCar(carId);
-
-for (const option of PAINTS) {
-  const swatch = document.createElement('button');
-  swatch.type = 'button';
-  swatch.className = option.id === 'stock' ? 'paint paint--stock' : 'paint';
-  swatch.dataset.paint = option.id;
-  if (option.color !== null) {
-    swatch.style.setProperty(
-      '--paint',
-      `#${option.color.toString(16).padStart(6, '0')}`,
-    );
-  }
-  swatch.title = option.name;
-  swatch.setAttribute('aria-label', option.name);
-  swatch.setAttribute('aria-pressed', String(option.id === paint.id));
-  paintPicker.append(swatch);
-}
-
-paintPicker.addEventListener('click', (event) => {
-  const swatch = (event.target as Element | null)?.closest<HTMLButtonElement>(
-    'button[data-paint]',
-  );
-  if (!swatch) {
-    return;
-  }
-  paint = paintById(swatch.dataset.paint);
-  markPaint(paint.id);
-  writePaint(paint.id);
-  game?.setPlayerPaint(paint);
-});
-
-function showOpponentCount(): void {
-  opponentsValue.textContent = String(opponentCount);
-  fewerOpponents.disabled = opponentCount <= 0;
-  moreOpponents.disabled = opponentCount >= OPPONENT_COUNT_MAX;
-}
-
-function changeOpponentCount(step: number): void {
-  opponentCount = Math.min(
-    OPPONENT_COUNT_MAX,
-    Math.max(0, opponentCount + step),
-  );
-  showOpponentCount();
-  writeOpponentCount(opponentCount);
-  game?.setOpponentCount(opponentCount);
-}
-
-fewerOpponents.addEventListener('click', () => changeOpponentCount(-1));
-moreOpponents.addEventListener('click', () => changeOpponentCount(1));
-showOpponentCount();
 
 function startRace(): void {
   if (!game) {
@@ -538,6 +399,7 @@ function startRace(): void {
   resetTilt();
   setScreen('countdown');
   enterFullscreen();
+  armFullscreenOnGesture();
 }
 
 function pauseRace(): void {
@@ -559,15 +421,10 @@ function resumeRace(): void {
 }
 
 function showMenu(): void {
-  if (!game) {
-    return;
-  }
-  game.toMenu();
-  setScreen('menu');
   exitFullscreen();
+  window.location.assign('./index.html');
 }
 
-startButton.addEventListener('click', startRace);
 pauseButton.addEventListener('click', () => {
   if (document.body.dataset.screen === 'racing') {
     pauseRace();
@@ -668,30 +525,7 @@ window.addEventListener('orientationchange', () => {
 });
 rotatePrompt.setAttribute('aria-hidden', String(!isPortrait()));
 
-// ---------- Install prompt ----------
-
-let installPrompt: BeforeInstallPromptEvent | null = null;
-
-window.addEventListener('beforeinstallprompt', (event) => {
-  event.preventDefault();
-  installPrompt = event as BeforeInstallPromptEvent;
-  installButton.hidden = false;
-});
-
-installButton.addEventListener('click', async () => {
-  if (!installPrompt) {
-    return;
-  }
-  await installPrompt.prompt();
-  await installPrompt.userChoice.catch(() => undefined);
-  installPrompt = null;
-  installButton.hidden = true;
-});
-
-window.addEventListener('appinstalled', () => {
-  installPrompt = null;
-  installButton.hidden = true;
-});
+void bootGame();
 
 // ---------- Service worker ----------
 

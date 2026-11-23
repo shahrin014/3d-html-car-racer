@@ -675,12 +675,18 @@ kbd {
   background: #0b121b;
 }
 
-.cars__slide img {
+.cars__render {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cars__render canvas {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  user-select: none;
+  touch-action: none;
 }
 
 .cars__slide figcaption {

@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { expectNoIssues, gotoApp, startRace, watchPage } from './helpers.ts';
+import {
+  expectNoIssues,
+  gotoApp,
+  startRace,
+  watchPage,
+  GAME_PATH,
+} from './helpers.ts';
 
 /**
  * Boot, menu, and first race. Split into its own file so the runner can give it
@@ -10,21 +16,23 @@ test('menu boots in landscape and starts a race', async ({ page }) => {
   const issues = watchPage(page);
   await gotoApp(page);
 
+  // The menu is its own full page with a live 3D car preview and no race HUD.
   await expect(page.locator('[data-overlay="menu"]')).toBeVisible();
-  await expect(page.locator('#time')).toHaveText('--:--.-');
-  await expect(page.locator('#lap')).toHaveText('1 / 3');
-  await expect(page.getByRole('button', { name: 'Steer left' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Steer right' })).toHaveCount(0);
-  await expect(page.locator('#app canvas')).toHaveAttribute(
+  await expect(page.locator('#car-name')).toHaveText('Mach');
+  await expect(page.locator('#car-preview canvas')).toHaveAttribute(
     'aria-label',
-    '3D race circuit',
+    'Car preview',
   );
+  await expect(page.locator('#time')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Steer right' })).toHaveCount(0);
 
   await startRace(page);
+
+  // The race now runs on its own page.
+  await expect(page).toHaveURL(new RegExp(GAME_PATH.replace('/', '\\/') + '$'));
   await expect(page.getByRole('button', { name: 'Brake' })).toBeVisible();
-  await expect(page.locator('#speed')).not.toHaveText('0', {
-    timeout: 10_000,
-  });
+  await expect(page.locator('#lap')).toHaveText('1 / 3');
+  await expect(page.locator('#speed')).not.toHaveText('0', { timeout: 10_000 });
   await expect(page.locator('#time')).not.toHaveText('00:00.0', {
     timeout: 10_000,
   });

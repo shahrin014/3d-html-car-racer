@@ -738,10 +738,17 @@ the origin, face +Z, and stay inside the physics envelope.
 
 - **GIVEN** the menu is shown
 - **WHEN** the car carousel is inspected
-- **THEN** it shows a preview image and the name of the current car
+- **THEN** it shows a live 3D preview of the current car and its name
 - **AND** previous and next controls cycle through every catalog car
 - **AND** a dot marks the current car
 - **AND** Mach, GT, and Twin are all offered
+
+#### Scenario: The preview car repaints with the chosen paint
+
+- **GIVEN** the menu is shown with a car in the carousel
+- **WHEN** the player activates a paint swatch
+- **THEN** the car in the carousel changes colour immediately
+- **AND** the same paint is used by the race once the car drives
 
 #### Scenario: Selecting a car applies and persists
 
