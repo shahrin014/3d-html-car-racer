@@ -24,6 +24,10 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Take over as soon as the new deployment is cached. Without this the new
+  // worker waits for every tab to close, so an open page keeps serving the
+  // previous deployment's models and paint masks.
+  self.skipWaiting();
   event.waitUntil(
     caches
       .open(CACHE_VERSION)
