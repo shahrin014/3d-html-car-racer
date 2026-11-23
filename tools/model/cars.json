@@ -87,14 +87,13 @@
     "wheelRadius": 0.26,
     "textureSize": 512,
     "nose": "auto",
-    "paintBase": [
-      0.7,
-      0.12,
-      0.12
-    ],
-    "paintTolerance": 0.22,
     "preview": "assets/car/manga-hero.png",
     "symmetrize": true,
-    "paintExcludeCabin": true
+    "paintBase": [
+      0.78,
+      0.76,
+      0.72
+    ],
+    "paintTolerance": 0.22
   }
 }

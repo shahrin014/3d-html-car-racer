@@ -280,7 +280,9 @@ if PAINT_EXCLUDE_WHEELS or PAINT_EXCLUDE_CABIN:
             for row in rows
         )
         glazing = PAINT_EXCLUDE_CABIN and (
-            c.z > HEIGHT * 0.36 and -LENGTH * 0.3 < c.y < LENGTH * 0.25
+            c.z > HEIGHT * 0.4
+            and -LENGTH * 0.2 < c.y < LENGTH * 0.28
+            and abs(c.x) < WIDTH * 0.48
         )
         windshield = (
             PAINT_EXCLUDE_WHEELS

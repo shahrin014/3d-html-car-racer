@@ -100,7 +100,8 @@ Pass criteria:
   spread means the car is raked or one corner floats; do not "fix" it in the
   runtime.
 - Four `wheel-*` pivots, roughly symmetric, at `wheelRadius` above the ground.
-- `MASK` between about 0.15 and 0.55 of the texture.
+- `MASK` between about 0.10 and 0.55 of the texture (it is a share of the
+  whole sheet, so a livery that packs its islands tightly scores low).
 - `SYMMETRY` mean/max near 0. A nonzero error means the mesh is lopsided; set
   `"symmetrize": true` and rebuild.
 
