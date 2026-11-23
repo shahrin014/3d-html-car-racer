@@ -43,6 +43,7 @@ import {
   spiralDownPath,
   spiralInnerRadius,
   spiralUpPath,
+  steepRampDownPath,
   steepRampRun,
   steepRampUpPath,
   turnPath,
@@ -234,6 +235,32 @@ describe('track pieces', () => {
         (Math.atan2(sample.tangent.y, sample.tangent.z) * 180) / Math.PI;
       peakPitch = Math.max(peakPitch, pitch);
       expect(sample.position.y).toBeGreaterThanOrEqual(previousY - 1e-9);
+      previousY = sample.position.y;
+    }
+    expect(peakPitch).toBeCloseTo(STEEP_RAMP_ANGLE, 6);
+  });
+
+  it('drops the same steep face back to the lower deck', () => {
+    const height = STEEP_RAMP_HEIGHT;
+    const path = steepRampDownPath(height);
+    const start = path(0);
+    const end = path(1);
+
+    expect(start.position.y).toBeCloseTo(0, 6);
+    expect(end.position.y).toBeCloseTo(-height, 6);
+    expect(Math.abs(start.tangent.y)).toBeLessThan(1e-6);
+    expect(Math.abs(end.tangent.y)).toBeLessThan(1e-6);
+    expect(start.up.y).toBeCloseTo(1, 6);
+    expect(end.up.y).toBeCloseTo(1, 6);
+
+    let peakPitch = 0;
+    let previousY = start.position.y;
+    for (let index = 0; index <= 200; index += 1) {
+      const sample = path(index / 200);
+      const pitch =
+        (Math.atan2(-sample.tangent.y, sample.tangent.z) * 180) / Math.PI;
+      peakPitch = Math.max(peakPitch, pitch);
+      expect(sample.position.y).toBeLessThanOrEqual(previousY + 1e-9);
       previousY = sample.position.y;
     }
     expect(peakPitch).toBeCloseTo(STEEP_RAMP_ANGLE, 6);

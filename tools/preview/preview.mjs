@@ -220,10 +220,10 @@ const SPIRAL_TWO_LEVELS = {
 };
 
 const STEEP_RAMP = {
-  height: (8 / 1.5) * 2,
+  height: (8 / 1.5) * 4,
   angleDeg: 70,
-  easeInRatio: 0.25,
-  easeOutRatio: 0.4375,
+  easeInRatio: 0.34375,
+  easeOutRatio: 0.21875,
 };
 
 function steepRampRun(
@@ -236,16 +236,20 @@ function steepRampRun(
 }
 
 /**
- * 70 degree climb with eased entry and exit, matching the game's steep ramp.
- * The boost chevrons on its surface are part of the piece, not decoration.
+ * 70 degree climb or descent, matching the game's steep ramp. The climb gets
+ * the long entry and short exit; the descent reverses them. The boost chevrons
+ * on the climb are part of the piece, not decoration.
  */
-function steepRampUpPath(
+function steepRampPath(
   height = STEEP_RAMP.height,
   angleDeg = STEEP_RAMP.angleDeg,
+  direction = 1,
 ) {
   const run = steepRampRun(height, angleDeg);
-  const easeIn = height * STEEP_RAMP.easeInRatio;
-  const easeOut = height * STEEP_RAMP.easeOutRatio;
+  const easeIn =
+    height * (direction === 1 ? STEEP_RAMP.easeInRatio : STEEP_RAMP.easeOutRatio);
+  const easeOut =
+    height * (direction === 1 ? STEEP_RAMP.easeOutRatio : STEEP_RAMP.easeInRatio);
   const entryShare = easeIn / run;
   const exitShare = easeOut / run;
   const slopeArea = 1 - (entryShare + exitShare) / 2;
@@ -271,16 +275,34 @@ function steepRampUpPath(
   };
   const slopeScale = height / (run * slopeArea);
   return (t) => {
-    const slope = slopeScale * slopeShare(t);
+    const slope = direction * slopeScale * slopeShare(t);
     const tangent = new THREE.Vector3(0, slope, 1).normalize();
     const right = new THREE.Vector3(1, 0, 0);
     return {
-      position: new THREE.Vector3(0, height * riseShare(t), run * t),
+      position: new THREE.Vector3(
+        0,
+        direction * height * riseShare(t),
+        run * t,
+      ),
       tangent,
       up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
       bank: 0,
     };
   };
+}
+
+function steepRampUpPath(
+  height = STEEP_RAMP.height,
+  angleDeg = STEEP_RAMP.angleDeg,
+) {
+  return steepRampPath(height, angleDeg, 1);
+}
+
+function steepRampDownPath(
+  height = STEEP_RAMP.height,
+  angleDeg = STEEP_RAMP.angleDeg,
+) {
+  return steepRampPath(height, angleDeg, -1);
 }
 
 function smoothStep(t) {
@@ -454,14 +476,23 @@ const PIECES = {
     view: new THREE.Vector3(0.9, 0.5, 1),
   },
   'steep-ramp-70': {
-    title: 'Steep ramp · 70° · two levels',
-    meta: `70° face · rises ${STEEP_RAMP.height.toFixed(1)} m · boost strip on the climb`,
+    title: 'Steep ramp · 70° · four levels',
+    meta: `70° face · rises ${STEEP_RAMP.height.toFixed(1)} m · boost strip · launches into a jump`,
     length: steepRampRun(),
     path: steepRampUpPath(),
     boost: true,
     view: new THREE.Vector3(0.9, 0.45, 1),
     showLeadIn: true,
     leadOut: { x: 0, y: STEEP_RAMP.height, z: steepRampRun() },
+  },
+  'steep-ramp-70-down': {
+    title: 'Steep descent · 70° · four levels',
+    meta: `70° face · drops ${STEEP_RAMP.height.toFixed(1)} m · matching descent for the sky ramp`,
+    length: steepRampRun(),
+    path: steepRampDownPath(),
+    view: new THREE.Vector3(0.9, 0.45, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: -STEEP_RAMP.height, z: steepRampRun() },
   },
   'boost-12': {
     title: 'Boost straight · 12 m',
@@ -1345,6 +1376,7 @@ if (piece.kind === 'car') {
     // entrance and exit rather than reading as a closed ring.
     const leadIn = buildTrack(straightPath(7), 7);
     leadIn.position.z = -7;
+    leadIn.position.y = piece.leadInY ?? 0;
     const leadOut = buildTrack(straightPath(7), 7);
     const exit = piece.leadOut ?? { x: TRACK.loopOffset, y: 0, z: 0 };
     leadOut.position.set(exit.x, exit.y, exit.z);

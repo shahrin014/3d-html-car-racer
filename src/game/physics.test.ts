@@ -462,10 +462,12 @@ describe('bridges', () => {
     expect(finishedSpeed).toBeGreaterThan(4);
   }, 60_000);
 
-  it('climbs the steep boost ramp and settles on the raised deck', async () => {
+  it('climbs the steep boost ramp and flies onto the raised deck', async () => {
     let circuit: ReturnType<typeof generateCircuit> | null = null;
     let rampStart = 0;
     let rampEnd = 0;
+    let gapStart = 0;
+    let landingEnd = 0;
     let boostZones: { from: number; to: number }[] = [];
     for (let index = 0; index < 400; index += 1) {
       const candidate = generateCircuit(`steep-drive-${index}`, 3);
@@ -483,6 +485,12 @@ describe('bridges', () => {
           rampStart = distance;
           rampEnd = distance + piece.length;
         }
+        if (pieceIndex > rampIndex && piece.kind === 'gap') {
+          gapStart = distance;
+        }
+        if (pieceIndex > rampIndex && piece.kind === 'landing' && gapStart > 0) {
+          landingEnd = distance + piece.length;
+        }
         if (piece.boost) {
           zones.push({ from: distance, to: distance + piece.length });
         }
@@ -492,6 +500,8 @@ describe('bridges', () => {
       break;
     }
     expect(circuit).not.toBeNull();
+    expect(gapStart).toBeGreaterThan(rampEnd);
+    expect(landingEnd).toBeGreaterThan(gapStart);
     expect(
       boostZones.some(
         (zone) => zone.from === rampStart && zone.to === rampEnd,
@@ -512,7 +522,9 @@ describe('bridges', () => {
     let boosts = 0;
     let rampBoosts = 0;
     let peak = entry.position.y;
-    let maxGap = 0;
+    let maxSolidGap = 0;
+    let sawGap = false;
+    let landed = false;
     for (let step = 0; step < 120 * 12; step += 1) {
       const state = physics.read();
       index = nextIndex(frames, index, state.position);
@@ -543,8 +555,25 @@ describe('bridges', () => {
 
       const after = physics.read();
       peak = Math.max(peak, after.position.y);
-      maxGap = Math.max(maxGap, after.position.distanceTo(frame.position));
-      if (frame.s > rampEnd + 12) {
+      if (!frame.solid) {
+        sawGap = true;
+      } else if (frame.s < gapStart - 1 || frame.s > landingEnd + 1) {
+        maxSolidGap = Math.max(
+          maxSolidGap,
+          after.position.distanceTo(frame.position),
+        );
+      }
+      if (
+        sawGap &&
+        frame.s > gapStart &&
+        frame.solid &&
+        after.position.y >
+          entry.position.y + STEEP_RAMP_HEIGHT - 2 &&
+        after.speed > 4
+      ) {
+        landed = true;
+      }
+      if (landed && frame.s > landingEnd + 12) {
         break;
       }
     }
@@ -552,9 +581,101 @@ describe('bridges', () => {
     physics.dispose();
     expect(boosts).toBeGreaterThan(0);
     expect(rampBoosts).toBeGreaterThan(0);
-    // The ramp is two bridge levels taller than its foot, and the car stays
-    // on the deck instead of launching off the 70 degree crest.
+    expect(sawGap).toBe(true);
+    expect(landed).toBe(true);
+    // The ramp climbs four bridge levels and launches the car over the gap
+    // onto the wide landing deck at the same height.
     expect(peak - entry.position.y).toBeGreaterThan(STEEP_RAMP_HEIGHT - 1);
+    expect(maxSolidGap).toBeLessThan(TRACK_WIDTH);
+  }, 60_000);
+
+  it('rides the matching steep descent back to the lower deck', async () => {
+    let circuit: ReturnType<typeof generateCircuit> | null = null;
+    let descentStart = 0;
+    let descentEnd = 0;
+    let boostZones: { from: number; to: number }[] = [];
+    for (let index = 0; index < 400; index += 1) {
+      const candidate = generateCircuit(`steep-descent-${index}`, 3);
+      const descentIndex = candidate.pieces.findIndex(
+        (piece) => piece.kind === 'steep-ramp-down',
+      );
+      if (descentIndex < 0) {
+        continue;
+      }
+      circuit = candidate;
+      let distance = 0;
+      const zones: { from: number; to: number }[] = [];
+      candidate.pieces.forEach((piece, pieceIndex) => {
+        if (pieceIndex === descentIndex) {
+          descentStart = distance;
+          descentEnd = distance + piece.length;
+        }
+        if (piece.boost) {
+          zones.push({ from: distance, to: distance + piece.length });
+        }
+        distance += piece.length;
+      });
+      boostZones = zones;
+      break;
+    }
+    expect(circuit).not.toBeNull();
+
+    const frames = buildFrames(circuit!);
+    const entryIndex = frames.findIndex(
+      (frame) => frame.s >= descentStart - 16,
+    );
+    expect(entryIndex).toBeGreaterThan(0);
+    const entry = frames[entryIndex]!;
+    const physics = await createPhysics(frames);
+    physics.reset(entry);
+
+    let index = entryIndex;
+    let cooldown = 0;
+    let maxGap = 0;
+    let endSpeed = 0;
+    for (let step = 0; step < 120 * 12; step += 1) {
+      const state = physics.read();
+      index = nextIndex(frames, index, state.position);
+      const frame = frames[index]!;
+      const latitude = lateralOffset(frame, state.position);
+      const lateralSpeed =
+        state.velocity.x * frame.right.x +
+        state.velocity.y * frame.right.y +
+        state.velocity.z * frame.right.z;
+      const steer = Math.max(
+        -1,
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
+      );
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer }, frame);
+
+      cooldown = Math.max(0, cooldown - FIXED_STEP);
+      const overBoost = boostZones.some(
+        (zone) => frame.s >= zone.from && frame.s < zone.to,
+      );
+      if (overBoost && cooldown === 0) {
+        physics.boost(BOOST_IMPULSE);
+        cooldown = BOOST_COOLDOWN;
+      }
+
+      const after = physics.read();
+      if (frame.solid) {
+        maxGap = Math.max(
+          maxGap,
+          after.position.distanceTo(frame.position),
+        );
+      }
+      endSpeed = after.speed;
+      if (frame.s > descentEnd + 12) {
+        break;
+      }
+    }
+
+    const end = physics.read();
+    physics.dispose();
+    expect(entry.position.y - end.position.y).toBeGreaterThan(
+      STEEP_RAMP_HEIGHT - 1,
+    );
     expect(maxGap).toBeLessThan(TRACK_WIDTH);
+    expect(endSpeed).toBeGreaterThan(4);
   }, 60_000);
 });

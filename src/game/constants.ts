@@ -189,8 +189,10 @@ export const TRACK_LANDING_WIDTH = TRACK_WIDTH;
 export const JUMP_FAIL_DEPTH = 1;
 /** A clearly failed jump gets this long to recover before the rescue. */
 export const JUMP_FAIL_GRACE_SECONDS = 0.35;
-/** How far before the gap a failed jump is retried from. */
-export const JUMP_RETRY_DISTANCE = 24;
+/** How far before the gap a failed jump is retried from. A steep ramp plus its
+ * compact kicker can be nearly 25 m long, so the run-up must reach below the
+ * ramp rather than resetting on the face. */
+export const JUMP_RETRY_DISTANCE = 30;
 /**
  * Lip slope, dy/dz. The kicker is convex at the lip, so a fast car leaves it
  * early at a steeper effective angle; this nominal slope is what keeps the
@@ -234,20 +236,31 @@ export const BRIDGE_LENGTH =
 export const BRIDGE_CLEARANCE = 3.5;
 
 /**
- * Steep ramp module: a 70 degree climb to a raised deck. The entry and exit
- * ease over authored horizontal distances so a car at racing speed stays on
- * the surface instead of slamming into the foot or launching off the crest.
- * The deck is always a boost strip: a car that arrives slowly is pushed up the
- * climb, and a car that stalls mid-ramp is pushed again when the cooldown ends.
- * Its rise is two bridge levels, so it pairs with the existing two-level
- * descents and reads as a much taller alternative to a bridge ramp.
+ * Steep ramp module: a 70 degree climb to a raised deck, used as a sky-jump
+ * launch. The entry eases over a longer horizontal run than the exit so the
+ * car rotates onto the face gradually; the top meets a compact kicker, gap, and
+ * wide landing deck, so a car at racing speed flies off the top instead of
+ * staying planted. The whole climb is a boost strip, so a slow car is pushed
+ * up. Its rise is four bridge levels, and a matching steep descent closes the
+ * route on another leg.
  */
 export const STEEP_RAMP_ANGLE = 70;
-export const STEEP_RAMP_LEVELS = 2;
+export const STEEP_RAMP_LEVELS = 4;
 export const STEEP_RAMP_HEIGHT = BRIDGE_HEIGHT * STEEP_RAMP_LEVELS;
 /** Horizontal length of the eased entry and exit, as shares of the rise. */
-export const STEEP_RAMP_EASE_IN_RATIO = 0.25;
-export const STEEP_RAMP_EASE_OUT_RATIO = 0.4375;
+export const STEEP_RAMP_EASE_IN_RATIO = 0.34375;
+export const STEEP_RAMP_EASE_OUT_RATIO = 0.21875;
+
+/**
+ * Compact jump at the top of the steep ramp. The lip is lower and the landing
+ * shorter than the standard jump so the sky-jump module fits a long circuit
+ * leg while still giving the car a real flight over a gap.
+ */
+export const SKY_JUMP_KICKER_LENGTH = 4;
+export const SKY_JUMP_LIP_HEIGHT = 1;
+export const SKY_JUMP_ENTRY_HEIGHT = 0.5;
+export const SKY_JUMP_GAP_LENGTH = 4;
+export const SKY_JUMP_LANDING_LENGTH = 18;
 
 /**
  * Spiral ramp module: one full turn per bridge level. The figure-eight bridge
