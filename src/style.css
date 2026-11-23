@@ -331,6 +331,164 @@ body[data-screen="over"] .controls {
   }
 }
 
+/* ---------- Full-screen main menu ---------- */
+
+/* The menu is the one overlay that fills the viewport: intro on the left,
+   garage (large carousel, paints, opponents) on the right. Pause, finish, and
+   rotate keep the small centred card. */
+body[data-screen="menu"] [data-overlay="menu"] {
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  justify-items: stretch;
+  padding: calc(var(--safe-top) + 14px) calc(var(--safe-right) + 16px)
+    calc(var(--safe-bottom) + 14px) calc(var(--safe-left) + 16px);
+}
+
+.panel.panel--menu {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.85fr) minmax(0, 1.4fr);
+  gap: clamp(16px, 2.4vw, 34px);
+  width: 100%;
+  max-width: 1600px;
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  padding: clamp(16px, 2.2vw, 32px);
+  border-radius: clamp(20px, 2vw, 28px);
+  text-align: left;
+}
+
+.menu__intro {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.menu__intro .opponents {
+  margin: clamp(8px, 1.4vh, 14px) 0 0;
+}
+
+.panel--menu .title {
+  font-size: clamp(44px, 6.4vw, 92px);
+}
+
+.panel--menu .lede {
+  margin: 0 0 clamp(12px, 1.6vh, 22px);
+  max-width: 34ch;
+}
+
+.panel--menu .menu-best {
+  margin: 0 0 clamp(12px, 1.8vh, 20px);
+}
+
+.panel--menu .hint {
+  margin-top: clamp(10px, 1.4vh, 18px);
+}
+
+.menu__garage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(8px, 1.2vh, 12px);
+  min-width: 0;
+  min-height: 0;
+}
+
+.menu__garage .cars {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+}
+
+.menu__garage .cars__carousel {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns:
+    clamp(40px, 4vw, 54px) minmax(0, 1fr) clamp(40px, 4vw, 54px);
+  gap: clamp(8px, 1vw, 14px);
+  align-items: stretch;
+}
+
+.menu__garage .cars__slide {
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
+.menu__garage .cars__arrow {
+  align-self: center;
+  width: clamp(40px, 4vw, 54px);
+  height: clamp(40px, 4vw, 54px);
+  font-size: clamp(22px, 2.4vw, 30px);
+}
+
+.menu__garage .cars__dots {
+  margin-top: clamp(6px, 1vh, 10px);
+}
+
+.menu__garage .cars__dots button {
+  width: clamp(8px, 0.9vw, 11px);
+  height: clamp(8px, 0.9vw, 11px);
+}
+
+/* Paint lives in a compact strip under the carousel, with the legend to the
+   side, so the car keeps the height. auto-fit folds the swatches into two
+   rows on narrow landscape phones instead of shrinking them to specks. */
+.menu__garage .paints {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1vw, 14px);
+  min-width: 0;
+  margin: 0;
+  padding: 8px 12px;
+}
+
+.menu__garage .paints legend {
+  flex: none;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.menu__garage .paints__grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(26px, 3vw, 36px), 1fr));
+  gap: clamp(4px, 0.6vw, 8px);
+  min-width: 0;
+}
+
+.menu__garage .paint {
+  justify-self: center;
+  width: 100%;
+  max-width: 44px;
+}
+
+/* Short landscape phones: keep the title and the carousel, drop the prose. */
+@media (max-height: 460px) {
+  .panel--menu .lede,
+  .panel--menu .hint {
+    display: none;
+  }
+
+  .panel--menu .title {
+    font-size: clamp(38px, 5.6vw, 58px);
+  }
+
+  .panel--menu .eyebrow {
+    margin-bottom: 8px;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+  }
+}
+
+@media (orientation: portrait) {
+  .panel.panel--menu {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+}
+
 .eyebrow {
   margin: 0 0 12px;
   font-size: 10px;
