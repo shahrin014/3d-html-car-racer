@@ -61,7 +61,7 @@ import {
   type Circuit,
   type TrackFrame,
 } from './track';
-import { buildTrackMesh, type TrackMesh } from './trackMesh';
+import { buildTrackMesh, splitCircuitPieces, type TrackMesh } from './trackMesh';
 
 export type RaceState = 'menu' | 'countdown' | 'racing' | 'paused' | 'finished';
 export type CameraMode = 'chase' | 'cockpit';
@@ -255,7 +255,7 @@ export class Game {
       this.scene.remove(this.trackMesh.group);
       this.trackMesh.dispose();
     }
-    const mesh = buildTrackMesh(this.splitPieces(circuit.pieces));
+    const mesh = buildTrackMesh(splitCircuitPieces(circuit.pieces));
     this.trackMesh = mesh;
     this.scene.add(mesh.group);
 
@@ -689,60 +689,6 @@ export class Game {
     const rim = new THREE.DirectionalLight(0x22d3ee, 1.1);
     rim.position.set(-16, 10, -20);
     this.scene.add(rim);
-  }
-
-  private splitPieces(
-    pieces: ReturnType<typeof generateCircuit>['pieces'],
-  ): { frames: TrackFrame[]; boost?: boolean; gap?: boolean; rails?: boolean }[] {
-    const grouped: {
-      frames: TrackFrame[];
-      boost?: boolean;
-      gap?: boolean;
-      rails?: boolean;
-    }[] = [];
-    let offset = 0;
-    for (const piece of pieces) {
-      const count = Math.max(8, Math.ceil(piece.length / 0.4));
-      const frames: TrackFrame[] = [];
-      for (let index = 0; index <= count; index += 1) {
-        const sample = piece.path(index / count);
-        const uprightRight = new THREE.Vector3()
-          .crossVectors(sample.up, sample.tangent)
-          .normalize();
-        const up = sample.up
-          .clone()
-          .multiplyScalar(Math.cos(sample.bank))
-          .addScaledVector(uprightRight, Math.sin(sample.bank))
-          .normalize();
-        const position = sample.position.clone().applyMatrix4(piece.matrix);
-        const tangent = sample.tangent
-          .clone()
-          .transformDirection(piece.matrix)
-          .normalize();
-        const upWorld = up.clone().transformDirection(piece.matrix).normalize();
-        frames.push({
-          position,
-          tangent,
-          up: upWorld,
-          right: new THREE.Vector3().crossVectors(upWorld, tangent).normalize(),
-          s: offset + (index / count) * piece.length,
-          solid: piece.kind !== 'gap',
-          halfWidth: piece.widthTaper
-            ? piece.widthTaper(index / count)
-            : (piece.halfWidth ?? TRACK_WIDTH / 2),
-          rails: piece.kind !== 'gap',
-        });
-      }
-      grouped.push(
-        piece.kind === 'gap'
-          ? { frames, gap: true }
-          : piece.boost
-            ? { frames, boost: true, rails: true }
-            : { frames, rails: true },
-      );
-      offset += piece.length;
-    }
-    return grouped;
   }
 
   private readonly tick = (now: number): void => {

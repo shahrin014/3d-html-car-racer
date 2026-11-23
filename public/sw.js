@@ -12,6 +12,7 @@ const CACHE_VERSION = '__BUILD_CACHE_VERSION__';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './track.html',
   './game.html',
   './manifest.webmanifest',
   './models/mach.glb',

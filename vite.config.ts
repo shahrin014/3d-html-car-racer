@@ -17,11 +17,13 @@ export default defineConfig({
     chunkSizeWarningLimit: 4500,
     rollupOptions: {
       input: {
-        // The menu and the race are separate pages so the menu can own its own
-        // WebGL preview (and, later, a live track preview) without rendering a
-        // circuit behind it. `index.html` is the landing menu and `game.html`
-        // hosts the race. Both share the app-shell bundle and budgets.
+        // The menu, the track preview, and the race are separate pages so the
+        // menu can own its own WebGL car preview and the preview page can show
+        // a circuit without rendering a race. `index.html` is the landing menu,
+        // `track.html` previews a generated circuit, and `game.html` hosts the
+        // race. All share the app-shell bundle and budgets.
         index: resolve(import.meta.dirname, 'index.html'),
+        track: resolve(import.meta.dirname, 'track.html'),
         game: resolve(import.meta.dirname, 'game.html'),
       },
       output: {

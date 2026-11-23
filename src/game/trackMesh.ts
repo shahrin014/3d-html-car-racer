@@ -4,8 +4,9 @@ import {
   RAIL_WIDTH,
   SEAM_LENGTH,
   TRACK_THICKNESS,
+  TRACK_WIDTH,
 } from './constants';
-import type { TrackFrame } from './track';
+import type { Circuit, TrackFrame } from './track';
 
 /** Orange plastic with seam lines and optional boost chevrons. */
 export function createTrackTexture(boost = false): THREE.CanvasTexture {
@@ -80,6 +81,67 @@ function stripGeometry(
 export interface TrackMesh {
   group: THREE.Group;
   dispose: () => void;
+}
+
+export interface CircuitPieceFrames {
+  frames: TrackFrame[];
+  boost?: boolean;
+  gap?: boolean;
+  rails?: boolean;
+}
+
+/**
+ * Sample each circuit piece into the frame groups the mesh builder wants. The
+ * piece's own matrix places it in the world, while its width taper and gap flag
+ * decide the deck and rail shape. Shared by the race and the preview page.
+ */
+export function splitCircuitPieces(
+  pieces: Circuit['pieces'],
+): CircuitPieceFrames[] {
+  const grouped: CircuitPieceFrames[] = [];
+  let offset = 0;
+  for (const piece of pieces) {
+    const count = Math.max(8, Math.ceil(piece.length / 0.4));
+    const frames: TrackFrame[] = [];
+    for (let index = 0; index <= count; index += 1) {
+      const sample = piece.path(index / count);
+      const uprightRight = new THREE.Vector3()
+        .crossVectors(sample.up, sample.tangent)
+        .normalize();
+      const up = sample.up
+        .clone()
+        .multiplyScalar(Math.cos(sample.bank))
+        .addScaledVector(uprightRight, Math.sin(sample.bank))
+        .normalize();
+      const position = sample.position.clone().applyMatrix4(piece.matrix);
+      const tangent = sample.tangent
+        .clone()
+        .transformDirection(piece.matrix)
+        .normalize();
+      const upWorld = up.clone().transformDirection(piece.matrix).normalize();
+      frames.push({
+        position,
+        tangent,
+        up: upWorld,
+        right: new THREE.Vector3().crossVectors(upWorld, tangent).normalize(),
+        s: offset + (index / count) * piece.length,
+        solid: piece.kind !== 'gap',
+        halfWidth: piece.widthTaper
+          ? piece.widthTaper(index / count)
+          : (piece.halfWidth ?? TRACK_WIDTH / 2),
+        rails: piece.kind !== 'gap',
+      });
+    }
+    grouped.push(
+      piece.kind === 'gap'
+        ? { frames, gap: true }
+        : piece.boost
+          ? { frames, boost: true, rails: true }
+          : { frames, rails: true },
+    );
+    offset += piece.length;
+  }
+  return grouped;
 }
 
 /**

@@ -29,6 +29,7 @@ describe('bundle budget', () => {
 
   it('separates the lazy physics chunk from the app shell', () => {
     expect(isPhysicsAsset('assets/physics-a1b2c3.js')).toBe(true);
+    expect(isPhysicsAsset('assets\\physics-a1b2c3.js')).toBe(true);
     expect(isPhysicsAsset('assets/index-a1b2c3.js')).toBe(false);
     expect(isPhysicsAsset('assets/rapier-a1b2c3.js')).toBe(false);
     expect(

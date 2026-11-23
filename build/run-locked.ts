@@ -114,12 +114,13 @@ function release(): void {
 process.on('exit', release);
 
 // .cmd shims such as npm cannot be launched directly on Windows; a shell
-// resolves them. The commands passed here are simple and contain no shell
-// metacharacters.
+// resolves them. An .exe must be launched directly so a path with spaces (for
+// example C:\Program Files\nodejs\node.exe) is not split by cmd.exe.
+const needsShell = process.platform === 'win32' && !/\.exe$/i.test(bin);
 const child = spawn(bin, binArgs, {
   stdio: 'inherit',
   env: process.env,
-  shell: process.platform === 'win32',
+  shell: needsShell,
 });
 
 const forward = (signal: NodeJS.Signals): void => {

@@ -21,6 +21,7 @@ import { placingLabel } from './game/placing';
 import { CARS } from './game/car-spec.mjs';
 import { paintById } from './game/palette';
 import { randomSeed } from './game/seed';
+import { takePendingSeed, takePendingStart } from './game/session';
 import { steerFromTilt, tiltDegrees } from './game/tilt';
 
 interface DeviceOrientationEventWithPermission {
@@ -53,7 +54,9 @@ const finalPlacing = mustQuery<HTMLElement>('#final-placing');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 
 // A fresh circuit every load: the seed is drawn at random, never from the
-// date. Best times are kept per level so the record survives the new track.
+// date. A previewed seed replaces this one when the player starts from the
+// track preview. Best times are kept per level so the record survives the new
+// track.
 let nextSeed = randomSeed();
 const bestKey = `${BEST_TIME_KEY_PREFIX}.${DEFAULT_LEVEL}`;
 
@@ -288,25 +291,17 @@ async function enableTilt(): Promise<void> {
 let game: Game | null = null;
 let carId = readCar();
 
-/** Flag set by the menu page before navigating here; the race starts at once. */
-const PENDING_START_KEY = 'neon-racer.pending-start';
-function takePendingStart(): boolean {
-  try {
-    const pending = window.sessionStorage.getItem(PENDING_START_KEY);
-    window.sessionStorage.removeItem(PENDING_START_KEY);
-    return pending === '1';
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Boot the race. The menu is a separate page, so the car models are loaded here
  * before the scene is built and the race starts immediately (the menu set a
- * pending-start flag). A direct load of game.html without that flag falls back
- * to the menu page rather than racing on its own.
+ * pending-start flag). A previewed seed, when present, makes the first race use
+ * the exact circuit the player just previewed. A direct load of game.html
+ * without that flag falls back to the menu page rather than racing on its own.
  */
 async function bootGame(): Promise<void> {
+  // Read the seed before the start flag so a stale previewed seed is consumed
+  // even when this load is not a real race start.
+  const previewSeed = takePendingSeed();
   // A direct load or refresh of game.html has no race to show. Leave for the
   // menu before loading models or building the scene, so the redirect happens
   // immediately instead of after a full boot. The menu sets the pending-start
@@ -314,6 +309,9 @@ async function bootGame(): Promise<void> {
   if (!takePendingStart()) {
     window.location.replace('./index.html');
     return;
+  }
+  if (previewSeed) {
+    nextSeed = previewSeed;
   }
 
   try {

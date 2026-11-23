@@ -819,6 +819,152 @@ kbd {
   }
 }
 
+/* ---------- Track preview ---------- */
+
+.preview__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.preview__canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.preview__canvas canvas:active {
+  cursor: grabbing;
+}
+
+.preview__hud {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(var(--safe-top) + 16px) calc(var(--safe-right) + 20px)
+    calc(var(--safe-bottom) + 18px) calc(var(--safe-left) + 20px);
+  pointer-events: none;
+}
+
+.preview__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.preview__heading .eyebrow {
+  margin-bottom: 6px;
+}
+
+.preview__heading .title {
+  margin: 0;
+  font-size: clamp(24px, 3.2vw, 40px);
+}
+
+.preview__back {
+  width: auto;
+  min-height: 44px;
+  margin-top: 0;
+  padding: 0 18px;
+  pointer-events: auto;
+}
+
+.preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.preview__seed {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--cyan-bright);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.preview__buttons {
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.preview__buttons .button {
+  width: auto;
+  min-width: 150px;
+  min-height: 48px;
+  margin-top: 0;
+  padding: 0 20px;
+}
+
+.preview__loading {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(4, 8, 14, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body.is-building .preview__loading,
+.preview__loading.is-error {
+  display: flex;
+}
+
+.preview__spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(103, 232, 249, 0.25);
+  border-top-color: var(--cyan-bright);
+  border-radius: 50%;
+  animation: preview-spin 700ms linear infinite;
+}
+
+@keyframes preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .preview__actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .preview__buttons {
+    flex-direction: column-reverse;
+  }
+
+  .preview__buttons .button {
+    width: 100%;
+  }
+}
+
 /* ---------- Car picker ---------- */
 
 .cars {

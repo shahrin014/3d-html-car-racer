@@ -11,6 +11,7 @@ import {
 import { preloadCarModel } from './game/car-runtime.mjs';
 import { CARS } from './game/car-spec.mjs';
 import { DEFAULT_PAINT, PAINTS, paintById, type Paint } from './game/palette';
+import { clearPendingSeed, markPendingStart } from './game/session';
 import { CarPreview } from './menuCarousel';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -110,6 +111,7 @@ function isPortrait(): boolean {
 }
 
 const startButton = mustQuery<HTMLButtonElement>('#start');
+const previewButton = mustQuery<HTMLButtonElement>('#preview-track');
 const installButton = mustQuery<HTMLButtonElement>('#install');
 const menuBestElement = mustQuery<HTMLElement>('#menu-best');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
@@ -260,19 +262,19 @@ showOpponentCount();
 
 // The pending-start flag hands the chosen car, paint, and opponents to the race
 // page; those are already persisted, so the flag only tells game.html to skip
-// its own menu and start immediately.
-const PENDING_START_KEY = 'neon-racer.pending-start';
-
+// its own menu and start immediately. A stale previewed seed is dropped so a
+// normal start always draws a fresh circuit.
 startButton.addEventListener('click', () => {
   if (startButton.disabled) {
     return;
   }
-  try {
-    window.sessionStorage.setItem(PENDING_START_KEY, '1');
-  } catch {
-    // Without session storage the race page still starts a race on load.
-  }
+  clearPendingSeed();
+  markPendingStart();
   window.location.assign('./game.html');
+});
+
+previewButton.addEventListener('click', () => {
+  window.location.assign('./track.html');
 });
 
 // ---------- Car preview ----------

@@ -35,7 +35,7 @@ export function totalGzipBytes(files: readonly BundleFile[]): number {
 
 /** Manual-chunk name from `vite.config.ts`; the hash suffix changes per build. */
 export function isPhysicsAsset(path: string): boolean {
-  return /(^|\/)physics-[^/]+\.js$/.test(path);
+  return /(^|[\\/])physics-[^\\/]+\.js$/.test(path);
 }
 
 export function bundleTotals(files: readonly BundleFile[]): BundleTotals {
