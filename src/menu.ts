@@ -329,6 +329,23 @@ window.addEventListener('appinstalled', () => {
 // ---------- Service worker ----------
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  // Whether this page was already controlled before the update check. On a
+  // first visit there is no previous worker, so taking control is not an
+  // update and must not reload the page.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+
+  // The worker now calls skipWaiting, so a new deployment takes control while
+  // the menu is open. Reload once so the live car preview fetches the new
+  // model and paint mask instead of the previous deployment's cached files.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading || document.body.dataset.screen !== 'menu') {
+      return;
+    }
+    reloading = true;
+    window.location.reload();
+  });
+
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register(`${import.meta.env.BASE_URL}sw.js`)

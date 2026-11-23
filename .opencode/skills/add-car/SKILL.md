@@ -211,7 +211,7 @@ suite locally.
 | Paint looks flat and unshaded on a light car | `paintBaseLuma` is too low in `CARS`; raise it toward 0.7. |
 | `preview missing for <id>` warning | Render the catalog hero first, then `npm run model:car` again. |
 | Catalog render times out | The GLB was not published; run `npm run model:car` before `npm run assets`. |
-| Car looks stale on the live site | Service-worker cache: new deploys hash `dist/` and invalidate the old cache; hard-refresh once. |
+| Car looks stale on the live site | Service-worker cache. New deploys activate immediately and the menu reloads once, but a tab opened before that change needs one manual refresh. |
 
 ## File map
 
