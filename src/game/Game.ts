@@ -59,6 +59,7 @@ import {
   generateCircuit,
   trackLength,
   type Circuit,
+  type Piece,
   type TrackFrame,
 } from './track';
 import { buildTrackMesh, splitCircuitPieces, type TrackMesh } from './trackMesh';
@@ -169,6 +170,7 @@ export class Game {
     paint: Paint = DEFAULT_PAINT,
     opponents = DEFAULT_OPPONENT_COUNT,
     carId = PLAYER_CAR,
+    requiredKinds: readonly Piece['kind'][] = [],
   ) {
     this.carId = carId;
     this.container = container;
@@ -205,7 +207,10 @@ export class Game {
 
     this.seed = seed;
     this.buildCircuit(
-      generateCircuit(seed, DEFAULT_LEVEL, { allowMultiCrossing: true }),
+      generateCircuit(seed, DEFAULT_LEVEL, {
+        allowMultiCrossing: true,
+        requiredKinds,
+      }),
     );
 
     this.car = createCar(paint.color, this.carId);

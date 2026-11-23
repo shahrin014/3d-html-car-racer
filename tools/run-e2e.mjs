@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const specs = [
   'menu.spec.ts',
+  'track-preview.spec.ts',
   'paint.spec.ts',
   'car.spec.ts',
   'opponents.spec.ts',

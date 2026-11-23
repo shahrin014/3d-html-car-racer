@@ -26,15 +26,38 @@
     </main>
 
     <div class="preview__hud" aria-label="Track preview controls">
-      <header class="preview__bar">
-        <div class="preview__heading">
-          <p class="eyebrow">Track preview</p>
-          <h1 class="title title--small">Neon Racer</h1>
-        </div>
-        <button type="button" class="button button--ghost preview__back" id="preview-back">
-          Back to menu
-        </button>
-      </header>
+      <div class="preview__top">
+        <header class="preview__bar">
+          <div class="preview__heading">
+            <p class="eyebrow">Track preview</p>
+            <h1 class="title title--small">Neon Racer</h1>
+          </div>
+          <button type="button" class="button button--ghost preview__back" id="preview-back">
+            Back to menu
+          </button>
+        </header>
+
+        <section class="preview__requirements" aria-labelledby="preview-requirements-title">
+          <div class="preview__requirements-head">
+            <p class="eyebrow" id="preview-requirements-title">Required segments</p>
+            <button
+              type="button"
+              class="button button--ghost preview__randomize"
+              id="preview-randomize-requirements"
+            >
+              Randomize
+            </button>
+          </div>
+          <p
+            class="preview__requirements-note"
+            id="preview-requirements-note"
+            aria-live="polite"
+          >
+            Select segments the track must contain.
+          </p>
+          <div id="preview-segments"></div>
+        </section>
+      </div>
 
       <div class="preview__actions">
         <p class="preview__seed" id="preview-seed" aria-live="polite">--</p>

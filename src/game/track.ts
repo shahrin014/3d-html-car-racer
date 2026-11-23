@@ -775,8 +775,15 @@ function assembleCircuit(
   seed: string,
   level: number,
   seedOffset: number,
+  salt = 0,
 ): Circuit {
-  const random = seededRandom(`${seed}:${level}:${seedOffset}`);
+  // A requirement search uses salted attempts; salt 0 keeps the original
+  // stream so unconstrained seeds assemble exactly as they always did.
+  const random = seededRandom(
+    salt === 0
+      ? `${seed}:${level}:${seedOffset}`
+      : `${seed}:${level}:${salt}:${seedOffset}`,
+  );
   const radius = turnRadiusForLevel(level);
   const loopRadius = loopRadiusForLevel(level);
   const straights = straightCatalogForLevel(level);
@@ -1492,6 +1499,12 @@ export function validateCircuit(circuit: Circuit): CircuitValidation {
  */
 export interface CircuitOptions {
   allowMultiCrossing?: boolean;
+  /**
+   * Piece kinds the circuit must contain. The generator searches deterministic
+   * seed offsets and salted attempts until it finds a playable circuit with
+   * every kind, and throws if the combination cannot be assembled.
+   */
+  requiredKinds?: readonly Piece['kind'][];
 }
 
 /**
@@ -1506,6 +1519,28 @@ export function generateCircuit(
   level: number,
   options: CircuitOptions = {},
 ): Circuit {
+  const required = [...new Set(options.requiredKinds ?? [])];
+  const wanted = new Set(required);
+  const requiresCatalog = required.some((kind) => kind !== 'multi-crossing');
+  if (wanted.has('multi-crossing') && requiresCatalog) {
+    throw new Error(
+      'A multi-crossing layout is one whole circuit and cannot be combined with catalog segments',
+    );
+  }
+
+  const hasRequired = (circuit: Circuit): boolean => {
+    if (wanted.size === 0) {
+      return true;
+    }
+    const kinds = new Set(circuit.pieces.map((piece) => piece.kind));
+    for (const kind of wanted) {
+      if (!kinds.has(kind)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const failures: string[] = [];
   const tryCircuit = (circuit: Circuit, label: string): Circuit | null => {
     const validation = validateCircuit(circuit);
@@ -1517,8 +1552,10 @@ export function generateCircuit(
   };
 
   const multiCrossing =
-    options.allowMultiCrossing === true &&
-    seededRandom(`${seed}:${level}:layout`)() < MULTI_CROSSING_SHARE;
+    wanted.has('multi-crossing') ||
+    (options.allowMultiCrossing === true &&
+      wanted.size === 0 &&
+      seededRandom(`${seed}:${level}:layout`)() < MULTI_CROSSING_SHARE);
   if (multiCrossing) {
     for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
       const circuit = assembleMultiCrossingCircuit(
@@ -1527,19 +1564,48 @@ export function generateCircuit(
         offset,
         seededRandom(`${seed}:${level}:${offset}:multi-crossing`),
       );
+      if (!hasRequired(circuit)) {
+        continue;
+      }
       const accepted = tryCircuit(circuit, `multi-crossing offset ${offset}`);
       if (accepted) {
         return accepted;
       }
     }
+    if (wanted.has('multi-crossing')) {
+      throw new Error(
+        `Could not assemble a playable multi-crossing circuit for ${seed} at level ${level}: ${failures
+          .slice(0, 3)
+          .join(' | ')}`,
+      );
+    }
   }
 
-  for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
-    const circuit = assembleCircuit(seed, level, offset);
-    const accepted = tryCircuit(circuit, `offset ${offset}`);
-    if (accepted) {
-      return accepted;
+  // Requirement searches need more independent attempts than one seed offset
+  // ladder. Salt 0 is the normal ladder; later salts only run when the caller
+  // asked for specific segments.
+  const salts = wanted.size > 0 ? 6 : 1;
+  for (let salt = 0; salt < salts; salt += 1) {
+    for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
+      const circuit = assembleCircuit(seed, level, offset, salt);
+      if (!hasRequired(circuit)) {
+        continue;
+      }
+      const accepted = tryCircuit(
+        circuit,
+        salt === 0 ? `offset ${offset}` : `salt ${salt} offset ${offset}`,
+      );
+      if (accepted) {
+        return accepted;
+      }
     }
+  }
+  if (wanted.size > 0) {
+    throw new Error(
+      `Could not assemble a playable circuit for ${seed} at level ${level} with required segments: ${required.join(
+        ', ',
+      )}`,
+    );
   }
   throw new Error(
     `Could not assemble a playable circuit for ${seed} at level ${level}: ${failures
