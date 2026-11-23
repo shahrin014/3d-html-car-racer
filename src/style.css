@@ -373,6 +373,15 @@ body[data-screen="menu"] [data-overlay="menu"] {
   font-size: clamp(44px, 6.4vw, 92px);
 }
 
+.panel--menu .credit {
+  margin: -2px 0 clamp(12px, 1.6vh, 20px);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--cyan);
+  text-shadow: 0 0 16px rgba(34, 211, 238, 0.4);
+}
+
 .panel--menu .lede {
   margin: 0 0 clamp(12px, 1.6vh, 22px);
   max-width: 34ch;
