@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { FIXED_STEP, SPIRAL_HEIGHT, TRACK_WIDTH } from './constants';
+import {
+  BOOST_COOLDOWN,
+  BOOST_IMPULSE,
+  FIXED_STEP,
+  SPIRAL_HEIGHT,
+  STEEP_RAMP_HEIGHT,
+  TRACK_WIDTH,
+} from './constants';
 import { opponentSpecs } from './opponents';
 import { createPhysics } from './physics';
 import { buildFrames, generateCircuit, type TrackFrame } from './track';
@@ -453,5 +460,101 @@ describe('bridges', () => {
     // climbed the ramp rather than stopping at its foot.
     expect(peak).toBeGreaterThan(8);
     expect(finishedSpeed).toBeGreaterThan(4);
+  }, 60_000);
+
+  it('climbs the steep boost ramp and settles on the raised deck', async () => {
+    let circuit: ReturnType<typeof generateCircuit> | null = null;
+    let rampStart = 0;
+    let rampEnd = 0;
+    let boostZones: { from: number; to: number }[] = [];
+    for (let index = 0; index < 400; index += 1) {
+      const candidate = generateCircuit(`steep-drive-${index}`, 3);
+      const rampIndex = candidate.pieces.findIndex(
+        (piece) => piece.kind === 'steep-ramp',
+      );
+      if (rampIndex < 0) {
+        continue;
+      }
+      circuit = candidate;
+      let distance = 0;
+      const zones: { from: number; to: number }[] = [];
+      candidate.pieces.forEach((piece, pieceIndex) => {
+        if (pieceIndex === rampIndex) {
+          rampStart = distance;
+          rampEnd = distance + piece.length;
+        }
+        if (piece.boost) {
+          zones.push({ from: distance, to: distance + piece.length });
+        }
+        distance += piece.length;
+      });
+      boostZones = zones;
+      break;
+    }
+    expect(circuit).not.toBeNull();
+    expect(
+      boostZones.some(
+        (zone) => zone.from === rampStart && zone.to === rampEnd,
+      ),
+    ).toBe(true);
+
+    const frames = buildFrames(circuit!);
+    const entryIndex = frames.findIndex(
+      (frame) => frame.s >= rampStart - 14,
+    );
+    expect(entryIndex).toBeGreaterThan(0);
+    const entry = frames[entryIndex]!;
+    const physics = await createPhysics(frames);
+    physics.reset(entry);
+
+    let index = entryIndex;
+    let cooldown = 0;
+    let boosts = 0;
+    let rampBoosts = 0;
+    let peak = entry.position.y;
+    let maxGap = 0;
+    for (let step = 0; step < 120 * 12; step += 1) {
+      const state = physics.read();
+      index = nextIndex(frames, index, state.position);
+      const frame = frames[index]!;
+      const latitude = lateralOffset(frame, state.position);
+      const lateralSpeed =
+        state.velocity.x * frame.right.x +
+        state.velocity.y * frame.right.y +
+        state.velocity.z * frame.right.z;
+      const steer = Math.max(
+        -1,
+        Math.min(1, latitude / 0.9 + lateralSpeed * 0.15),
+      );
+      physics.step(FIXED_STEP, { throttle: 1, brake: false, steer }, frame);
+
+      cooldown = Math.max(0, cooldown - FIXED_STEP);
+      const overBoost = boostZones.some(
+        (zone) => frame.s >= zone.from && frame.s < zone.to,
+      );
+      if (overBoost && cooldown === 0) {
+        physics.boost(BOOST_IMPULSE);
+        cooldown = BOOST_COOLDOWN;
+        boosts += 1;
+        if (frame.s >= rampStart && frame.s < rampEnd) {
+          rampBoosts += 1;
+        }
+      }
+
+      const after = physics.read();
+      peak = Math.max(peak, after.position.y);
+      maxGap = Math.max(maxGap, after.position.distanceTo(frame.position));
+      if (frame.s > rampEnd + 12) {
+        break;
+      }
+    }
+
+    physics.dispose();
+    expect(boosts).toBeGreaterThan(0);
+    expect(rampBoosts).toBeGreaterThan(0);
+    // The ramp is two bridge levels taller than its foot, and the car stays
+    // on the deck instead of launching off the 70 degree crest.
+    expect(peak - entry.position.y).toBeGreaterThan(STEEP_RAMP_HEIGHT - 1);
+    expect(maxGap).toBeLessThan(TRACK_WIDTH);
   }, 60_000);
 });

@@ -33,6 +33,10 @@ of the requirements.
 | Spiral ramp radius | 18 m centreline; 14.5 m clear inner radius |
 | Spiral ramp rise | 8 m per turn; 16 m for two levels |
 | Spiral ramp levels | up to 2 |
+| Steep ramp pitch | 70° held between eased entry and exit |
+| Steep ramp rise | 16 m (two bridge levels) |
+| Steep ramp plan run | about 11.3 m, including a 4 m entry ease and a 7 m exit ease |
+| Steep ramp surface | boost strip along the whole climb |
 | Obstacle segment | 24 m straight with five seeded rows of edge blocks |
 | Obstacle block placement | edge (2.5 m), centre, and double-edge rows; every row keeps a car-wide gap |
 | Assembly attempts | 32 deterministic offsets |
@@ -196,7 +200,11 @@ A route MAY climb in one or two stages and descend in one or two stages. Each
 stage SHALL be an authored spiral or ramp and SHALL add or remove one or two
 bridge levels. A circuit MAY mix one-level and two-level stages, and MAY mix
 spiral and ramp stages, so both transition shapes and both spiral heights
-appear in the same circuit. The elevated stretch SHALL continue through at
+appear in the same circuit. A two-level climb MAY instead be an authored steep
+ramp whose face holds 70° between a short eased entry and a longer eased exit.
+The steep ramp SHALL rise exactly two bridge levels and SHALL carry a boost
+strip along the whole climb, so a car that reaches the foot slowly is pushed
+up instead of sliding back. The elevated stretch SHALL continue through at
 least one authored straight or banked turn beyond a climb. The descent stages
 SHALL sit at a different plan position from the climb stages; the route SHALL
 NOT drop back onto the lower deck at the climbing point. The elevated deck SHALL
@@ -236,6 +244,15 @@ the overpass rules for every lower section it passes over.
 - **THEN** the deck continues at bridge height through the following pieces
 - **AND** the route does not return to the lower deck before the descent
 - **AND** the descent sits at a different plan position from the spiral
+
+#### Scenario: Steep ramp climb
+
+- **GIVEN** a circuit whose two-level climb is a steep ramp
+- **WHEN** the car reaches its foot, even at low speed
+- **THEN** it is pushed by the boost strip along the 70° face
+- **AND** it reaches the raised deck without leaving the track
+- **AND** the deck continues at two bridge levels until a descent elsewhere
+- **AND** the ramp joins the lower and upper decks at zero slope
 
 #### Scenario: Descent is a ramp or a spiral in another section
 

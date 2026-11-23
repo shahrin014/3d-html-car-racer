@@ -29,6 +29,7 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Hill | ![hill](track/hill-crest-2.5.png) | 16 m, crest 2.5 m | Zero slope at both ends |
 | Launch ramp | ![ramp up](track/ramp-up-1.6.png) | 8 m, 1.6 m lip | Ends on an 11° launch; an empty gap follows |
 | Landing ramp | ![ramp down](track/ramp-down-1.6.png) | 16 m, 1.6 m lip | Enters on the launch line and flattens to the deck |
+| Steep ramp | ![steep ramp](track/steep-ramp-70.png) | 70° face, two bridge levels | Eased entry and exit; the whole climb is a boost strip |
 | Boost straight | ![boost](track/boost-12.png) | 12 m + armed strip | Chevrons face the driving direction |
 | Obstacle corridor | ![obstacle corridor](track/obstacle-corridor-24.png) | 24 m, five seeded rows across the deck | Edge, centre, and gate rows that rivals weave around. Shown at runtime scale (7 m deck) |
 
@@ -44,7 +45,10 @@ landmark building. One-level spirals serve the elevated polygon routes; the
 figure-eight bridge uses two turns, so it rises 16 m before the flat crossing.
 Elevated sections are not limited to the figure-eight: a seed may keep the route
 aloft after the climb and bring it back down on a ramp or spiral in another
-section, crossing over lower track.
+section, crossing over lower track. The steep ramp is the dramatic alternative
+to a two-level spiral or ramp: at runtime it rises 16 m over an 11.3 m plan
+footprint, its face holds 70° between eased ends, and its surface is a boost
+strip so a car that arrives slowly still makes the climb.
 
 ## Buildings
 

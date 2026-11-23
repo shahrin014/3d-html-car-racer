@@ -219,6 +219,70 @@ const SPIRAL_TWO_LEVELS = {
   turns: 2,
 };
 
+const STEEP_RAMP = {
+  height: (8 / 1.5) * 2,
+  angleDeg: 70,
+  easeInRatio: 0.25,
+  easeOutRatio: 0.4375,
+};
+
+function steepRampRun(
+  height = STEEP_RAMP.height,
+  angleDeg = STEEP_RAMP.angleDeg,
+) {
+  const easeIn = height * STEEP_RAMP.easeInRatio;
+  const easeOut = height * STEEP_RAMP.easeOutRatio;
+  return height / Math.tan(angleDeg * DEG) + (easeIn + easeOut) / 2;
+}
+
+/**
+ * 70 degree climb with eased entry and exit, matching the game's steep ramp.
+ * The boost chevrons on its surface are part of the piece, not decoration.
+ */
+function steepRampUpPath(
+  height = STEEP_RAMP.height,
+  angleDeg = STEEP_RAMP.angleDeg,
+) {
+  const run = steepRampRun(height, angleDeg);
+  const easeIn = height * STEEP_RAMP.easeInRatio;
+  const easeOut = height * STEEP_RAMP.easeOutRatio;
+  const entryShare = easeIn / run;
+  const exitShare = easeOut / run;
+  const slopeArea = 1 - (entryShare + exitShare) / 2;
+  const easeIntegral = (r) => r * r * r - 0.5 * r * r * r * r;
+  const slopeShare = (t) => {
+    if (t <= entryShare) {
+      return smoothStep(t / entryShare);
+    }
+    if (t >= 1 - exitShare) {
+      return smoothStep((1 - t) / exitShare);
+    }
+    return 1;
+  };
+  const riseShare = (t) => {
+    if (t <= entryShare) {
+      return (entryShare * easeIntegral(t / entryShare)) / slopeArea;
+    }
+    if (t < 1 - exitShare) {
+      return (entryShare / 2 + (t - entryShare)) / slopeArea;
+    }
+    const remaining = (1 - t) / exitShare;
+    return (slopeArea - exitShare * easeIntegral(remaining)) / slopeArea;
+  };
+  const slopeScale = height / (run * slopeArea);
+  return (t) => {
+    const slope = slopeScale * slopeShare(t);
+    const tangent = new THREE.Vector3(0, slope, 1).normalize();
+    const right = new THREE.Vector3(1, 0, 0);
+    return {
+      position: new THREE.Vector3(0, height * riseShare(t), run * t),
+      tangent,
+      up: new THREE.Vector3().crossVectors(tangent, right).normalize(),
+      bank: 0,
+    };
+  };
+}
+
 function smoothStep(t) {
   return t * t * (3 - 2 * t);
 }
@@ -388,6 +452,16 @@ const PIECES = {
     length: 16,
     path: landingPath(),
     view: new THREE.Vector3(0.9, 0.5, 1),
+  },
+  'steep-ramp-70': {
+    title: 'Steep ramp · 70° · two levels',
+    meta: `70° face · rises ${STEEP_RAMP.height.toFixed(1)} m · boost strip on the climb`,
+    length: steepRampRun(),
+    path: steepRampUpPath(),
+    boost: true,
+    view: new THREE.Vector3(0.9, 0.45, 1),
+    showLeadIn: true,
+    leadOut: { x: 0, y: STEEP_RAMP.height, z: steepRampRun() },
   },
   'boost-12': {
     title: 'Boost straight · 12 m',

@@ -397,6 +397,13 @@ keep its left and right guide rails along its length; only the deckless gap and
 the touchdown mouth are left free, so a car coming down from the jump never
 crosses a barrier as it enters the landing.
 
+A steep ramp SHALL be an authored two-level climb whose face holds 70° between
+a short eased entry and a longer eased exit. Its surface SHALL be a boost strip
+for the whole climb, with the usual chevrons facing the driving direction, so a
+car that reaches the foot slowly is pushed up rather than sliding back. Both
+ends SHALL meet a level deck at zero slope, and the exit ease SHALL keep a car
+at racing speed on the deck instead of launching it off the crest.
+
 #### Scenario: Track width
 
 - **GIVEN** the built track
@@ -454,6 +461,15 @@ crosses a barrier as it enters the landing.
 - **THEN** it flies over the gap, which may pass over a lower section of the
   circuit
 - **AND** it lands on the wide ramp and rides it down to the lower deck
+- **AND** it keeps racing without a rescue
+
+#### Scenario: Steep ramp
+
+- **GIVEN** a circuit with a steep ramp
+- **WHEN** the car reaches the foot, even at low speed
+- **THEN** the ramp's boost strip pushes it up the 70° face
+- **AND** it reaches the raised deck without leaving the track
+- **AND** it does not launch off the crest at racing speed
 - **AND** it keeps racing without a rescue
 
 #### Scenario: Loop entrance and exit
