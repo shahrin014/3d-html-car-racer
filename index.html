@@ -22,64 +22,68 @@
   </head>
   <body data-screen="menu">
     <section class="overlay" data-overlay="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
-      <div class="panel">
-        <p class="eyebrow">Three.js &middot; Generated circuit</p>
-        <h1 class="title" id="menu-title">ORANGE<br /><span>LOOP</span></h1>
-        <p class="lede">
-          Tilt to steer, hold brake for the hairpins, and keep the car off the
-          rails. Three laps, one loop, two banks per circuit.
-        </p>
-        <p class="menu-best">Best <strong id="menu-best">--:--.-</strong></p>
-        <button type="button" class="button button--primary" id="start">Start race</button>
-        <fieldset class="cars">
-          <legend>Car</legend>
-          <div
-            class="cars__carousel"
-            id="car-picker"
-            role="group"
-            aria-label="Choose a car"
-            aria-live="polite"
-          >
-            <button type="button" class="cars__arrow" id="car-prev" aria-label="Previous car">&#8249;</button>
-            <figure class="cars__slide">
-              <div class="cars__render" id="car-preview" aria-hidden="true"></div>
-              <figcaption id="car-name">Mach</figcaption>
-            </figure>
-            <button type="button" class="cars__arrow" id="car-next" aria-label="Next car">&#8250;</button>
-          </div>
-          <div class="cars__dots" id="car-dots" role="group" aria-label="Car models"></div>
-        </fieldset>
-        <fieldset class="paints">
-          <legend>Car paint</legend>
-          <div class="paints__grid" id="paint-picker"></div>
-        </fieldset>
-        <div class="opponents">
-          <span class="opponents__label" id="opponents-label">Opponents</span>
-          <div
-            class="opponents__stepper"
-            role="group"
-            aria-labelledby="opponents-label"
-          >
-            <button
-              type="button"
-              class="opponents__step"
-              id="opponents-fewer"
-              aria-label="Fewer opponents"
-            >&minus;</button>
-            <output id="opponents-value" aria-live="polite">3</output>
-            <button
-              type="button"
-              class="opponents__step"
-              id="opponents-more"
-              aria-label="More opponents"
-            >+</button>
+      <div class="panel panel--menu">
+        <div class="menu__intro">
+          <p class="eyebrow">Three.js &middot; Generated circuit</p>
+          <h1 class="title" id="menu-title">ORANGE<br /><span>LOOP</span></h1>
+          <p class="lede">
+            Tilt to steer, hold brake for the hairpins, and keep the car off the
+            rails. Three laps, one loop, two banks per circuit.
+          </p>
+          <p class="menu-best">Best <strong id="menu-best">--:--.-</strong></p>
+          <button type="button" class="button button--primary" id="start">Start race</button>
+          <button type="button" class="button button--ghost" id="install" hidden>Install app</button>
+          <p class="hint">
+            Tilt or <kbd>&larr;</kbd><kbd>&rarr;</kbd> &middot; <kbd>Space</kbd> brake &middot;
+            <kbd>C</kbd> camera · 3 laps
+          </p>
+          <div class="opponents">
+            <span class="opponents__label" id="opponents-label">Opponents</span>
+            <div
+              class="opponents__stepper"
+              role="group"
+              aria-labelledby="opponents-label"
+            >
+              <button
+                type="button"
+                class="opponents__step"
+                id="opponents-fewer"
+                aria-label="Fewer opponents"
+              >&minus;</button>
+              <output id="opponents-value" aria-live="polite">3</output>
+              <button
+                type="button"
+                class="opponents__step"
+                id="opponents-more"
+                aria-label="More opponents"
+              >+</button>
+            </div>
           </div>
         </div>
-        <button type="button" class="button button--ghost" id="install" hidden>Install app</button>
-        <p class="hint">
-          Tilt or <kbd>&larr;</kbd><kbd>&rarr;</kbd> &middot; <kbd>Space</kbd> brake &middot;
-          <kbd>C</kbd> camera · 3 laps
-        </p>
+        <div class="menu__garage">
+          <fieldset class="cars">
+            <legend>Car</legend>
+            <div
+              class="cars__carousel"
+              id="car-picker"
+              role="group"
+              aria-label="Choose a car"
+              aria-live="polite"
+            >
+              <button type="button" class="cars__arrow" id="car-prev" aria-label="Previous car">&#8249;</button>
+              <figure class="cars__slide">
+                <div class="cars__render" id="car-preview" aria-hidden="true"></div>
+                <figcaption id="car-name">Mach</figcaption>
+              </figure>
+              <button type="button" class="cars__arrow" id="car-next" aria-label="Next car">&#8250;</button>
+            </div>
+            <div class="cars__dots" id="car-dots" role="group" aria-label="Car models"></div>
+          </fieldset>
+          <fieldset class="paints">
+            <legend>Car paint</legend>
+            <div class="paints__grid" id="paint-picker"></div>
+          </fieldset>
+        </div>
       </div>
     </section>
 
