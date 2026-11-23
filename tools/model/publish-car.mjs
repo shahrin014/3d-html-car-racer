@@ -42,7 +42,16 @@ for (const [id, config] of Object.entries(cars)) {
     const from =
       kind === 'preview' ? config.preview : `assets/car/${id}${suffix}`;
     const to = `public/models/${id}${suffix}`;
-    const bytes = await readFile(path.join(repoRoot, from));
+    let bytes;
+    try {
+      bytes = await readFile(path.join(repoRoot, from));
+    } catch (error) {
+      if (kind === 'preview') {
+        console.warn(`preview missing for ${id}: ${from} (render it, then publish again)`);
+        continue;
+      }
+      throw error;
+    }
     if (bytes.length > limits[kind]) {
       failures.push(
         `${from} is ${(bytes.length / 1024).toFixed(0)} kB, over ${(limits[kind] / 1024).toFixed(0)} kB`,

@@ -725,7 +725,7 @@ the three-lap race against the clock.
 ### Requirement: The player car is a selectable catalog car
 
 The player car SHALL be one of the cars in the catalog - Mach, a low wide
-endurance prototype, or GT, a long-nose grand tourer - each with its own baked
+endurance prototype, GT, a long-nose grand tourer, or Twin - each with its own baked
 livery and paint mask. The selected model SHALL be loaded from
 `models/<id>.glb` together with its baked livery and paint mask, and cloned per
 car. The GLB SHALL declare four named wheel pivots at the axles so the front
@@ -741,7 +741,7 @@ the origin, face +Z, and stay inside the physics envelope.
 - **THEN** it shows a preview image and the name of the current car
 - **AND** previous and next controls cycle through every catalog car
 - **AND** a dot marks the current car
-- **AND** Mach and GT are both offered
+- **AND** Mach, GT, and Twin are all offered
 
 #### Scenario: Selecting a car applies and persists
 

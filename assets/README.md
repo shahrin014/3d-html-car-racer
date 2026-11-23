@@ -62,7 +62,7 @@ colliders.
 
 ## Cars
 
-Two selectable cars share one pipeline. Both are 2.45 x 1.26 x 0.60 m with a
+Three selectable cars share one pipeline. Both are 2.45 x 1.26 x 0.60 m with a
 0.26 m wheel radius and a visual body that overhangs the 1.0 m physics collider.
 Each is a fused, textured mesh; the game keeps its baked livery and mixes the
 selected paint into the white bodywork through a paint mask, so nine paint
@@ -92,6 +92,18 @@ deep side scallops, a teardrop canopy, and an orange rear wing.
 ![GT reference angle](car/gt-ref.png)
 
 Long-nose GT with a low canopy, wide haunches, and a rear wing.
+
+### Twin
+
+![Twin hero](car/twin-hero.png)
+
+![Twin side](car/twin-side.png)
+
+![Twin rear](car/twin-rear.png)
+
+![Twin reference angle](car/twin-ref.png)
+
+Low, wide twin-tail prototype with a light body and blue livery accents.
 
 ### Shared files
 

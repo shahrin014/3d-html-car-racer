@@ -44,4 +44,5 @@ export const CARS = [
   // texture carries little shading to preserve).
   { id: 'mach', name: 'Mach', paintBaseLuma: 0.7 },
   { id: 'gt', name: 'GT', paintBaseLuma: 0.0 },
+  { id: 'twin', name: 'Twin', paintBaseLuma: 0.75 },
 ];

@@ -481,6 +481,33 @@ const PIECES = {
     title: 'GT · reference angle',
     meta: 'framed to match the reference photos for comparison',
   },
+  'twin-hero': {
+    kind: 'car',
+    carId: 'twin',
+    title: 'Twin · hero',
+    meta: '2.45 × 1.26 × 0.60 m · baked livery · repaintable body mask',
+  },
+  'twin-side': {
+    kind: 'car',
+    carId: 'twin',
+    view: 'side',
+    title: 'Twin · side elevation',
+    meta: 'profile check · levelled on its tyres',
+  },
+  'twin-rear': {
+    kind: 'car',
+    carId: 'twin',
+    view: 'rear',
+    title: 'Twin · rear',
+    meta: 'livery texture · Kamm tail',
+  },
+  'twin-ref': {
+    kind: 'car',
+    carId: 'twin',
+    view: 'ref',
+    title: 'Twin · reference angle',
+    meta: 'framed to match the reference photos for comparison',
+  },
   cockpit: {
     kind: 'cockpit',
     title: 'Cockpit view · driver eye',
