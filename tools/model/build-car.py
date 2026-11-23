@@ -8,15 +8,17 @@ overrides, then, for `<car-id>`:
 1. imports the mesh and joins its parts,
 2. works out which source axis is up and which is the nose, levels the car on
    its four tyre contacts, and grounds it on the tyres,
-3. scales it to the target envelope,
-4. places four wheel pivots at the detected axles,
-5. writes `<car-id>.glb`, `<car-id>-livery.png`, and
+3. optionally cuts it on the centreline and mirrors one half (`symmetrize`),
+4. scales it to the target envelope,
+5. places four wheel pivots at the detected axles,
+6. writes `<car-id>.glb`, `<car-id>-livery.png`, and
    `<car-id>-paint-mask.png` (still with the baked livery; the runtime mixes
-   the selected paint into the white bodywork through the mask).
+   the selected paint into the bodywork through the mask).
 
 Nothing is hardcoded to one mesh: axis order, up direction, nose direction,
 rake, and ride height all come from the geometry. Per-car overrides exist in
-cars.json for meshes that defeat the heuristics (`upAxis`, `nose`, ...).
+cars.json for meshes that defeat the heuristics (`upAxis`, `nose`, ...), and
+`symmetrize` repairs an authored mesh that is not mirror-symmetric.
 """
 import json
 import math
@@ -51,7 +53,9 @@ NOSE = config.get("nose", "auto")
 PAINT_BASE = config.get("paintBase")
 PAINT_TOLERANCE = float(config.get("paintTolerance", 0.12))
 PAINT_EXCLUDE_WHEELS = bool(config.get("paintExcludeWheels", False))
+PAINT_EXCLUDE_CABIN = bool(config.get("paintExcludeCabin", False))
 UP_OVERRIDE = config.get("upAxis", "auto")
+SYMMETRIZE = bool(config.get("symmetrize", False))
 out_dir = os.path.join(repo_root, "assets/car")
 
 # --- Import -----------------------------------------------------------------
@@ -178,6 +182,28 @@ if rows:
 else:
     mapped[:, 2] -= mapped[:, 2].min()
 
+# --- Optional symmetrisation ------------------------------------------------
+# Authored meshes (especially image-to-3D ones) can be visibly lopsided. With
+# `symmetrize` in cars.json, cut the car on its centreline and mirror one half,
+# so the bodywork and the livery both read symmetrically. Centre on X first:
+# the mirror plane is the middle of the source bounds.
+if SYMMETRIZE:
+    lo, hi = bounds(mapped)
+    mapped[:, 0] -= (lo[0] + hi[0]) / 2
+    mesh.vertices.foreach_set("co", mapped.astype(np.float32).ravel())
+    mesh.update()
+    bpy.ops.object.select_all(action="DESELECT")
+    car.select_set(True)
+    bpy.context.view_layer.objects.active = car
+    modifier = car.modifiers.new("Symmetry", "MIRROR")
+    modifier.use_axis[0] = True
+    modifier.use_bisect_axis[0] = True
+    modifier.use_clip = True
+    modifier.merge_threshold = 0.001
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+    mesh = car.data
+    mapped = np.array([v.co[:] for v in mesh.vertices], dtype=np.float64)
+
 # --- Scale to the envelope --------------------------------------------------
 lo, hi = bounds(mapped)
 size = hi - lo
@@ -240,23 +266,29 @@ else:
     mask = (distance < PAINT_TOLERANCE).astype(np.float32)
 
 # Wheels and glazing can share the body's base colour on a dark car, so carve
-# their UV footprints out of the mask when the car needs it.
-if PAINT_EXCLUDE_WHEELS:
+# their UV footprints out of the mask when the car needs it. Some meshes also
+# map livery artwork onto the glass; `paintExcludeCabin` removes the whole
+# cabin, roof included, so the windows keep their authored colour.
+if PAINT_EXCLUDE_WHEELS or PAINT_EXCLUDE_CABIN:
     excluded = np.zeros((png_h, png_w), dtype=bool)
     uv_layer = mesh.uv_layers.active.data
     for polygon in mesh.polygons:
         c = polygon.center
-        near_wheel = any(
+        near_wheel = PAINT_EXCLUDE_WHEELS and any(
             math.hypot(c.z - row[2], c.y - row[1]) < WHEEL_RADIUS * (HEIGHT / 0.6) + 0.06
             and abs(c.x) > 0.25
             for row in rows
         )
-        glazing = (
-            c.z > HEIGHT * 0.4
+        glazing = PAINT_EXCLUDE_CABIN and (
+            c.z > HEIGHT * 0.36 and -LENGTH * 0.3 < c.y < LENGTH * 0.25
+        )
+        windshield = (
+            PAINT_EXCLUDE_WHEELS
+            and c.z > HEIGHT * 0.4
             and abs(c.x) < WIDTH * 0.3
             and -LENGTH * 0.25 < c.y < LENGTH * 0.18
         )
-        if not (near_wheel or glazing):
+        if not (near_wheel or glazing or windshield):
             continue
         points = [
             (

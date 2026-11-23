@@ -62,7 +62,7 @@ colliders.
 
 ## Cars
 
-Four selectable cars share one pipeline. All four are 2.45 x 1.26 x 0.60 m with a
+Five selectable cars share one pipeline. All five are 2.45 x 1.26 x 0.60 m with a
 0.26 m wheel radius and a visual body that overhangs the 1.0 m physics collider.
 Each is a fused, textured mesh; the game keeps its baked livery and mixes the
 selected paint into the masked bodywork through a paint mask, so nine paint
@@ -118,6 +118,20 @@ Low, wide twin-tail prototype with a light body and blue livery accents.
 Low, wide open-wheeler with a silver body, red and black camo livery, a
 canopy, and exposed red-rimmed wheels.
 
+### Manga
+
+![Manga hero](car/manga-hero.png)
+
+![Manga side](car/manga-side.png)
+
+![Manga rear](car/manga-rear.png)
+
+![Manga reference angle](car/manga-ref.png)
+
+Wide-bodied manga-liveried coupe with a white body, red aero, and comic-panel
+decals. The authored mesh was lopsided, so it is built with `symmetrize`: the
+car is cut on its centreline and one half mirrored.
+
 ### Shared files
 
 | File | Role |
@@ -161,6 +175,8 @@ The build is driven by `tools/model/cars.json`; nothing in it assumes the Mach's
      "nose": "auto",
      "paintBase": [0.7, 0.7, 0.7],
      "paintTolerance": 0.12,
+     "symmetrize": false,
+     "paintExcludeCabin": false,
      "preview": "assets/car/my-car-hero.png"
    }
    ```
@@ -181,6 +197,13 @@ nose (the taller end carries the rear wing), levels the car on its four tyre
 contacts, and grounds it on the tyres. If a mesh defeats those heuristics,
 override `nose` (`"-y"` or `"auto"`) or `upAxis` (`0`, `1`, `2`) for that car
 only. Scale, wheel radius, and texture size come from the same entry.
+
+Two optional flags fix authored meshes that are hard to use as-is:
+
+- `symmetrize` cuts the car on its centreline and mirrors one half, which also
+  mirrors the livery. Use it when a generated mesh is visibly lopsided.
+- `paintExcludeCabin` keeps the windows and roof out of the paint mask when
+  their UVs sample the body colour.
 
 `paintBase` is the body colour the paint mask should cover, with
 `paintTolerance` as its RGB distance. Dark cars should also set

@@ -75,5 +75,26 @@
     ],
     "paintTolerance": 0.22,
     "preview": "assets/car/blade-hero.png"
+  },
+  "manga": {
+    "label": "Manga",
+    "source": "assets/car/source/manga/manga.obj",
+    "target": {
+      "length": 2.45,
+      "width": 1.26,
+      "height": 0.62
+    },
+    "wheelRadius": 0.26,
+    "textureSize": 512,
+    "nose": "auto",
+    "paintBase": [
+      0.7,
+      0.12,
+      0.12
+    ],
+    "paintTolerance": 0.22,
+    "preview": "assets/car/manga-hero.png",
+    "symmetrize": true,
+    "paintExcludeCabin": true
   }
 }

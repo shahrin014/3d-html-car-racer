@@ -74,6 +74,52 @@ for pivot in pivots:
     obj = bpy.context.scene.objects[pivot]
     print("PIVOT", pivot, [round(v, 3) for v in obj.location])
 
+# Mirror error across the car's centreline: for each vertex, the distance to the
+# nearest vertex at (-x, y, z). A symmetric mesh scores ~0.
+span = max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs))
+cell = span / 60
+
+
+def key(point):
+    return tuple(int(value // cell) for value in point)
+
+
+buckets = {}
+for p in points:
+    buckets.setdefault(key((p.x, p.y, p.z)), []).append(p)
+
+errors = []
+for p in points:
+    target = (-p.x, p.y, p.z)
+    kx, ky, kz = key(target)
+    best = float("inf")
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                for q in buckets.get((kx + dx, ky + dy, kz + dz), ()):
+                    distance = (
+                        (target[0] - q.x) ** 2
+                        + (target[1] - q.y) ** 2
+                        + (target[2] - q.z) ** 2
+                    ) ** 0.5
+                    if distance < best:
+                        best = distance
+    if best < float("inf"):
+        errors.append(best)
+errors.sort()
+if errors:
+    mean = sum(errors) / len(errors)
+    p90 = errors[int(len(errors) * 0.9)]
+    print(
+        "SYMMETRY",
+        "mean",
+        round(mean, 4),
+        "p90",
+        round(p90, 4),
+        "max",
+        round(errors[-1], 4),
+    )
+
 image = bpy.data.images.load(mask_path)
 pixels = image.pixels[:]
 red = pixels[0::4]
