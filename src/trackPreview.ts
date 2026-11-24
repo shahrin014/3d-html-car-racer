@@ -644,12 +644,14 @@ function normalizeRules(): void {
     }
     return;
   }
-  for (const group of [JUMP_KINDS, SPIRAL_KINDS, RAMP_KINDS, STEEP_KINDS]) {
-    const active = group
+  // Only the jump group is atomic; elevation pieces are independent so a
+  // steep climb can return on spirals, ramps, or another steep descent.
+  {
+    const active = JUMP_KINDS
       .map((kind) => segmentRules.get(kind))
       .find((rule) => rule !== undefined && rule !== 'neutral');
     if (active) {
-      for (const kind of group) {
+      for (const kind of JUMP_KINDS) {
         segmentRules.set(kind, active);
       }
     }
@@ -705,13 +707,6 @@ function applyRule(kind: Piece['kind'], rule: SegmentRule): void {
   if (JUMP_KINDS.includes(kind)) {
     for (const member of JUMP_KINDS) {
       segmentRules.set(member, rule);
-    }
-  }
-  for (const group of [SPIRAL_KINDS, RAMP_KINDS, STEEP_KINDS]) {
-    if (group.includes(kind)) {
-      for (const member of group) {
-        segmentRules.set(member, rule);
-      }
     }
   }
   if (kind === 'loop' || kind === 'shift') {
@@ -1023,16 +1018,25 @@ function randomRules(): Map<Piece['kind'], SegmentRule> {
 
   set('bridge', 'exclude');
   const elevation = Math.random();
+  const requireOrNeutral = (): SegmentRule =>
+    Math.random() < 0.6 ? 'require' : 'neutral';
   if (elevation < 0.25) {
-    group(RAMP_KINDS, 'require');
+    set('ramp-up', requireOrNeutral());
+    set('ramp-down', requireOrNeutral());
     group(SPIRAL_KINDS, 'exclude');
     group(STEEP_KINDS, 'exclude');
   } else if (elevation < 0.45) {
-    group(STEEP_KINDS, 'require');
+    set('steep-ramp', requireOrNeutral());
+    set('steep-ramp-down', requireOrNeutral());
     group(RAMP_KINDS, 'exclude');
-    group(SPIRAL_KINDS, 'exclude');
+    // Leave spirals available so a steep climb can return on two 2-level
+    // spirals instead of a matching steep descent.
+    if (Math.random() < 0.5) {
+      set('spiral-down', 'require');
+    }
   } else if (elevation < 0.65) {
-    group(SPIRAL_KINDS, 'require');
+    set('spiral-up', requireOrNeutral());
+    set('spiral-down', requireOrNeutral());
     group(RAMP_KINDS, 'exclude');
     group(STEEP_KINDS, 'exclude');
   } else {

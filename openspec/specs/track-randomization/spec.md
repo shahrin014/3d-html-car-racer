@@ -222,8 +222,10 @@ deterministic seed offsets and salted attempts until it finds a playable
 circuit satisfying every rule, and the same seed and rule list SHALL always
 settle on the same circuit. Structural kinds (straight, turn, and boost) are
 always present and SHALL NOT be excludable. The loop and its return SHALL move
-together, and the jump, spiral, ramp, and steep pairs SHALL move together.
-Excluding the loop SHALL produce a loopless polygon circuit that is still
+together, and the jump launch, gap, and landing SHALL move together. Elevation
+up and down pieces SHALL be independent: a climb may return on any allowed
+combination of descents, such as a steep climb followed by two 2-level spiral
+descents. Excluding the loop SHALL produce a loopless polygon circuit that is still
 closed and playable. The preview SHALL provide a button that randomizes a
 compatible mix of rules and regenerates. Requiring a multi-crossing layout
 together with catalog segments SHALL be rejected, because the trefoil is one
@@ -246,6 +248,13 @@ excluded kinds to the race, so the race uses the same circuit.
 - **WHEN** the track is regenerated
 - **THEN** the circuit contains no piece of that kind
 - **AND** the preview reports that every rule is met
+
+#### Scenario: Independent elevation transitions
+
+- **GIVEN** the preview with a steep climb required and the steep descent excluded
+- **WHEN** the track is regenerated
+- **THEN** the circuit contains the steep climb and no steep descent
+- **AND** it returns to the lower deck on other allowed descents
 
 #### Scenario: Loopless circuit stays playable
 
@@ -334,12 +343,13 @@ exit ease, ending on a compact kicker at the raised deck. The steep ramp SHALL
 carry a boost strip along the whole climb, so a car that reaches the foot
 slowly is pushed up instead of sliding back. The kicker SHALL launch the car
 over a short gap onto a wide landing deck at the same height, so the car flies
-off the top rather than staying planted. A matching steep descent SHALL return
-the route to the lower deck on a later leg; the climb and descent together
-SHALL move the route four bridge levels. The seed SHALL pre-roll the steep sky
-jump independently of the level's straight lengths. When it selects the steep
-pair, the assembly SHALL extend every leg enough for the sky-jump module and
-SHALL use the pair, so the segment does not depend on a rare long leg. Other
+off the top rather than staying planted. The route SHALL return to the lower
+deck on a later leg by any allowed combination that balances the four-level
+climb: a matching steep descent, two 2-level spiral descents, or another
+combination of allowed descents. The seed SHALL pre-roll the steep climb
+independently of the level's straight lengths. When it selects the steep
+climb, the assembly SHALL extend every leg enough for the sky-jump module and
+SHALL use the climb, so the segment does not depend on a rare long leg. Other
 authored transitions SHALL likewise remain in rotation; a representative
 level-1 sample (at least 300 seeds) SHALL contain every piece kind the
 generator can emit.

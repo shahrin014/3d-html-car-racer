@@ -24,6 +24,23 @@ test('preview forces segments, reports impossible sets, and races them', async (
   );
   await expect(page.locator('#preview-start')).toBeEnabled();
 
+  // Elevation transitions are independent: a steep climb can be paired with a
+  // different descent instead of a matching steep descent.
+  await page.goto(
+    '/track.html?seed=preview-steep&require=steep-ramp&exclude=steep-ramp-down',
+  );
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    '1 required · 1 excluded · all met.',
+    { timeout: 30_000 },
+  );
+  await expect(
+    page.locator('.preview__segment[data-kind="steep-ramp"]'),
+  ).toHaveAttribute('data-state', 'require');
+  await expect(
+    page.locator('.preview__segment[data-kind="steep-ramp-down"]'),
+  ).toHaveAttribute('data-state', 'exclude');
+  await expect(page.locator('#preview-start')).toBeEnabled();
+
   // A feasible set builds, reports every rule, and hands the same seed and
   // rules to the race page.
   await page.goto('/track.html?seed=preview-required&require=obstacles,bridge');

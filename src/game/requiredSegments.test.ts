@@ -158,10 +158,82 @@ describe('required segments', () => {
     expect(() =>
       generateCircuit('contradictory-rules', 1, {
         requiredKinds: ['steep-ramp'],
-        excludedKinds: ['steep-ramp-down'],
+        excludedKinds: [
+          'steep-ramp-down',
+          'spiral-down',
+          'ramp-down',
+          'kicker',
+          'gap',
+          'landing',
+        ],
       }),
-    ).toThrow(/must be included or excluded together/);
+    ).toThrow(/with rules:/);
   });
+
+  it('lets a steep climb return on a different descent', () => {
+    const circuit = generateCircuit('steep-up-independent', 1, {
+      requiredKinds: ['steep-ramp'],
+      excludedKinds: ['steep-ramp-down'],
+    });
+    const kinds = circuit.pieces.map((piece) => piece.kind);
+    expect(kinds).toContain('steep-ramp');
+    expect(kinds).not.toContain('steep-ramp-down');
+    expect(
+      kinds.some((kind) =>
+        ['spiral-down', 'ramp-down', 'kicker'].includes(kind),
+      ),
+    ).toBe(true);
+  }, 30_000);
+
+  it('lets a steep descent follow a different climb', () => {
+    const circuit = generateCircuit('steep-down-independent', 1, {
+      requiredKinds: ['steep-ramp-down'],
+      excludedKinds: ['steep-ramp'],
+    });
+    const kinds = circuit.pieces.map((piece) => piece.kind);
+    expect(kinds).toContain('steep-ramp-down');
+    expect(kinds).not.toContain('steep-ramp');
+    expect(
+      kinds.some((kind) => ['spiral-up', 'ramp-up'].includes(kind)),
+    ).toBe(true);
+  }, 30_000);
+
+  it('lets a steep climb return on a spiral descent', () => {
+    const circuit = generateCircuit('steep-spiral-descent', 1, {
+      requiredKinds: ['steep-ramp', 'spiral-down'],
+      excludedKinds: ['steep-ramp-down', 'ramp-up', 'ramp-down'],
+    });
+    const kinds = circuit.pieces.map((piece) => piece.kind);
+    expect(kinds).toContain('steep-ramp');
+    expect(kinds).toContain('spiral-down');
+    expect(kinds).not.toContain('steep-ramp-down');
+  }, 30_000);
+
+  it('uses only spiral transitions when the other elevation kinds are excluded', () => {
+    const circuit = generateCircuit('spiral-only-elevation', 1, {
+      requiredKinds: ['spiral-up', 'spiral-down'],
+      excludedKinds: [
+        'ramp-up',
+        'ramp-down',
+        'steep-ramp',
+        'steep-ramp-down',
+        'kicker',
+        'gap',
+        'landing',
+      ],
+    });
+    const kinds = circuit.pieces.map((piece) => piece.kind);
+    expect(kinds).toContain('spiral-up');
+    expect(kinds).toContain('spiral-down');
+    for (const kind of [
+      'ramp-up',
+      'ramp-down',
+      'steep-ramp',
+      'steep-ramp-down',
+    ] as const) {
+      expect(kinds).not.toContain(kind);
+    }
+  }, 30_000);
 
   it('returns the same circuit for the same exclusion rules', () => {
     const options = {

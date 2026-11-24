@@ -786,6 +786,10 @@ interface AssemblyConstraints {
   allowElevated?: boolean;
   /** Allow the steep sky-jump pair. */
   allowSteep?: boolean;
+  /** Elevation kinds the circuit must contain. */
+  requiredElevation?: readonly Piece['kind'][];
+  /** Elevation kinds the circuit must not contain. */
+  excludedElevation?: readonly Piece['kind'][];
 }
 
 function assembleCircuit(
@@ -809,6 +813,8 @@ function assembleCircuit(
   const allowObstacles = constraints.allowObstacles !== false;
   const allowElevated = constraints.allowElevated !== false;
   const allowSteep = constraints.allowSteep !== false;
+  const requiredElevation = new Set(constraints.requiredElevation ?? []);
+  const excludedElevation = new Set(constraints.excludedElevation ?? []);
   const radius = turnRadiusForLevel(level);
   const loopRadius = loopRadiusForLevel(level);
   const straights = straightCatalogForLevel(level);
@@ -1162,146 +1168,339 @@ function assembleCircuit(
     .filter((index) => !reservedLegs.has(index));
   const transitions = new Map<number, Transition>();
 
-  const pickLegs = (count: number): number[] => {
-    const pool = [...freeLegs];
-    const chosen: number[] = [];
-    while (chosen.length < count && pool.length > 0) {
-      const index = Math.floor(random() * pool.length);
-      chosen.push(pool[index]!);
-      pool.splice(index, 1);
-    }
-    return chosen.sort((a, b) => a - b);
-  };
-
   if (elevated && freeLegs.length >= 2) {
-    const makeTransition = (
-      direction: 'up' | 'down',
-      legIndex: number,
-      stageLevels: 1 | 2,
-      allowRamp: boolean,
-    ): Transition => {
-      const boost = boostLegs.has(legIndex) ? CIRCUIT_BOOST_LENGTH : 0;
-      const available =
-        (legs[legIndex] ?? 0) - CIRCUIT_LEAD_STRAIGHT - boost;
-      // A ramp uses the same authored slope at one or two levels, so its plan
-      // length grows with the height. Use it whenever the leg has room, and
-      // fall back to the spiral otherwise.
-      const rampLength = BRIDGE_RAMP_LENGTH * stageLevels;
-      const canRamp = allowRamp && available >= rampLength;
-      if (canRamp && random() < 0.45) {
-        const height = BRIDGE_HEIGHT * stageLevels;
-        return {
-          kind: direction === 'up' ? 'ramp-up' : 'ramp-down',
-          path:
-            direction === 'up'
-              ? bridgeRampUpPath(rampLength, height)
-              : bridgeRampDownPath(rampLength, height),
-          length: rampLength,
-          plan: rampLength,
-        };
-      }
-      const height = BRIDGE_HEIGHT * stageLevels;
-      // A downhill jump is a descent that vaults from the raised deck down to
-      // a lower deck. It is long, so only offer it when the leg has room; then
-      // a fraction of descents become a jump instead of a ramp or spiral.
-      const jumpPlan = downJumpPlanarLength(stageLevels);
-      if (
-        direction === 'down' &&
-        available >= jumpPlan &&
-        random() < 0.3
-      ) {
-        return {
-          kind: 'jump-down',
-          path: gapPath(),
-          length: JUMP_KICKER_LENGTH + JUMP_GAP_LENGTH + downJumpLandingLength(stageLevels),
-          plan: jumpPlan,
-          stageLevels,
-        };
-      }
-      return {
-        kind: direction === 'up' ? 'spiral-up' : 'spiral-down',
-        path:
-          direction === 'up'
-            ? spiralUpPath(SPIRAL_RADIUS, height, stageLevels)
-            : spiralDownPath(SPIRAL_RADIUS, height, stageLevels),
-        length: spiralArcLength(SPIRAL_RADIUS, height, stageLevels),
-        plan: 0,
-      };
-    };
-
-    // Five- and six-corner circuits have a third free leg, so some seeds use a
-    // two-stage elevation: climb one level, keep driving, then either climb or
-    // descend another level. That puts both one-level and two-level spirals in
-    // the same circuit instead of forcing one height for the whole layout.
-    //
-    // Some seeds instead use the steep pair: a four-level sky jump on one leg
-    // and a matching steep descent on a later leg. Both legs must have room for
-    // their module after the lead straight, or the seed falls back to the
-    // staged route below.
+    const steepUpPlan = skyJumpPlanarLength();
+    const steepDownPlan = steepRampRun(STEEP_RAMP_HEIGHT);
     const transitionAvailable = (legIndex: number): number =>
       (legs[legIndex] ?? 0) -
       CIRCUIT_LEAD_STRAIGHT -
       (boostLegs.has(legIndex) ? CIRCUIT_BOOST_LENGTH : 0);
-    const steepUpPlan = skyJumpPlanarLength();
-    const steepDownPlan = steepRampRun(STEEP_RAMP_HEIGHT);
-    const steepUpLegs = freeLegs.filter(
-      (legIndex) => transitionAvailable(legIndex) >= steepUpPlan,
-    );
-    const steepDownLegs = freeLegs.filter(
-      (legIndex) => transitionAvailable(legIndex) >= steepDownPlan,
-    );
-    const steepUpCandidates = steepUpLegs.filter((upLeg) =>
-      steepDownLegs.some((downLeg) => downLeg > upLeg),
-    );
-    // A pre-rolled sky-jump seed uses the steep pair whenever both legs fit.
-    // Other seeds use the staged route, so the steep ramp stays a deliberate
-    // part of the rotation instead of depending on a rare long leg.
-    const useSteepPair = skyJump && steepUpCandidates.length > 0;
 
-    if (useSteepPair) {
-      const upLeg =
-        steepUpCandidates[Math.floor(random() * steepUpCandidates.length)]!;
-      const downCandidates = steepDownLegs.filter(
-        (legIndex) => legIndex > upLeg,
-      );
-      const downLeg =
-        downCandidates[Math.floor(random() * downCandidates.length)]!;
-      transitions.set(upLeg, {
-        kind: 'steep-jump',
-        path: gapPath(),
-        length: steepUpPlan,
-        plan: steepUpPlan,
-      });
-      transitions.set(downLeg, {
-        kind: 'steep-ramp-down',
-        path: steepRampDownPath(STEEP_RAMP_HEIGHT),
-        length: steepDownPlan,
-        plan: steepDownPlan,
-      });
-    } else {
-      const combineLevels = freeLegs.length >= 3 && random() < 0.5;
-      if (combineLevels) {
-        const [first, second, third] = pickLegs(3);
-        if (random() < 0.5) {
-          transitions.set(first!, makeTransition('up', first!, 1, true));
-          transitions.set(second!, makeTransition('up', second!, 1, true));
-          transitions.set(third!, makeTransition('down', third!, 2, true));
-        } else {
-          transitions.set(first!, makeTransition('up', first!, 2, true));
-          transitions.set(second!, makeTransition('down', second!, 1, true));
-          transitions.set(third!, makeTransition('down', third!, 1, true));
+    type ElevationKind =
+      | 'ramp-up'
+      | 'ramp-down'
+      | 'spiral-up'
+      | 'spiral-down'
+      | 'jump-down'
+      | 'steep-jump'
+      | 'steep-ramp-down';
+    interface ElevationChoice {
+      kind: ElevationKind;
+      levels: 1 | 2 | 4;
+      plan: number;
+    }
+    interface ElevationPlan {
+      ups: ElevationChoice[];
+      downs: ElevationChoice[];
+    }
+    interface ElevationAssignment {
+      ups: { choice: ElevationChoice; leg: number }[];
+      downs: { choice: ElevationChoice; leg: number }[];
+    }
+
+    const upChoices: ElevationChoice[] = [];
+    const downChoices: ElevationChoice[] = [];
+    const pieceKindOf = (choice: ElevationChoice): Piece['kind'] | null =>
+      choice.kind === 'steep-jump'
+        ? 'steep-ramp'
+        : choice.kind === 'jump-down'
+          ? null
+          : choice.kind;
+    if (allowElevated) {
+      if (!excludedElevation.has('ramp-up')) {
+        upChoices.push({
+          kind: 'ramp-up',
+          levels: 1,
+          plan: BRIDGE_RAMP_LENGTH,
+        });
+        upChoices.push({
+          kind: 'ramp-up',
+          levels: 2,
+          plan: BRIDGE_RAMP_LENGTH * 2,
+        });
+      }
+      if (!excludedElevation.has('spiral-up')) {
+        upChoices.push({ kind: 'spiral-up', levels: 1, plan: 0 });
+        upChoices.push({ kind: 'spiral-up', levels: 2, plan: 0 });
+      }
+      if (allowSteep && !excludedElevation.has('steep-ramp')) {
+        upChoices.push({
+          kind: 'steep-jump',
+          levels: 4,
+          plan: steepUpPlan,
+        });
+      }
+      if (!excludedElevation.has('ramp-down')) {
+        downChoices.push({
+          kind: 'ramp-down',
+          levels: 1,
+          plan: BRIDGE_RAMP_LENGTH,
+        });
+        downChoices.push({
+          kind: 'ramp-down',
+          levels: 2,
+          plan: BRIDGE_RAMP_LENGTH * 2,
+        });
+      }
+      if (!excludedElevation.has('spiral-down')) {
+        downChoices.push({ kind: 'spiral-down', levels: 1, plan: 0 });
+        downChoices.push({ kind: 'spiral-down', levels: 2, plan: 0 });
+      }
+      if (allowJump) {
+        downChoices.push({
+          kind: 'jump-down',
+          levels: 1,
+          plan: downJumpPlanarLength(1),
+        });
+        downChoices.push({
+          kind: 'jump-down',
+          levels: 2,
+          plan: downJumpPlanarLength(2),
+        });
+      }
+      if (allowSteep && !excludedElevation.has('steep-ramp-down')) {
+        downChoices.push({
+          kind: 'steep-ramp-down',
+          levels: 4,
+          plan: steepDownPlan,
+        });
+      }
+    }
+
+    const partitionsFor = (total: number): (1 | 2 | 4)[][] => {
+      const result: (1 | 2 | 4)[][] = [];
+      const walk = (
+        remaining: number,
+        minimum: 1 | 2 | 4,
+        prefix: (1 | 2 | 4)[],
+      ): void => {
+        if (remaining === 0) {
+          result.push([...prefix]);
+          return;
         }
-      } else {
-        const [upLeg, downLeg] = pickLegs(2);
-        const stageLevels = random() < 0.35 ? 2 : 1;
-        transitions.set(
-          upLeg!,
-          makeTransition('up', upLeg!, stageLevels, true),
+        for (const level of [1, 2, 4] as const) {
+          if (level < minimum || level > remaining) {
+            continue;
+          }
+          walk(remaining - level, level, [...prefix, level]);
+        }
+      };
+      walk(total, 1, []);
+      return result;
+    };
+    const combinations = <T,>(
+      options: T[][],
+      index = 0,
+      prefix: T[] = [],
+    ): T[][] => {
+      if (index >= options.length) {
+        return [prefix];
+      }
+      const result: T[][] = [];
+      for (const option of options[index] ?? []) {
+        result.push(...combinations(options, index + 1, [...prefix, option]));
+      }
+      return result;
+    };
+    const choicesFor = (
+      choices: ElevationChoice[],
+      levels: (1 | 2 | 4)[],
+    ): ElevationChoice[][] =>
+      levels.map((level) =>
+        choices.filter((choice) => choice.levels === level),
+      );
+
+    const plans: ElevationPlan[] = [];
+    for (let total = 1; total <= 4; total += 1) {
+      for (const upLevels of partitionsFor(total)) {
+        for (const downLevels of partitionsFor(total)) {
+          const upGroups = choicesFor(upChoices, upLevels);
+          const downGroups = choicesFor(downChoices, downLevels);
+          if (
+            upGroups.some((group) => group.length === 0) ||
+            downGroups.some((group) => group.length === 0)
+          ) {
+            continue;
+          }
+          for (const ups of combinations(upGroups)) {
+            for (const downs of combinations(downGroups)) {
+              if (ups.length + downs.length > freeLegs.length) {
+                continue;
+              }
+              const used = new Set(
+                [...ups, ...downs]
+                  .map(pieceKindOf)
+                  .filter(
+                    (kind): kind is Piece['kind'] => kind !== null,
+                  ),
+              );
+              if (
+                [...requiredElevation].some((kind) => !used.has(kind))
+              ) {
+                continue;
+              }
+              plans.push({ ups, downs });
+            }
+          }
+        }
+      }
+    }
+
+    // A pre-rolled sky-jump seed prefers a steep climb; the descent can be any
+    // combination of allowed drops, including two 2-level spirals.
+    let preferred = plans;
+    if (skyJump) {
+      const steep = plans.filter((plan) =>
+        plan.ups.some((choice) => choice.kind === 'steep-jump'),
+      );
+      if (steep.length > 0) {
+        preferred = steep;
+      }
+    } else if (
+      freeLegs.length >= 3 &&
+      requiredElevation.size === 0 &&
+      random() < 0.5
+    ) {
+      // Keep the old mix of one- and two-level spirals in one circuit when
+      // there is room and no rule forces a particular elevation.
+      const mixed = plans.filter((plan) => {
+        const spirals = [...plan.ups, ...plan.downs].filter(
+          (choice) =>
+            choice.kind === 'spiral-up' ||
+            choice.kind === 'spiral-down',
         );
-        transitions.set(
-          downLeg!,
-          makeTransition('down', downLeg!, stageLevels, true),
+        return (
+          spirals.some((choice) => choice.levels === 1) &&
+          spirals.some((choice) => choice.levels === 2)
         );
+      });
+      if (mixed.length > 0) {
+        preferred = mixed;
+      }
+    }
+
+    const legSets = (count: number): number[][] => {
+      const result: number[][] = [];
+      const walk = (start: number, chosen: number[]): void => {
+        if (chosen.length === count) {
+          result.push([...chosen]);
+          return;
+        }
+        for (let index = start; index < freeLegs.length; index += 1) {
+          walk(index + 1, [...chosen, freeLegs[index]!]);
+        }
+      };
+      walk(0, []);
+      return result;
+    };
+
+    const assignments: ElevationAssignment[] = [];
+    for (const plan of preferred) {
+      const count = plan.ups.length + plan.downs.length;
+      if (count === 0) {
+        continue;
+      }
+      for (const legSet of legSets(count)) {
+        const upLegs = [...legSet.slice(0, plan.ups.length)].sort(
+          (a, b) => transitionAvailable(b) - transitionAvailable(a),
+        );
+        const downLegs = [...legSet.slice(plan.ups.length)].sort(
+          (a, b) => transitionAvailable(b) - transitionAvailable(a),
+        );
+        const ups = [...plan.ups]
+          .sort((a, b) => b.plan - a.plan)
+          .map((choice, index) => ({ choice, leg: upLegs[index]! }));
+        const downs = [...plan.downs]
+          .sort((a, b) => b.plan - a.plan)
+          .map((choice, index) => ({ choice, leg: downLegs[index]! }));
+        if (
+          ups.every(
+            ({ choice, leg }) =>
+              choice.plan <= transitionAvailable(leg),
+          ) &&
+          downs.every(
+            ({ choice, leg }) =>
+              choice.plan <= transitionAvailable(leg),
+          )
+        ) {
+          assignments.push({ ups, downs });
+        }
+      }
+    }
+
+    const makeTransition = (choice: ElevationChoice): Transition => {
+      const height = BRIDGE_HEIGHT * choice.levels;
+      if (choice.kind === 'steep-jump') {
+        return {
+          kind: 'steep-jump',
+          path: gapPath(),
+          length: steepUpPlan,
+          plan: steepUpPlan,
+        };
+      }
+      if (choice.kind === 'steep-ramp-down') {
+        return {
+          kind: 'steep-ramp-down',
+          path: steepRampDownPath(STEEP_RAMP_HEIGHT),
+          length: steepDownPlan,
+          plan: steepDownPlan,
+        };
+      }
+      if (choice.kind === 'jump-down') {
+        return {
+          kind: 'jump-down',
+          path: gapPath(),
+          length:
+            JUMP_KICKER_LENGTH +
+            JUMP_GAP_LENGTH +
+            downJumpLandingLength(choice.levels as 1 | 2),
+          plan: downJumpPlanarLength(choice.levels as 1 | 2),
+          stageLevels: choice.levels as 1 | 2,
+        };
+      }
+      if (choice.kind === 'ramp-up' || choice.kind === 'ramp-down') {
+        const length = BRIDGE_RAMP_LENGTH * choice.levels;
+        return {
+          kind: choice.kind,
+          path:
+            choice.kind === 'ramp-up'
+              ? bridgeRampUpPath(length, height)
+              : bridgeRampDownPath(length, height),
+          length,
+          plan: length,
+        };
+      }
+      return {
+        kind: choice.kind,
+        path:
+          choice.kind === 'spiral-up'
+            ? spiralUpPath(
+                SPIRAL_RADIUS,
+                height,
+                choice.levels as 1 | 2,
+              )
+            : spiralDownPath(
+                SPIRAL_RADIUS,
+                height,
+                choice.levels as 1 | 2,
+              ),
+        length: spiralArcLength(
+          SPIRAL_RADIUS,
+          height,
+          choice.levels as 1 | 2,
+        ),
+        plan: 0,
+      };
+    };
+
+    if (assignments.length > 0) {
+      const assignment =
+        assignments[Math.floor(random() * assignments.length)]!;
+      for (const { choice, leg } of assignment.ups) {
+        transitions.set(leg, makeTransition(choice));
+      }
+      for (const { choice, leg } of assignment.downs) {
+        transitions.set(leg, makeTransition(choice));
       }
     }
   }
@@ -1620,19 +1819,14 @@ export function generateCircuit(
   ) {
     fail('the jump launch, gap, and landing must be included or excluded together');
   }
-  const pairs: [Piece['kind'], Piece['kind']][] = [
-    ['spiral-up', 'spiral-down'],
-    ['ramp-up', 'ramp-down'],
-    ['steep-ramp', 'steep-ramp-down'],
+  const plannerElevationKinds: Piece['kind'][] = [
+    'spiral-up',
+    'spiral-down',
+    'ramp-up',
+    'ramp-down',
+    'steep-ramp',
+    'steep-ramp-down',
   ];
-  for (const [up, down] of pairs) {
-    if (
-      (wanted.has(up) && forbidden.has(down)) ||
-      (wanted.has(down) && forbidden.has(up))
-    ) {
-      fail(`${up} and ${down} must be included or excluded together`);
-    }
-  }
 
   const hasSatisfied = (circuit: Circuit): boolean => {
     if (wanted.size === 0 && forbidden.size === 0) {
@@ -1668,7 +1862,15 @@ export function generateCircuit(
     allowJump: !jumpKinds.some((kind) => forbidden.has(kind)),
     allowObstacles: !forbidden.has('obstacles'),
     allowElevated: !elevationKinds.every((kind) => forbidden.has(kind)),
-    allowSteep: !pairs[2]!.some((kind) => forbidden.has(kind)),
+    allowSteep:
+      !forbidden.has('steep-ramp') ||
+      !forbidden.has('steep-ramp-down'),
+    requiredElevation: required.filter((kind) =>
+      plannerElevationKinds.includes(kind),
+    ),
+    excludedElevation: excluded.filter((kind) =>
+      plannerElevationKinds.includes(kind),
+    ),
   };
 
   const failures: string[] = [];
