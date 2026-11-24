@@ -68,7 +68,8 @@ footprint, its face holds 80° between a 3.2 m entry ease and a 2.1 m exit ease,
 and its surface is a boost strip so a car that arrives slowly still makes the
 climb. Its top carries a compact kicker, a 4 m gap, and an 18 m wide landing
 deck at the raised height, so the car launches off the top and lands back on
-the four-level deck; a matching steep descent returns to the lower deck.
+the four-level deck; the route can return on a steep descent or another
+balanced combination of allowed descents.
 
 ## Buildings
 

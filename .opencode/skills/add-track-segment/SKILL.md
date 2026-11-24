@@ -56,7 +56,7 @@ export const MY_RAMP_EASE = 3;
 ```
 
 Do not hardcode a height that only one hand-picked seed can descend; use one or
-two bridge levels unless you also add a matching descent.
+two bridge levels unless you also add a descent combination that balances it.
 
 ## 3. Author the path in `src/game/track.ts`
 
@@ -333,9 +333,10 @@ Read these in order when you need a real reference:
 - `src/game/Game.ts` — boost zones are created from `piece.boost` and
   `splitPieces` draws the boost texture;
 - `src/game/track.test.ts` — 80° peak, exact height, flat lower joins, and the
-  matching descent;
+  balancing descent;
 - `src/game/trackRandomization.test.ts` — finds a generated circuit, validates
-  it, checks the kicker/gap/landing and the matching steep descent;
+  it, checks the kicker/gap/landing, and checks a steep descent when the same
+  candidate contains one;
 - `src/game/physics.test.ts` — drives the ramp with boost zones, observes the
   gap, and asserts the car lands on the raised deck;
 - `tools/preview/preview.mjs`, `tools/render-assets.mjs`,

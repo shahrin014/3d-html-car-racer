@@ -404,8 +404,9 @@ car that reaches the foot slowly is pushed up rather than sliding back. The
 top SHALL end on a compact kicker, a short deckless gap, and a wide landing
 deck at the raised height, so a car at racing speed flies off the top instead
 of staying planted. The landing SHALL keep its guide rails and settle the car
-on the four-level elevated deck. A matching steep descent SHALL return the
-route to the lower deck elsewhere.
+on the four-level elevated deck. The route SHALL return to the lower deck on a
+later leg using any allowed descent combination that balances the four-level
+climb, such as a steep descent or two 2-level spiral descents.
 
 #### Scenario: Track width
 
