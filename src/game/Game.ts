@@ -173,6 +173,7 @@ export class Game {
     requiredKinds: readonly Piece['kind'][] = [],
     excludedKinds: readonly Piece['kind'][] = [],
     minimumCounts: Partial<Record<Piece['kind'], number>> = {},
+    crossovers?: 0 | 1 | 2,
   ) {
     this.carId = carId;
     this.container = container;
@@ -214,6 +215,7 @@ export class Game {
         requiredKinds,
         excludedKinds,
         minimumCounts,
+        ...(crossovers === undefined ? {} : { crossovers }),
       }),
     );
 

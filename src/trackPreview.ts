@@ -16,6 +16,7 @@ import {
 import { randomSeed } from './game/seed';
 import {
   markPendingCounts,
+  markPendingCrossovers,
   markPendingExclusions,
   markPendingRequirements,
   markPendingSeed,
@@ -296,10 +297,12 @@ export class TrackPreview {
   setSeed(
     seed: string,
     minimumCounts: Partial<Record<Piece['kind'], number>> = {},
+    crossovers?: 0 | 1 | 2,
   ): Circuit {
     const circuit = generateCircuit(seed, DEFAULT_LEVEL, {
       allowMultiCrossing: true,
       minimumCounts,
+      ...(crossovers === undefined ? {} : { crossovers }),
     });
     const frames = buildFrames(circuit);
     this.disposeCircuit();
@@ -507,6 +510,7 @@ const collapseRequirementsButton = mustQuery<HTMLButtonElement>(
 );
 const startButton = mustQuery<HTMLButtonElement>('#preview-start');
 const copyButton = mustQuery<HTMLButtonElement>('#preview-copy');
+const crossoversSelect = mustQuery<HTMLSelectElement>('#preview-crossovers');
 const backButton = mustQuery<HTMLButtonElement>('#preview-back');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const loading = mustQuery<HTMLElement>('#preview-loading');
@@ -779,6 +783,7 @@ try {
 }
 
 let seed = randomSeed();
+let crossovers: 0 | 1 | 2 | null = null;
 let busy = false;
 let buildFailed = false;
 let requirementsDirty = false;
@@ -791,6 +796,15 @@ const initialParams = new URLSearchParams(window.location.search);
 const requestedSeed = initialParams.get('seed')?.trim();
 if (requestedSeed) {
   seed = requestedSeed;
+}
+const requestedCrossovers = initialParams.get('crossovers');
+if (
+  requestedCrossovers === '0' ||
+  requestedCrossovers === '1' ||
+  requestedCrossovers === '2'
+) {
+  crossovers = Number(requestedCrossovers) as 0 | 1 | 2;
+  crossoversSelect.value = requestedCrossovers;
 }
 const requestedCounts = parseCountEntries(initialParams.get('counts'));
 const requestedRequirements = parseCountEntries(initialParams.get('require'));
@@ -805,7 +819,7 @@ const requested =
 for (const { kind, count } of requested) {
   segmentCounts.set(kind, count);
 }
-if (requested.length > 0) {
+if (requested.length > 0 || crossovers !== null) {
   normalizeCounts();
   refreshCountUi();
   showCounts();
@@ -841,6 +855,11 @@ function showCounts(): void {
   } else {
     url.searchParams.delete('counts');
   }
+  if (crossovers !== null) {
+    url.searchParams.set('crossovers', String(crossovers));
+  } else {
+    url.searchParams.delete('crossovers');
+  }
   // The canonical URL uses counts; drop the legacy parameters.
   url.searchParams.delete('require');
   url.searchParams.delete('exclude');
@@ -853,8 +872,13 @@ function updateRequirementsNote(
 ): void {
   requirementsNote.classList.remove('is-error');
   const entries = Object.entries(counts) as [Piece['kind'], number][];
+  const crossoverLabel =
+    crossovers === null
+      ? null
+      : `${crossovers} crossover${crossovers === 1 ? '' : 's'}`;
   if (entries.length === 0) {
     requirementsNote.textContent =
+      crossoverLabel ??
       'Set a minimum count; No leaves it to the seed, 0 excludes it.';
     return;
   }
@@ -879,9 +903,9 @@ function updateRequirementsNote(
     requirementsNote.classList.add('is-error');
     return;
   }
-  requirementsNote.textContent = `${entries.length} rule${
-    entries.length === 1 ? '' : 's'
-  } · all met.`;
+  requirementsNote.textContent = `${
+    crossoverLabel ? `${crossoverLabel} · ` : ''
+  }${entries.length} rule${entries.length === 1 ? '' : 's'} · all met.`;
 }
 
 function updateSegmentStatuses(circuit: Circuit | null): void {
@@ -926,7 +950,7 @@ function build(next: string): void {
   requestAnimationFrame(() => {
     const counts = selectedCounts();
     try {
-      const circuit = preview?.setSeed(next, counts) ?? null;
+      const circuit = preview?.setSeed(next, counts, crossovers ?? undefined) ?? null;
       if (!circuit) {
         return;
       }
@@ -942,7 +966,7 @@ function build(next: string): void {
       const message = error instanceof Error ? error.message : 'Track unavailable';
       requirementsNote.textContent =
         message.includes('cannot be combined')
-          ? 'Multi-crossing is a whole layout; select it alone.'
+          ? 'A 2-crossing or multi-crossing layout is a whole circuit; clear the segment counts.'
           : message.includes('Cannot fit') || message.includes('with rules:')
             ? 'Those rules cannot be fitted together. Change one or press Randomize.'
             : message;
@@ -1046,6 +1070,14 @@ function randomCounts(): Partial<Record<Piece['kind'], number>> {
   return counts;
 }
 
+crossoversSelect.addEventListener('change', () => {
+  const value = crossoversSelect.value;
+  crossovers =
+    value === 'auto' ? null : (Number(value) as 0 | 1 | 2);
+  showCounts();
+  scheduleBuild();
+});
+
 copyButton.addEventListener('click', async () => {
   const url = window.location.href;
   try {
@@ -1112,6 +1144,7 @@ startButton.addEventListener('click', () => {
     return;
   }
   markPendingCounts(selectedCounts());
+  markPendingCrossovers(crossovers);
   markPendingRequirements([]);
   markPendingExclusions([]);
   markPendingSeed(seed);

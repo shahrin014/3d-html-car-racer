@@ -19,6 +19,7 @@ by shape and crossing count:
 | --- | --- | --- |
 | Polygon | 0 | Three to six banked corners joined by legs; no self-crossing. |
 | Single-crossing | 1 | The current four-corner bridge layout, with one pass over another. |
+| Double-crossing | 2 | A closed 3D route that passes over itself twice. |
 | Multi-crossing | 3 or 4 | A closed 3D route that passes over itself three or four times. |
 
 The former names "figure-eight" and "bowtie" are not used for any layout. The
@@ -35,12 +36,15 @@ of the requirements.
 | Circuit scale | 1.5× the base catalogue |
 | Corner counts | 3, 4, 5, or 6 |
 | Single-crossing share | about half of seeds |
+| Crossovers | Auto, 0, 1, or 2 in the preview |
 | Multi-crossing share | about a quarter of layout-enabled seeds |
 | Multi-crossing counts | 3 or 4 crossings |
 | Multi-crossing scale | 10–14 m for the base crossing curve |
 | Crossing clearance | at least 3.5 m between the upper and lower passes |
 | Multi-crossing boost strips | 2–3 per layout |
 | Multi-crossing segments | 12 sampled pieces for mesh, boost, and progress
+| Double-crossing scale | 12–16 m for the base two-crossing curve |
+| Double-crossing segments | 12 sampled pieces for mesh, boost, and progress
 | Turn radius | 12–27 m across the level ladder |
 | Turn bank | 20–45° |
 | Straight lengths | 12–30 m across the level ladder |
@@ -230,17 +234,30 @@ together, and the jump launch, gap, and landing SHALL move together. Elevation
 up and down pieces SHALL be independent: a climb may return on any allowed
 combination of descents, such as a steep climb followed by two 2-level spiral
 descents. Excluding the loop SHALL produce a loopless polygon circuit that is
-still closed and playable. The preview SHALL provide a button that randomizes a
-compatible mix of counts and regenerates. Requiring a multi-crossing layout
+still closed and playable. The preview SHALL also offer a crossovers control with **Auto**, **0**, **1**,
+and **2**: 0 forces a polygon, 1 forces the single-crossing layout, and 2
+forces the double-crossing layout. A double-crossing or multi-crossing layout is
+one whole circuit and SHALL NOT be combined with catalog segment counts. The
+preview SHALL provide a button that randomizes a compatible mix of counts and
+regenerates. Requiring a multi-crossing layout
 together with catalog segments SHALL be rejected, because the trefoil is one
 whole circuit. If a count set cannot be assembled, the preview SHALL report it,
 keep the previous circuit visible, and keep Start race disabled until a track
 builds. Starting the race from the preview SHALL pass the count list to the
 race, so the race uses the same circuit. The preview SHALL keep the seed and
 every non-default count in the URL as
-`?seed=<seed>&counts=<kind>:<value>,...` and SHALL provide a control to copy
+`?seed=<seed>&counts=<kind>:<value>,...&crossovers=0|1|2` and SHALL provide a control to copy
 that link. Loading the link SHALL reproduce the same circuit. Legacy
 `require`/`exclude` links MAY still be accepted.
+
+#### Scenario: Crossover count is forced
+
+- **GIVEN** the preview with crossovers set to 0, 1, or 2
+- **WHEN** the track is regenerated
+- **THEN** the circuit uses a polygon, single-crossing, or double-crossing layout
+  respectively
+- **AND** the single-crossing layout keeps the loop under the bridge
+- **AND** the double-crossing layout passes over other track exactly twice
 
 #### Scenario: Minimum count appears
 
@@ -313,7 +330,8 @@ that link. Loading the link SHALL reproduce the same circuit. Legacy
 
 - **GIVEN** a preview with a seed and segment counts
 - **WHEN** the player copies the link or reloads the page
-- **THEN** the URL contains the seed and every non-default count
+- **THEN** the URL contains the seed, every non-default count, and the
+  crossovers selection
 - **AND** loading the URL produces the same circuit
 
 #### Scenario: Preview and race share segment counts
