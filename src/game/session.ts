@@ -11,6 +11,7 @@ import type { Piece } from './track';
 export const PENDING_START_KEY = 'neon-racer.pending-start';
 export const PENDING_SEED_KEY = 'neon-racer.pending-seed';
 export const PENDING_REQUIREMENTS_KEY = 'neon-racer.pending-requirements';
+export const PENDING_EXCLUSIONS_KEY = 'neon-racer.pending-exclusions';
 
 /** Mark the next load of game.html as a real race start. */
 export function markPendingStart(): void {
@@ -35,6 +36,7 @@ export function clearPendingSeed(): void {
   try {
     window.sessionStorage.removeItem(PENDING_SEED_KEY);
     window.sessionStorage.removeItem(PENDING_REQUIREMENTS_KEY);
+    window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
   } catch {
     // Persistence is best effort.
   }
@@ -67,6 +69,31 @@ export function clearPendingRequirements(): void {
   }
 }
 
+/** Hand the previewed excluded segments to the race page. */
+export function markPendingExclusions(kinds: readonly Piece['kind'][]): void {
+  try {
+    if (kinds.length === 0) {
+      window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(
+      PENDING_EXCLUSIONS_KEY,
+      JSON.stringify([...new Set(kinds)]),
+    );
+  } catch {
+    // Without session storage the race still draws its own circuit.
+  }
+}
+
+/** Drop any previewed exclusions. */
+export function clearPendingExclusions(): void {
+  try {
+    window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
+  } catch {
+    // Persistence is best effort.
+  }
+}
+
 /** Read and clear the start flag. */
 export function takePendingStart(): boolean {
   try {
@@ -89,11 +116,10 @@ export function takePendingSeed(): string | null {
   }
 }
 
-/** Read and clear the previewed segment requirements. */
-export function takePendingRequirements(): Piece['kind'][] {
+function takePendingKinds(key: string): Piece['kind'][] {
   try {
-    const raw = window.sessionStorage.getItem(PENDING_REQUIREMENTS_KEY);
-    window.sessionStorage.removeItem(PENDING_REQUIREMENTS_KEY);
+    const raw = window.sessionStorage.getItem(key);
+    window.sessionStorage.removeItem(key);
     if (!raw) {
       return [];
     }
@@ -107,4 +133,14 @@ export function takePendingRequirements(): Piece['kind'][] {
   } catch {
     return [];
   }
+}
+
+/** Read and clear the previewed segment requirements. */
+export function takePendingRequirements(): Piece['kind'][] {
+  return takePendingKinds(PENDING_REQUIREMENTS_KEY);
+}
+
+/** Read and clear the previewed excluded segments. */
+export function takePendingExclusions(): Piece['kind'][] {
+  return takePendingKinds(PENDING_EXCLUSIONS_KEY);
 }

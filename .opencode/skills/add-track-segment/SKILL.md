@@ -262,9 +262,11 @@ At minimum:
   - update the thresholds when the authored rotation intentionally changes.
   A piece that is absent from this sample is effectively not generated for a
   player who only looks at the stock preview.
-- **Requirement test** in `src/game/requiredSegments.test.ts`:
+- **Segment-rule test** in `src/game/requiredSegments.test.ts`:
   - add the new kind to the `SEGMENTS` list;
   - generate with `requiredKinds: [kind]` and assert the circuit contains it;
+  - generate with `excludedKinds: [kind]` and assert it is absent;
+  - if the kind is structural, assert excluding it throws;
   - keep the impossible-combination cases honest when the new kind introduces
     another family conflict.
 - **Physics test** in `src/game/physics.test.ts` if the piece changes driving:
@@ -300,8 +302,10 @@ Before committing, confirm the inventory contract:
 - every `Piece['kind']` you added or touched has a row in the **Track pieces**
   table in `assets/README.md`;
 - the new kind is in `SEGMENT_GROUPS` in `src/trackPreview.ts` and in
-  `SEGMENTS` in `src/game/requiredSegments.test.ts`, so the preview can force
-  it and the requirement test covers it;
+  `SEGMENTS` in `src/game/requiredSegments.test.ts`, so the preview can
+  require or exclude it and the segment-rule test covers it;
+- structural kinds (straight, turn, boost) stay non-excludable; a new optional
+  kind gets `excludedKinds` assembly support and a rule test;
 - a new layout family has a **Circuit layouts** row and a matching preview
   entry, not a fake piece row;
 - every solid piece has a rendered PNG and a `.glb` under `assets/track/`, and

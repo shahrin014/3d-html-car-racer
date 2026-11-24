@@ -771,11 +771,29 @@ interface PlanPoint {
  * The loop's sideways exit is cancelled by a shift piece, so the leg it sits on
  * still ends on the centreline with exactly its allocated forward length.
  */
+interface AssemblyConstraints {
+  /** Allow a polygon circuit with no vertical loop or loop return. */
+  allowLoopless?: boolean;
+  /** Allow the single-crossing bridge family. */
+  allowSingleCrossing?: boolean;
+  /** Allow a hill crest on the feature leg. */
+  allowHill?: boolean;
+  /** Allow the jump group on the feature leg. */
+  allowJump?: boolean;
+  /** Allow an obstacle corridor. */
+  allowObstacles?: boolean;
+  /** Allow climbs, bridges, ramps, and spirals. */
+  allowElevated?: boolean;
+  /** Allow the steep sky-jump pair. */
+  allowSteep?: boolean;
+}
+
 function assembleCircuit(
   seed: string,
   level: number,
   seedOffset: number,
   salt = 0,
+  constraints: AssemblyConstraints = {},
 ): Circuit {
   // A requirement search uses salted attempts; salt 0 keeps the original
   // stream so unconstrained seeds assemble exactly as they always did.
@@ -784,6 +802,13 @@ function assembleCircuit(
       ? `${seed}:${level}:${seedOffset}`
       : `${seed}:${level}:${salt}:${seedOffset}`,
   );
+  const allowLoopless = constraints.allowLoopless === true;
+  const allowSingleCrossing = constraints.allowSingleCrossing !== false;
+  const allowHill = constraints.allowHill !== false;
+  const allowJump = constraints.allowJump !== false;
+  const allowObstacles = constraints.allowObstacles !== false;
+  const allowElevated = constraints.allowElevated !== false;
+  const allowSteep = constraints.allowSteep !== false;
   const radius = turnRadiusForLevel(level);
   const loopRadius = loopRadiusForLevel(level);
   const straights = straightCatalogForLevel(level);
@@ -984,8 +1009,13 @@ function assembleCircuit(
     });
   };
 
-  const jump = random() < 0.5;
-  const singleCrossover = random() < 0.5;
+  // Always consume the rolls so an unconstrained seed keeps its old stream.
+  const jumpRoll = random();
+  const jump = allowJump && (!allowHill || jumpRoll < 0.5);
+  const noHillOrJump = !allowHill && !allowJump;
+  const singleCrossoverRoll = random();
+  const singleCrossover =
+    allowSingleCrossing && !allowLoopless && singleCrossoverRoll < 0.5;
 
   if (singleCrossover) {
     // A single-crossing layout closes when the two vertical legs match and the diagonals are
@@ -998,11 +1028,17 @@ function assembleCircuit(
     const bridgeLead = (diagonal - BRIDGE_LENGTH) / 2;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
-    const featureLength = jump ? jumpPlanarLength() : HILL_LENGTH;
-    if (jump) {
-      addJump();
-    } else {
-      addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
+    const featureLength = noHillOrJump
+      ? 0
+      : jump
+        ? jumpPlanarLength()
+        : HILL_LENGTH;
+    if (!noHillOrJump) {
+      if (jump) {
+        addJump();
+      } else {
+        addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
+      }
     }
     addStraight(legA - CIRCUIT_LEAD_STRAIGHT - featureLength);
     addTurn(turnAngle, true);
@@ -1039,7 +1075,9 @@ function assembleCircuit(
     // the blocks and is boosted out. The draw is made here, at the last
     // decision in the single-crossing assembly, so it never re-rolls the bridge
     // or elevation choices above.
-    const singleCrossoverObstacle = random() < 0.4;
+    const singleCrossoverObstacleRoll = random();
+    const singleCrossoverObstacle =
+      allowObstacles && singleCrossoverObstacleRoll < 0.4;
     addStraight(CIRCUIT_LEAD_STRAIGHT);
     if (singleCrossoverObstacle) {
       addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
@@ -1070,7 +1108,8 @@ function assembleCircuit(
   // A seed that plans the steep pair gets longer legs up front, so the
   // sky-jump module fits even when the level's straights are short. The extra
   // applies to every leg, preserving the regular/alternating polygon closure.
-  const skyJump = corners >= 4 && random() < 0.3;
+  const skyJumpRoll = random();
+  const skyJump = allowSteep && corners >= 4 && skyJumpRoll < 0.3;
   const legBase =
     CIRCUIT_LEG_BASE +
     pick(straights) +
@@ -1109,8 +1148,15 @@ function assembleCircuit(
   // features keep their usual slot. Leg 0 is always free, so a four-corner
   // circuit has exactly two free legs; three-corner circuits have only one and
   // stay at ground.
-  const elevated = corners >= 4 && random() < 0.75;
-  const reservedLegs = new Set([loopLeg, hillLeg]);
+  const elevatedRoll = random();
+  const elevated = allowElevated && corners >= 4 && elevatedRoll < 0.75;
+  const reservedLegs = new Set<number>();
+  if (!allowLoopless) {
+    reservedLegs.add(loopLeg);
+  }
+  if (!noHillOrJump) {
+    reservedLegs.add(hillLeg);
+  }
   const freeLegs = legs
     .map((_, index) => index)
     .filter((index) => !reservedLegs.has(index));
@@ -1265,9 +1311,9 @@ function assembleCircuit(
 
   legs.forEach((leg, index) => {
     const feature =
-      index === loopLeg
+      index === loopLeg && !allowLoopless
         ? LOOP_RETURN_LENGTH
-        : index === hillLeg
+        : index === hillLeg && !noHillOrJump
           ? jump
             ? jumpPlanarLength()
             : HILL_LENGTH
@@ -1284,6 +1330,7 @@ function assembleCircuit(
     // shrinks the pool of free legs that elevation and boosts draw from, so a
     // seed with no obstacles assembles exactly as it always did.
     if (
+      allowObstacles &&
       obstacleHost === null &&
       index !== 0 &&
       index !== loopLeg &&
@@ -1303,14 +1350,14 @@ function assembleCircuit(
     if (transition) {
       addTransition(transition);
     }
-    if (index === loopLeg) {
+    if (index === loopLeg && !allowLoopless) {
       addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
       addPiece(
         'shift',
         shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH),
         LOOP_RETURN_LENGTH,
       );
-    } else if (index === hillLeg) {
+    } else if (index === hillLeg && !noHillOrJump) {
       // A leg carries either a crest or a jump. Both fill the same planned
       // deck budget, so the leg closes whichever feature the seed chooses.
       if (jump) {
@@ -1380,7 +1427,15 @@ function planPoints(circuit: Circuit): PlanPoint[] {
  * features, minimum turn radius, and plan-view clearance between sections that
  * are not adjacent along the circuit.
  */
-export function validateCircuit(circuit: Circuit): CircuitValidation {
+export interface CircuitValidationOptions {
+  /** Allow a catalog circuit with no vertical loop (explicit loop exclusion). */
+  allowLoopless?: boolean;
+}
+
+export function validateCircuit(
+  circuit: Circuit,
+  options: CircuitValidationOptions = {},
+): CircuitValidation {
   const reasons = new Set<string>();
 
   const multiCrossing = circuit.layout === 'multi-crossing';
@@ -1392,7 +1447,7 @@ export function validateCircuit(circuit: Circuit): CircuitValidation {
     (piece) => piece.kind === 'boost' || piece.boost === true,
   ).length;
   if (!multiCrossing) {
-    if (loops < 1) {
+    if (!options.allowLoopless && loops < 1) {
       reasons.add('missing a vertical loop');
     }
     if (turns < 2) {
@@ -1505,6 +1560,12 @@ export interface CircuitOptions {
    * every kind, and throws if the combination cannot be assembled.
    */
   requiredKinds?: readonly Piece['kind'][];
+  /**
+   * Piece kinds the circuit must not contain. Structural kinds (straight,
+   * turn, boost) cannot be excluded. Excluding loop or shift produces a
+   * loopless polygon circuit.
+   */
+  excludedKinds?: readonly Piece['kind'][];
 }
 
 /**
@@ -1520,16 +1581,61 @@ export function generateCircuit(
   options: CircuitOptions = {},
 ): Circuit {
   const required = [...new Set(options.requiredKinds ?? [])];
+  const excluded = [...new Set(options.excludedKinds ?? [])];
   const wanted = new Set(required);
-  const requiresCatalog = required.some((kind) => kind !== 'multi-crossing');
-  if (wanted.has('multi-crossing') && requiresCatalog) {
-    throw new Error(
-      'A multi-crossing layout is one whole circuit and cannot be combined with catalog segments',
-    );
+  const forbidden = new Set(excluded);
+  const fail = (reason: string): never => {
+    throw new Error(`Cannot fit the selected segment rules: ${reason}`);
+  };
+
+  for (const kind of wanted) {
+    if (forbidden.has(kind)) {
+      fail(`${kind} is both required and excluded`);
+    }
+  }
+  for (const kind of ['straight', 'turn', 'boost'] as const) {
+    if (forbidden.has(kind)) {
+      fail(`${kind} is structural and cannot be excluded`);
+    }
+  }
+  if (wanted.has('multi-crossing')) {
+    if (wanted.size > 1) {
+      fail('multi-crossing is one whole circuit and cannot be combined with catalog segments');
+    }
+    if (forbidden.has('multi-crossing')) {
+      fail('multi-crossing is both required and excluded');
+    }
+  }
+  const excludeLoop = forbidden.has('loop') || forbidden.has('shift');
+  if (excludeLoop && (wanted.has('loop') || wanted.has('shift'))) {
+    fail('loop and loop return must be included or excluded together');
+  }
+  if (wanted.has('bridge') && excludeLoop) {
+    fail('a bridge deck needs the loop it threads');
+  }
+  const jumpKinds = ['kicker', 'gap', 'landing'] as const;
+  if (
+    jumpKinds.some((kind) => wanted.has(kind)) &&
+    jumpKinds.some((kind) => forbidden.has(kind))
+  ) {
+    fail('the jump launch, gap, and landing must be included or excluded together');
+  }
+  const pairs: [Piece['kind'], Piece['kind']][] = [
+    ['spiral-up', 'spiral-down'],
+    ['ramp-up', 'ramp-down'],
+    ['steep-ramp', 'steep-ramp-down'],
+  ];
+  for (const [up, down] of pairs) {
+    if (
+      (wanted.has(up) && forbidden.has(down)) ||
+      (wanted.has(down) && forbidden.has(up))
+    ) {
+      fail(`${up} and ${down} must be included or excluded together`);
+    }
   }
 
-  const hasRequired = (circuit: Circuit): boolean => {
-    if (wanted.size === 0) {
+  const hasSatisfied = (circuit: Circuit): boolean => {
+    if (wanted.size === 0 && forbidden.size === 0) {
       return true;
     }
     const kinds = new Set(circuit.pieces.map((piece) => piece.kind));
@@ -1538,12 +1644,38 @@ export function generateCircuit(
         return false;
       }
     }
+    for (const kind of forbidden) {
+      if (kinds.has(kind)) {
+        return false;
+      }
+    }
     return true;
+  };
+
+  const elevationKinds: Piece['kind'][] = [
+    'spiral-up',
+    'spiral-down',
+    'bridge',
+    'ramp-up',
+    'ramp-down',
+    'steep-ramp',
+    'steep-ramp-down',
+  ];
+  const constraints: AssemblyConstraints = {
+    allowLoopless: excludeLoop,
+    allowSingleCrossing: !forbidden.has('bridge') && !excludeLoop,
+    allowHill: !forbidden.has('hill'),
+    allowJump: !jumpKinds.some((kind) => forbidden.has(kind)),
+    allowObstacles: !forbidden.has('obstacles'),
+    allowElevated: !elevationKinds.every((kind) => forbidden.has(kind)),
+    allowSteep: !pairs[2]!.some((kind) => forbidden.has(kind)),
   };
 
   const failures: string[] = [];
   const tryCircuit = (circuit: Circuit, label: string): Circuit | null => {
-    const validation = validateCircuit(circuit);
+    const validation = validateCircuit(circuit, {
+      allowLoopless: constraints.allowLoopless === true,
+    });
     if (validation.ok) {
       return circuit;
     }
@@ -1555,6 +1687,7 @@ export function generateCircuit(
     wanted.has('multi-crossing') ||
     (options.allowMultiCrossing === true &&
       wanted.size === 0 &&
+      !forbidden.has('multi-crossing') &&
       seededRandom(`${seed}:${level}:layout`)() < MULTI_CROSSING_SHARE);
   if (multiCrossing) {
     for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
@@ -1564,7 +1697,7 @@ export function generateCircuit(
         offset,
         seededRandom(`${seed}:${level}:${offset}:multi-crossing`),
       );
-      if (!hasRequired(circuit)) {
+      if (!hasSatisfied(circuit)) {
         continue;
       }
       const accepted = tryCircuit(circuit, `multi-crossing offset ${offset}`);
@@ -1581,14 +1714,14 @@ export function generateCircuit(
     }
   }
 
-  // Requirement searches need more independent attempts than one seed offset
-  // ladder. Salt 0 is the normal ladder; later salts only run when the caller
-  // asked for specific segments.
-  const salts = wanted.size > 0 ? 6 : 1;
+  // Rule searches need more independent attempts than one seed offset ladder.
+  // Salt 0 is the normal ladder; later salts only run when the caller asked
+  // for specific segments.
+  const salts = wanted.size > 0 || forbidden.size > 0 ? 6 : 1;
   for (let salt = 0; salt < salts; salt += 1) {
     for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
-      const circuit = assembleCircuit(seed, level, offset, salt);
-      if (!hasRequired(circuit)) {
+      const circuit = assembleCircuit(seed, level, offset, salt, constraints);
+      if (!hasSatisfied(circuit)) {
         continue;
       }
       const accepted = tryCircuit(
@@ -1600,11 +1733,13 @@ export function generateCircuit(
       }
     }
   }
-  if (wanted.size > 0) {
+  if (wanted.size > 0 || forbidden.size > 0) {
+    const rules = [
+      ...required.map((kind) => `+${kind}`),
+      ...excluded.map((kind) => `-${kind}`),
+    ].join(' ');
     throw new Error(
-      `Could not assemble a playable circuit for ${seed} at level ${level} with required segments: ${required.join(
-        ', ',
-      )}`,
+      `Could not assemble a playable circuit for ${seed} at level ${level} with rules: ${rules}`,
     );
   }
   throw new Error(

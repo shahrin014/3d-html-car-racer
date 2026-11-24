@@ -171,6 +171,7 @@ export class Game {
     opponents = DEFAULT_OPPONENT_COUNT,
     carId = PLAYER_CAR,
     requiredKinds: readonly Piece['kind'][] = [],
+    excludedKinds: readonly Piece['kind'][] = [],
   ) {
     this.carId = carId;
     this.container = container;
@@ -210,6 +211,7 @@ export class Game {
       generateCircuit(seed, DEFAULT_LEVEL, {
         allowMultiCrossing: true,
         requiredKinds,
+        excludedKinds,
       }),
     );
 

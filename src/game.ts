@@ -22,6 +22,7 @@ import { CARS } from './game/car-spec.mjs';
 import { paintById } from './game/palette';
 import { randomSeed } from './game/seed';
 import {
+  takePendingExclusions,
   takePendingRequirements,
   takePendingSeed,
   takePendingStart,
@@ -308,7 +309,9 @@ async function bootGame(): Promise<void> {
   // apply when there is a previewed seed; a normal menu start ignores them.
   const previewSeed = takePendingSeed();
   const pendingRequirements = takePendingRequirements();
+  const pendingExclusions = takePendingExclusions();
   const previewRequirements = previewSeed ? pendingRequirements : [];
+  const previewExclusions = previewSeed ? pendingExclusions : [];
   // A direct load or refresh of game.html has no race to show. Leave for the
   // menu before loading models or building the scene, so the redirect happens
   // immediately instead of after a full boot. The menu sets the pending-start
@@ -389,6 +392,7 @@ async function bootGame(): Promise<void> {
       readOpponentCount(),
       carId,
       previewRequirements,
+      previewExclusions,
     );
   } catch (error) {
     console.error('WebGL could not be initialised.', error);

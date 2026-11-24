@@ -212,49 +212,70 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 - **AND** only the layout family, crossing count, combination, corner count,
   straight lengths, obstacle rows, and elevation route differ
 
-### Requirement: The preview can require segments
+### Requirement: The preview can require or exclude segments
 
-The track preview SHALL list every selectable `Piece` kind with a round toggle.
-When a toggle is on, the next generated circuit SHALL contain that kind. The
-generator SHALL search deterministic seed offsets and salted attempts until it
-finds a playable circuit that contains every selected kind, and the same seed
-and requirement list SHALL always settle on the same circuit. The preview SHALL
-provide a button that randomizes a compatible set of toggles and regenerates.
-Selecting a multi-crossing layout together with catalog segments SHALL be
-rejected, because the trefoil is one whole circuit. If a requirement set cannot
-be assembled, the preview SHALL report it, keep the previous circuit visible,
-and keep Start race disabled until a track builds. Starting the race from the
-preview SHALL pass the selected requirements to the race, so the race uses the
-same circuit.
+The track preview SHALL list every selectable `Piece` kind with a round,
+three-state control: no rule, required, or excluded. A required kind SHALL
+appear in the next generated circuit; an excluded kind SHALL NOT appear; no
+rule SHALL leave the choice to the seed. The generator SHALL search
+deterministic seed offsets and salted attempts until it finds a playable
+circuit satisfying every rule, and the same seed and rule list SHALL always
+settle on the same circuit. Structural kinds (straight, turn, and boost) are
+always present and SHALL NOT be excludable. The loop and its return SHALL move
+together, and the jump, spiral, ramp, and steep pairs SHALL move together.
+Excluding the loop SHALL produce a loopless polygon circuit that is still
+closed and playable. The preview SHALL provide a button that randomizes a
+compatible mix of rules and regenerates. Requiring a multi-crossing layout
+together with catalog segments SHALL be rejected, because the trefoil is one
+whole circuit. If a rule set cannot be assembled, the preview SHALL report it,
+keep the previous circuit visible, and keep Start race disabled until a track
+builds. Starting the race from the preview SHALL pass both the required and
+excluded kinds to the race, so the race uses the same circuit.
 
-#### Scenario: Forced segment appears
+#### Scenario: Required segment appears
 
-- **GIVEN** the preview and a selected segment
+- **GIVEN** the preview and a segment marked required
 - **WHEN** the track is regenerated
 - **THEN** the circuit contains at least one piece of that kind
 - **AND** the circuit is closed and playable
-- **AND** the preview reports that every selected segment is present
+- **AND** the preview reports that every rule is met
 
-#### Scenario: Randomize requirements
+#### Scenario: Excluded segment disappears
 
-- **GIVEN** the preview with no segments selected
+- **GIVEN** the preview and a segment marked excluded
+- **WHEN** the track is regenerated
+- **THEN** the circuit contains no piece of that kind
+- **AND** the preview reports that every rule is met
+
+#### Scenario: Loopless circuit stays playable
+
+- **GIVEN** the preview with the loop marked excluded
+- **WHEN** the track is regenerated
+- **THEN** the circuit has no loop or loop return
+- **AND** it closes and contains at least two banked turns and two boost strips
+- **AND** the car can complete a lap without a rescue
+
+#### Scenario: Randomize segment rules
+
+- **GIVEN** the preview with no rules set
 - **WHEN** the player presses Randomize
-- **THEN** a random compatible set of toggles is on
-- **AND** the track regenerates with every selected segment present
+- **THEN** a random compatible mix of required and excluded segments is set
+- **AND** the track regenerates with every rule met
 
 #### Scenario: Impossible combination is reported
 
-- **GIVEN** a required set the generator cannot assemble
+- **GIVEN** a rule set the generator cannot assemble
 - **WHEN** the player regenerates
-- **THEN** the preview reports that the set cannot be fitted
+- **THEN** the preview reports that the rules cannot be fitted
 - **AND** the previous circuit stays visible
 - **AND** Start race stays disabled until a track builds
 
-#### Scenario: Preview and race share required segments
+#### Scenario: Preview and race share segment rules
 
-- **GIVEN** a preview with required segments
+- **GIVEN** a preview with required and excluded segments
 - **WHEN** the player starts the race
 - **THEN** the race circuit contains every required segment
+- **AND** it contains none of the excluded segments
 
 ### Requirement: Obstacle segments are seeded and leave a gap in every row
 
