@@ -4,7 +4,7 @@ A mobile-first circuit racer inspired by orange plastic track sets. Three laps
 against the clock on a generated circuit with banked turns, a vertical loop,
 crests, jumps, obstacle corridors lined with solid hazard blocks, boost
 straights, a very high 80° boost ramp, single-crossing layouts with bridges,
-multi-crossing trefoil layouts over the track, and spiral ramps that
+generated double-crossing layouts, and spiral ramps that
 climb two levels around a landmark tower in a generated city skyline. The
 cars are the Mach, GT, Twin, Blade, and Manga, shipped as GLBs and kept in their stock liveries or
 repainted from the menu's nine-colour picker, driven by a Rapier rigid-body simulation behind a small
@@ -30,8 +30,8 @@ and damage. Damage reduces acceleration and top speed but never ends the race.
 Being stuck or off the track triggers a timed rescue at the last checkpoint.
 
 The track preview lists every segment kind in a scrollable table with a
-minimum-count control: No leaves it to the seed, 0 excludes it, and 1–5 require
-at least that many pieces. Elevation up and down pieces are independent, so a
+minimum-count control: 0 means 0 or more, and 1–5 require at least that many
+pieces. Elevation up and down pieces are independent, so a
 steep climb can return on spirals or any other allowed descents. Randomize picks
 a compatible mix. The seed and counts are kept in the URL
 (`?seed=...&counts=kind:value,...&crossovers=0|1|2`), and **Copy link** makes

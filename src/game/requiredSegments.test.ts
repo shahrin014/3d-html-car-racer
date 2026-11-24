@@ -28,14 +28,12 @@ const SEGMENTS: Piece['kind'][] = [
   'ramp-down',
   'steep-ramp',
   'steep-ramp-down',
-  'multi-crossing',
 ];
 
 describe('required segments', () => {
   it('places every selectable segment in a playable circuit', () => {
     for (const kind of SEGMENTS) {
       const circuit = generateCircuit('required-segments', 1, {
-        allowMultiCrossing: true,
         requiredKinds: [kind],
       });
       expect(
@@ -48,7 +46,6 @@ describe('required segments', () => {
 
   it('keeps a combined request together', () => {
     const circuit = generateCircuit('required-combo', 1, {
-      allowMultiCrossing: true,
       requiredKinds: ['bridge', 'loop', 'gap', 'obstacles'],
     });
     const kinds = new Set(circuit.pieces.map((piece) => piece.kind));
@@ -61,7 +58,6 @@ describe('required segments', () => {
 
   it('returns the same circuit for the same seed and requirements', () => {
     const options = {
-      allowMultiCrossing: true,
       requiredKinds: ['steep-ramp', 'obstacles'] as const,
     };
     const first = generateCircuit('required-determinism', 1, options);
@@ -76,20 +72,10 @@ describe('required segments', () => {
   it('reports an impossible catalog combination', () => {
     expect(() =>
       generateCircuit('required-impossible', 1, {
-        allowMultiCrossing: true,
         requiredKinds: ['bridge'],
         excludedKinds: ['loop'],
       }),
     ).toThrow(/bridge deck needs the loop/);
-  });
-
-  it('does not mix a multi-crossing layout with catalog segments', () => {
-    expect(() =>
-      generateCircuit('required-multi-mix', 1, {
-        allowMultiCrossing: true,
-        requiredKinds: ['multi-crossing', 'loop'],
-      }),
-    ).toThrow(/cannot be combined with catalog segments/);
   });
 
   it('removes excluded features from the circuit', () => {
@@ -108,7 +94,6 @@ describe('required segments', () => {
     ];
     for (const testCase of cases) {
       const circuit = generateCircuit('excluded-segments', 1, {
-        allowMultiCrossing: true,
         excludedKinds: testCase.excluded,
       });
       const kinds = new Set(circuit.pieces.map((piece) => piece.kind));
@@ -261,13 +246,14 @@ describe('required segments', () => {
     expect(count(turns, 'turn')).toBeGreaterThanOrEqual(3);
 
     const loopless = generateCircuit('count-no-loop', 1, {
-      minimumCounts: { loop: 0 },
+      excludedKinds: ['loop'],
     });
     expect(count(loopless, 'loop')).toBe(0);
     expect(count(loopless, 'shift')).toBe(0);
 
     const steepUpOnly = generateCircuit('count-steep-up', 1, {
-      minimumCounts: { 'steep-ramp': 1, 'steep-ramp-down': 0 },
+      requiredKinds: ['steep-ramp'],
+      excludedKinds: ['steep-ramp-down'],
     });
     expect(count(steepUpOnly, 'steep-ramp')).toBeGreaterThanOrEqual(1);
     expect(count(steepUpOnly, 'steep-ramp-down')).toBe(0);
@@ -295,11 +281,9 @@ describe('required segments', () => {
         kind: 'steep-ramp-down',
         counts: { 'steep-ramp-down': 5 },
       },
-      { kind: 'multi-crossing', counts: { 'multi-crossing': 5 } },
     ];
     for (const testCase of cases) {
       const circuit = generateCircuit('count-five', 1, {
-        allowMultiCrossing: true,
         minimumCounts: testCase.counts,
       });
       expect(
@@ -316,16 +300,10 @@ describe('required segments', () => {
         minimumCounts: { boost: 3 },
       }),
     ).toThrow(/at most two boost strips/);
-    expect(() =>
-      generateCircuit('count-multi-thirteen', 1, {
-        minimumCounts: { 'multi-crossing': 13 },
-      }),
-    ).toThrow(/twelve sampled pieces/);
   });
 
   it('returns the same circuit for the same exclusion rules', () => {
     const options = {
-      allowMultiCrossing: true,
       excludedKinds: ['loop', 'obstacles'] as const,
     };
     const first = generateCircuit('excluded-determinism', 1, options);

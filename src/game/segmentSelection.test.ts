@@ -7,10 +7,10 @@ import {
 } from './track';
 
 /**
- * The preview's minimum-count dropdown values. `No` leaves the choice to the
- * seed; `0` excludes the kind; `1`–`5` require at least that many pieces.
+ * The preview's minimum-count dropdown values. `0` means 0 or more; `1`–`5`
+ * require at least that many pieces.
  */
-type DropdownValue = 'No' | '0' | '1' | '2' | '3' | '4' | '5';
+type DropdownValue = '0' | '1' | '2' | '3' | '4' | '5';
 type SegmentSelection = Partial<Record<Piece['kind'], DropdownValue>>;
 
 function minimumCountsFromSelection(
@@ -21,7 +21,7 @@ function minimumCountsFromSelection(
     Piece['kind'],
     DropdownValue,
   ][]) {
-    if (value === 'No') {
+    if (value === '0') {
       continue;
     }
     const count = Number(value);
@@ -47,7 +47,6 @@ function generateFromDropdowns(
       ? (JSON.parse(selection) as SegmentSelection)
       : selection;
   return generateCircuit(seed, level, {
-    allowMultiCrossing: true,
     minimumCounts: minimumCountsFromSelection(parsed),
   });
 }
@@ -57,18 +56,15 @@ function count(circuit: Circuit, kind: Piece['kind']): number {
 }
 
 describe('track generation from preview dropdowns', () => {
-  it('accepts a minimum count and an exclusion together', () => {
+  it('accepts minimum counts', () => {
     const circuit = generateFromDropdowns({
       'spiral-down': '2',
-      loop: '0',
-      obstacles: '0',
+      loop: '4',
     });
 
     expect(count(circuit, 'spiral-down')).toBeGreaterThanOrEqual(2);
-    expect(count(circuit, 'loop')).toBe(0);
-    expect(count(circuit, 'shift')).toBe(0);
-    expect(count(circuit, 'obstacles')).toBe(0);
-    expect(validateCircuit(circuit, { allowLoopless: true }).ok).toBe(true);
+    expect(count(circuit, 'loop')).toBeGreaterThanOrEqual(4);
+    expect(validateCircuit(circuit).ok).toBe(true);
   }, 30_000);
 
   it('accepts the same options as a JSON object', () => {
@@ -80,13 +76,26 @@ describe('track generation from preview dropdowns', () => {
     expect(count(circuit, 'steep-ramp')).toBeGreaterThanOrEqual(2);
   }, 30_000);
 
-  it('treats No as no rule and 0 as exclusion', () => {
-    expect(minimumCountsFromSelection({ loop: 'No' })).toEqual({});
-    expect(minimumCountsFromSelection({ loop: '0' })).toEqual({ loop: 0 });
+  it('treats 0 as 0 or more', () => {
+    expect(minimumCountsFromSelection({ loop: '0' })).toEqual({});
     expect(
-      minimumCountsFromSelection({ 'spiral-down': '2', obstacles: 'No' }),
+      minimumCountsFromSelection({ 'spiral-down': '2', obstacles: '0' }),
     ).toEqual({ 'spiral-down': 2 });
   });
+
+  it('lets a 0 minimum be filled when the route needs it', () => {
+    const circuits = Array.from({ length: 10 }, (_, index) =>
+      generateCircuit(`zero-fill-${index}`, 1, {
+        minimumCounts: { 'ramp-up': 1, 'ramp-down': 0 },
+      }),
+    );
+    expect(circuits.every((circuit) => count(circuit, 'ramp-up') >= 1)).toBe(
+      true,
+    );
+    expect(
+      circuits.some((circuit) => count(circuit, 'ramp-down') > 0),
+    ).toBe(true);
+  }, 30_000);
 
   it('rejects a value that is not in the dropdown', () => {
     expect(() =>
@@ -104,11 +113,4 @@ describe('track generation from preview dropdowns', () => {
       /at most two boost strips/,
     );
   });
-
-  it('supports the multi-crossing layout as a selection', () => {
-    const circuit = generateFromDropdowns({ 'multi-crossing': '1' });
-
-    expect(circuit.layout).toBe('multi-crossing');
-    expect(count(circuit, 'multi-crossing')).toBeGreaterThanOrEqual(1);
-  }, 30_000);
 });

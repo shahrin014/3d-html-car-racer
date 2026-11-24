@@ -693,20 +693,10 @@ describe('bridges', () => {
   }, 60_000);
 });
 
-describe('multi-crossing layout', () => {
-  it('drives the trefoil without leaving the deck', async () => {
-    let frames: TrackFrame[] | null = null;
-    for (let index = 0; index < 80; index += 1) {
-      const candidate = generateCircuit(`multi-drive-${index}`, 1, {
-        allowMultiCrossing: true,
-      });
-      if (candidate.layout === 'multi-crossing') {
-        frames = buildFrames(candidate);
-        break;
-      }
-    }
-    expect(frames).not.toBeNull();
-    const track = frames!;
+describe('two-crossing layout', () => {
+  it('drives the double-crossing circuit without leaving the deck', async () => {
+    const circuit = generateCircuit('cross-drive', 1, { crossovers: 2 });
+    const track = buildFrames(circuit);
     const physics = await createPhysics(track);
     physics.reset(track[0]!);
 
@@ -735,8 +725,8 @@ describe('multi-crossing layout', () => {
     }
 
     physics.dispose();
-    // The trefoil's own height separates its three crossings, so a car that
-    // holds the line stays on the deck all the way round.
+    // The curve's own height separates its two crossings, so a car that holds
+    // the line stays on the deck all the way round.
     expect(maxGap).toBeLessThan(TRACK_WIDTH);
     expect(maxSpeed).toBeGreaterThan(20);
   }, 60_000);

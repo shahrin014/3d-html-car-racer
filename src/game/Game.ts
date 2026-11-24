@@ -171,7 +171,6 @@ export class Game {
     opponents = DEFAULT_OPPONENT_COUNT,
     carId = PLAYER_CAR,
     requiredKinds: readonly Piece['kind'][] = [],
-    excludedKinds: readonly Piece['kind'][] = [],
     minimumCounts: Partial<Record<Piece['kind'], number>> = {},
     crossovers?: 0 | 1 | 2,
   ) {
@@ -209,15 +208,20 @@ export class Game {
     this.clockLights();
 
     this.seed = seed;
-    this.buildCircuit(
-      generateCircuit(seed, DEFAULT_LEVEL, {
-        allowMultiCrossing: true,
+    let circuit: Circuit;
+    try {
+      circuit = generateCircuit(seed, DEFAULT_LEVEL, {
         requiredKinds,
-        excludedKinds,
         minimumCounts,
         ...(crossovers === undefined ? {} : { crossovers }),
-      }),
-    );
+      });
+    } catch (error) {
+      // A preview handoff must never leave the race without a track. Fall back
+      // to the seed's own circuit when the requested rules cannot be fitted.
+      console.warn('The requested circuit rules could not be fitted.', error);
+      circuit = generateCircuit(seed, DEFAULT_LEVEL);
+    }
+    this.buildCircuit(circuit);
 
     this.car = createCar(paint.color, this.carId);
     this.scene.add(this.car.group);
@@ -353,7 +357,7 @@ export class Game {
    */
   private replaceCircuit(seed: string): void {
     this.buildCircuit(
-      generateCircuit(seed, DEFAULT_LEVEL, { allowMultiCrossing: true }),
+      generateCircuit(seed, DEFAULT_LEVEL),
     );
     this.invalidatePhysics();
     this.placeOpponents();

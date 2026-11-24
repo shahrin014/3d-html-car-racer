@@ -42,22 +42,24 @@ test('preview honors minimum counts and races the same rules', async ({
     'all met.',
   );
 
-  // Zero excludes the loop and its return; the rule is reported as met.
-  await page.goto('/track.html?seed=preview-excluded&exclude=loop');
-  await expect(page.locator('.preview__segment-row')).toHaveCount(18);
+  // Zero means "0 or more": it is not a rule and never excludes a kind.
+  await page.goto('/track.html?seed=preview-zero&counts=loop:0');
   await expect(page.locator('#preview-requirements-note')).toContainText(
-    '2 rules · all met.',
+    '0 means 0 or more',
     { timeout: 30_000 },
   );
+  await expect(
+    page.locator('.preview__segment-row[data-kind="loop"] select'),
+  ).toHaveValue('0');
   await expect(page.locator('#preview-start')).toBeEnabled();
 
-  // Elevation transitions are independent: a steep climb can be paired with a
-  // different descent instead of a matching steep descent.
+  // Elevation transitions are independent: a steep climb minimum does not
+  // force a matching steep descent, and a 0 descent may still be added.
   await page.goto(
-    '/track.html?seed=preview-steep&require=steep-ramp&exclude=steep-ramp-down',
+    '/track.html?seed=preview-steep&counts=steep-ramp:1,steep-ramp-down:0',
   );
   await expect(page.locator('#preview-requirements-note')).toContainText(
-    '2 rules · all met.',
+    '1 rule · all met.',
     { timeout: 30_000 },
   );
   await expect(
@@ -133,20 +135,48 @@ test('preview honors minimum counts and races the same rules', async ({
   expect(new URL(page.url()).searchParams.get('crossovers')).toBe('2');
   await expect(page.locator('#preview-start')).toBeEnabled();
 
-  // A whole-layout crossover count cannot carry catalog segment counts.
+  // A two-crossing layout is generated from catalog pieces, so counts apply.
   await page.goto(
-    '/track.html?seed=cross-2-counts&crossovers=2&counts=loop:1',
+    '/track.html?seed=cross-2-counts&crossovers=2&counts=loop:2,obstacles:1',
   );
   await expect(page.locator('#preview-requirements-note')).toContainText(
-    'whole circuit',
+    '2 crossovers',
     { timeout: 30_000 },
   );
-  await expect(page.locator('#preview-start')).toBeDisabled();
+  await expect(
+    page.locator('.preview__segment-row[data-kind="loop"] select'),
+  ).toBeEnabled();
+  await expect(
+    page.locator('.preview__segment-row[data-kind="loop"] select'),
+  ).toHaveValue('2');
+  await expect(
+    page.locator('.preview__segment-row[data-kind="obstacles"] select'),
+  ).toHaveValue('1');
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    'all met.',
+  );
+  await expect(page.locator('#preview-start')).toBeEnabled();
+
+  // An impossible set still builds the seed's own track, keeps the chosen
+  // counts, and never shows a rejection message.
+  await page.goto(
+    '/track.html?seed=preview-impossible&counts=spiral-up:5,spiral-down:5,steep-ramp:5',
+  );
+  await expect(
+    page.locator('.preview__segment-row[data-kind="spiral-up"] select'),
+  ).toHaveValue('5', { timeout: 30_000 });
+  await expect(page.locator('#preview-requirements-note')).not.toContainText(
+    'cannot be fitted',
+  );
+  await expect(page.locator('#preview-requirements-note')).not.toHaveClass(
+    /is-error/,
+  );
+  await expect(page.locator('#preview-start')).toBeEnabled();
 
   // A feasible set builds, reports every rule, and hands the same seed and
   // counts to the race page.
   await page.goto('/track.html?seed=preview-required&require=obstacles,bridge');
-  await expect(page.locator('.preview__segment-row')).toHaveCount(18);
+  await expect(page.locator('.preview__segment-row')).toHaveCount(17);
   await expect(page.locator('#preview-requirements-note')).toContainText(
     'all met.',
     { timeout: 30_000 },

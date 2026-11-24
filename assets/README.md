@@ -39,20 +39,12 @@ parametric definitions the game uses, in headless Chromium with three.js.
 | Boost straight | ![boost](track/boost-12.png) | 12 m + armed strip | Chevrons face the driving direction |
 | Obstacle corridor | ![obstacle corridor](track/obstacle-corridor-24.png) | 24 m, five seeded rows across the deck | Edge, centre, and gate rows that rivals weave around. Shown at runtime scale (7 m deck) |
 
-## Circuit layouts
-
-| Layout | Image | Geometry | Notes |
-| --- | --- | --- | --- |
-| Multi-crossing | ![multi-crossing](track/multi-crossing-trefoil.png) | Closed trefoil, three plan crossings | The seed scales (10–14 m) and rotates the authored curve; crossings are separated by the curve's own height. Two or three boost strips. Shown at runtime scale (7 m deck) |
-
 All pieces are 3.0 m wide in the catalogue (three car widths), 0.12 m thick,
 with 0.35 m guide rails, and start and end unbanked so any two pieces join
 cleanly. Every solid piece has a PNG and a GLB. The jump gap is intentionally
 empty air and has no mesh. The loop return, bridge ramps, and bridge deck are
 runtime connectors, included so the inventory matches every `Piece.kind` the
-generator can emit. The multi-crossing layout is a whole circuit rather than a
-catalog piece; it has its own render and GLB so the inventory also covers the
-`multi-crossing` kind. The launch and landing ramps are the exception: they intentionally
+generator can emit. The launch and landing ramps are the exception: they intentionally
 share a launch tangent, with the empty gap between them. The deck floats: there
 are no support columns under elevated track. The game scales the catalogue by
 1.5× and widens the deck to 7 m at runtime, so the track in play is wider than

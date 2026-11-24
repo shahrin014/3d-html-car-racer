@@ -30,7 +30,6 @@ const PIECES = [
   { id: 'bridge-ramp-up', folder: 'track' },
   { id: 'bridge-ramp-down', folder: 'track' },
   { id: 'bridge-deck-16', folder: 'track' },
-  { id: 'multi-crossing-trefoil', folder: 'track' },
   { id: 'hill-crest-2.5', folder: 'track' },
   { id: 'ramp-up-1.6', folder: 'track' },
   { id: 'ramp-down-1.6', folder: 'track' },

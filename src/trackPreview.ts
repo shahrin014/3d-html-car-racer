@@ -17,7 +17,6 @@ import { randomSeed } from './game/seed';
 import {
   markPendingCounts,
   markPendingCrossovers,
-  markPendingExclusions,
   markPendingRequirements,
   markPendingSeed,
   markPendingStart,
@@ -49,7 +48,7 @@ interface SegmentChoice {
   kind: Piece['kind'];
   label: string;
   note: string;
-  /** Structural kinds are always present and cannot be excluded. */
+  /** Structural kinds are always present and are not configurable. */
   structural?: boolean;
 }
 
@@ -60,7 +59,7 @@ interface SegmentGroup {
 
 /**
  * The segments a preview can require. The order is the order the builder meets
- * them: core deck, authored features, elevation, then the whole-layout family.
+ * them: core deck, authored features, elevation, then the layout family.
  * Some kinds are always present; requiring them is harmless and makes the list
  * a complete inventory of `Piece['kind']`.
  */
@@ -95,12 +94,6 @@ const SEGMENT_GROUPS: readonly SegmentGroup[] = [
       { kind: 'ramp-down', label: 'Bridge ramp down', note: 'Straight descent from a bridge level' },
       { kind: 'steep-ramp', label: 'Steep ramp', note: '80° boost climb; pairs with the steep descent' },
       { kind: 'steep-ramp-down', label: 'Steep descent', note: '80° descent for the steep ramp' },
-    ],
-  },
-  {
-    title: 'Layout',
-    choices: [
-      { kind: 'multi-crossing', label: 'Multi-crossing', note: 'A whole trefoil layout; select it alone' },
     ],
   },
 ];
@@ -300,7 +293,6 @@ export class TrackPreview {
     crossovers?: 0 | 1 | 2,
   ): Circuit {
     const circuit = generateCircuit(seed, DEFAULT_LEVEL, {
-      allowMultiCrossing: true,
       minimumCounts,
       ...(crossovers === undefined ? {} : { crossovers }),
     });
@@ -515,13 +507,13 @@ const backButton = mustQuery<HTMLButtonElement>('#preview-back');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const loading = mustQuery<HTMLElement>('#preview-loading');
 
-type SegmentCount = number | null;
+type SegmentCount = number;
 
 const JUMP_KINDS: Piece['kind'][] = ['kicker', 'gap', 'landing'];
 const SPIRAL_KINDS: Piece['kind'][] = ['spiral-up', 'spiral-down'];
 const RAMP_KINDS: Piece['kind'][] = ['ramp-up', 'ramp-down'];
 const STEEP_KINDS: Piece['kind'][] = ['steep-ramp', 'steep-ramp-down'];
-const COUNT_OPTIONS: SegmentCount[] = [null, 0, 1, 2, 3, 4, 5];
+const COUNT_OPTIONS: SegmentCount[] = [0, 1, 2, 3, 4, 5];
 const MAX_COUNT = 5;
 
 const segmentCounts = new Map<Piece['kind'], SegmentCount>();
@@ -532,19 +524,18 @@ const selectableKinds = new Set<Piece['kind']>();
 const structuralKinds = new Set<Piece['kind']>();
 
 function countToOption(value: SegmentCount): string {
-  return value === null ? 'none' : String(value);
+  return String(value);
 }
 
 function optionToCount(value: string): SegmentCount {
-  if (value === 'none') {
-    return null;
-  }
   const count = Number(value);
-  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null;
+  return Number.isFinite(count)
+    ? Math.min(MAX_COUNT, Math.max(0, Math.floor(count)))
+    : 0;
 }
 
-function countState(value: SegmentCount): 'neutral' | 'exclude' | 'require' {
-  return value === null ? 'neutral' : value === 0 ? 'exclude' : 'require';
+function countState(value: SegmentCount): 'neutral' | 'require' {
+  return value > 0 ? 'require' : 'neutral';
 }
 
 for (const group of SEGMENT_GROUPS) {
@@ -559,7 +550,7 @@ for (const group of SEGMENT_GROUPS) {
   for (const choice of group.choices) {
     selectableKinds.add(choice.kind);
     choiceByKind.set(choice.kind, choice);
-    segmentCounts.set(choice.kind, null);
+    segmentCounts.set(choice.kind, 0);
     if (choice.structural) {
       structuralKinds.add(choice.kind);
     }
@@ -585,10 +576,10 @@ for (const group of SEGMENT_GROUPS) {
       for (const option of COUNT_OPTIONS) {
         const element = document.createElement('option');
         element.value = countToOption(option);
-        element.textContent = option === null ? 'No' : String(option);
+        element.textContent = String(option);
         select.append(element);
       }
-      select.value = 'none';
+      select.value = '0';
       select.addEventListener('change', () => {
         applyCount(choice.kind, optionToCount(select.value));
       });
@@ -607,11 +598,11 @@ function updateCountSelect(kind: Piece['kind']): void {
   if (!select) {
     return;
   }
-  const value = segmentCounts.get(kind) ?? null;
+  const value = segmentCounts.get(kind) ?? 0;
   select.value = countToOption(value);
   select.dataset.state = countState(value);
   const choice = choiceByKind.get(kind);
-  select.title = `${choice?.note ?? ''} No = seed choice, 0 = exclude, N = minimum count.`;
+  select.title = `${choice?.note ?? ''} 0 = no minimum, N = at least N pieces.`;
 }
 
 function refreshCountUi(): void {
@@ -623,7 +614,7 @@ function refreshCountUi(): void {
 function selectedCounts(): Partial<Record<Piece['kind'], number>> {
   const counts: Partial<Record<Piece['kind'], number>> = {};
   for (const [kind, value] of segmentCounts) {
-    if (!structuralKinds.has(kind) && value !== null) {
+    if (!structuralKinds.has(kind) && value > 0) {
       counts[kind] = value;
     }
   }
@@ -634,9 +625,7 @@ function setCount(kind: Piece['kind'], value: SegmentCount): void {
   if (structuralKinds.has(kind)) {
     return;
   }
-  if (value !== null) {
-    value = Math.min(value, MAX_COUNT);
-  }
+  value = Math.min(MAX_COUNT, Math.max(0, value));
   segmentCounts.set(kind, value);
   if (JUMP_KINDS.includes(kind)) {
     for (const member of JUMP_KINDS) {
@@ -646,34 +635,11 @@ function setCount(kind: Piece['kind'], value: SegmentCount): void {
   if (kind === 'loop' || kind === 'shift') {
     segmentCounts.set('loop', value);
     segmentCounts.set('shift', value);
-    if (value === 0 && (segmentCounts.get('bridge') ?? 0) > 0) {
-      segmentCounts.set('bridge', 0);
-    }
   }
-  if (kind === 'bridge' && value !== null && value > 0) {
+  if (kind === 'bridge' && value > 0) {
     if ((segmentCounts.get('loop') ?? 0) <= 0) {
       segmentCounts.set('loop', 1);
       segmentCounts.set('shift', 1);
-    }
-    for (const other of [...RAMP_KINDS, ...STEEP_KINDS]) {
-      if ((segmentCounts.get(other) ?? 0) > 0) {
-        segmentCounts.set(other, 0);
-      }
-    }
-  }
-  if (
-    (RAMP_KINDS.includes(kind) || STEEP_KINDS.includes(kind)) &&
-    value !== null &&
-    value > 0 &&
-    (segmentCounts.get('bridge') ?? 0) > 0
-  ) {
-    segmentCounts.set('bridge', 0);
-  }
-  if (kind === 'multi-crossing' && value !== null && value > 0) {
-    for (const other of segmentCounts.keys()) {
-      if (other !== 'multi-crossing') {
-        segmentCounts.set(other, null);
-      }
     }
   }
   normalizeCounts();
@@ -684,60 +650,37 @@ function setCount(kind: Piece['kind'], value: SegmentCount): void {
 
 function normalizeCounts(): void {
   for (const kind of structuralKinds) {
-    segmentCounts.set(kind, null);
+    segmentCounts.set(kind, 0);
   }
   for (const [kind, value] of segmentCounts) {
-    if (value !== null && value > MAX_COUNT) {
+    if (value > MAX_COUNT) {
       segmentCounts.set(kind, MAX_COUNT);
     }
   }
-  const multi = segmentCounts.get('multi-crossing') ?? null;
-  if (multi !== null && multi > 0) {
-    for (const kind of segmentCounts.keys()) {
-      if (kind !== 'multi-crossing') {
-        segmentCounts.set(kind, null);
-      }
-    }
-    return;
-  }
 
-  const jumpActive = JUMP_KINDS
-    .map((kind) => segmentCounts.get(kind))
-    .find((value) => value !== null);
-  if (jumpActive !== undefined) {
+  const jumpActive = Math.max(
+    0,
+    ...JUMP_KINDS.map((kind) => segmentCounts.get(kind) ?? 0),
+  );
+  if (jumpActive > 0) {
     for (const kind of JUMP_KINDS) {
       segmentCounts.set(kind, jumpActive);
     }
   }
 
-  const loop = segmentCounts.get('loop') ?? null;
-  const shift = segmentCounts.get('shift') ?? null;
-  const loopActive = loop !== null ? loop : shift;
-  if (loopActive !== null) {
+  const loopActive = Math.max(
+    segmentCounts.get('loop') ?? 0,
+    segmentCounts.get('shift') ?? 0,
+  );
+  if (loopActive > 0) {
     segmentCounts.set('loop', loopActive);
     segmentCounts.set('shift', loopActive);
-  } else {
-    segmentCounts.set('loop', null);
-    segmentCounts.set('shift', null);
   }
 
-  const bridge = segmentCounts.get('bridge') ?? null;
-  if (bridge !== null && bridge > 0) {
-    if ((segmentCounts.get('loop') ?? 0) <= 0) {
-      segmentCounts.set('loop', 1);
-      segmentCounts.set('shift', 1);
-    }
-    for (const kind of [...RAMP_KINDS, ...STEEP_KINDS]) {
-      if ((segmentCounts.get(kind) ?? 0) > 0) {
-        segmentCounts.set(kind, 0);
-      }
-    }
-    if (
-      (segmentCounts.get('hill') ?? 0) > 0 &&
-      JUMP_KINDS.some((kind) => (segmentCounts.get(kind) ?? 0) > 0)
-    ) {
-      segmentCounts.set('hill', null);
-    }
+  const bridge = segmentCounts.get('bridge') ?? 0;
+  if (bridge > 0 && (segmentCounts.get('loop') ?? 0) <= 0) {
+    segmentCounts.set('loop', 1);
+    segmentCounts.set('shift', 1);
   }
 }
 
@@ -786,12 +729,13 @@ let seed = randomSeed();
 let crossovers: 0 | 1 | 2 | null = null;
 let busy = false;
 let buildFailed = false;
+let effectiveCounts: Partial<Record<Piece['kind'], number>> = {};
 let requirementsDirty = false;
 let hasCircuit = false;
 let buildQueued: string | null = null;
 
 // The canonical shareable URL is ?seed=<seed>&counts=<kind>:<value>,...
-// ?require= / ?exclude= are still accepted so older links keep working.
+// ?require= is still accepted so older links keep working.
 const initialParams = new URLSearchParams(window.location.search);
 const requestedSeed = initialParams.get('seed')?.trim();
 if (requestedSeed) {
@@ -808,14 +752,8 @@ if (
 }
 const requestedCounts = parseCountEntries(initialParams.get('counts'));
 const requestedRequirements = parseCountEntries(initialParams.get('require'));
-const requestedExclusions = parseCountEntries(initialParams.get('exclude'));
 const requested =
-  requestedCounts.length > 0
-    ? requestedCounts
-    : [
-        ...requestedRequirements,
-        ...requestedExclusions.map(({ kind }) => ({ kind, count: 0 })),
-      ];
+  requestedCounts.length > 0 ? requestedCounts : requestedRequirements;
 for (const { kind, count } of requested) {
   segmentCounts.set(kind, count);
 }
@@ -878,8 +816,7 @@ function updateRequirementsNote(
       : `${crossovers} crossover${crossovers === 1 ? '' : 's'}`;
   if (entries.length === 0) {
     requirementsNote.textContent =
-      crossoverLabel ??
-      'Set a minimum count; No leaves it to the seed, 0 excludes it.';
+      crossoverLabel ?? 'Set a minimum count; 0 means 0 or more.';
     return;
   }
   if (!circuit) {
@@ -892,15 +829,14 @@ function updateRequirementsNote(
   const failures: string[] = [];
   for (const [kind, minimum] of entries) {
     const count = actual.get(kind) ?? 0;
-    if (minimum === 0 && count !== 0) {
-      failures.push(`${kind} should be 0, found ${count}`);
-    } else if (minimum > 0 && count < minimum) {
+    if (count < minimum) {
       failures.push(`${kind} ${count}/${minimum}`);
     }
   }
   if (failures.length > 0) {
-    requirementsNote.textContent = `Rules not met: ${failures.join(', ')}`;
-    requirementsNote.classList.add('is-error');
+    requirementsNote.textContent = `${
+      entries.length - failures.length
+    }/${entries.length} rules met.`;
     return;
   }
   requirementsNote.textContent = `${
@@ -925,13 +861,12 @@ function updateSegmentStatuses(circuit: Circuit | null): void {
       status.dataset.state = 'neutral';
       continue;
     }
-    const minimum = segmentCounts.get(kind) ?? null;
-    if (minimum === null) {
+    const minimum = segmentCounts.get(kind) ?? 0;
+    if (minimum === 0) {
       status.dataset.state = 'neutral';
       continue;
     }
-    const met = minimum === 0 ? count === 0 : count >= minimum;
-    status.dataset.state = met ? 'met' : 'failed';
+    status.dataset.state = count >= minimum ? 'met' : 'failed';
   }
 }
 
@@ -955,26 +890,34 @@ function build(next: string): void {
         return;
       }
       hasCircuit = true;
+      effectiveCounts = counts;
       updateRequirementsNote(counts, circuit);
       updateSegmentStatuses(circuit);
       showSeed(next);
     } catch (error) {
-      // A segment rule the player chose is input, not an app fault; keep it
-      // out of the console-error channel so offline/e2e checks stay clean.
+      // A rule mix that cannot fit is input, not an app fault. Keep the chosen
+      // counts in the table and fall back to the best track the seed can make
+      // without them, so the preview never blocks on a rule-error message.
       console.warn('The track preview could not be built.', error);
-      buildFailed = true;
-      const message = error instanceof Error ? error.message : 'Track unavailable';
-      requirementsNote.textContent =
-        message.includes('cannot be combined')
-          ? 'A 2-crossing or multi-crossing layout is a whole circuit; clear the segment counts.'
-          : message.includes('Cannot fit') || message.includes('with rules:')
-            ? 'Those rules cannot be fitted together. Change one or press Randomize.'
-            : message;
-      requirementsNote.classList.add('is-error');
-      updateSegmentStatuses(null);
-      if (!hasCircuit) {
-        seedElement.textContent = 'Track unavailable';
-        loading.textContent = 'Track unavailable';
+      try {
+        const circuit =
+          preview?.setSeed(next, {}, crossovers ?? undefined) ?? null;
+        if (circuit) {
+          hasCircuit = true;
+          effectiveCounts = {};
+          updateRequirementsNote(counts, circuit);
+          updateSegmentStatuses(circuit);
+          showSeed(next);
+        }
+      } catch (fallbackError) {
+        console.warn('The track preview fallback failed.', fallbackError);
+        buildFailed = true;
+        requirementsNote.textContent = 'Track unavailable';
+        updateSegmentStatuses(null);
+        if (!hasCircuit) {
+          seedElement.textContent = 'Track unavailable';
+          loading.textContent = 'Track unavailable';
+        }
       }
     } finally {
       setBusy(false);
@@ -1020,11 +963,6 @@ function randomCounts(): Partial<Record<Piece['kind'], number>> {
       for (const kind of JUMP_KINDS) set(kind, 0);
     }
   };
-
-  if (Math.random() < 0.12) {
-    set('multi-crossing', 1);
-    return counts;
-  }
 
   if (Math.random() < 0.5) {
     set('bridge', 1);
@@ -1115,7 +1053,7 @@ randomizeRequirementsButton.addEventListener('click', () => {
   }
   const counts = randomCounts();
   for (const kind of selectableKinds) {
-    segmentCounts.set(kind, counts[kind] ?? null);
+    segmentCounts.set(kind, counts[kind] ?? 0);
   }
   normalizeCounts();
   refreshCountUi();
@@ -1143,10 +1081,9 @@ startButton.addEventListener('click', () => {
   if (busy || buildFailed || requirementsDirty) {
     return;
   }
-  markPendingCounts(selectedCounts());
+  markPendingCounts(effectiveCounts);
   markPendingCrossovers(crossovers);
   markPendingRequirements([]);
-  markPendingExclusions([]);
   markPendingSeed(seed);
   markPendingStart();
   window.location.assign('./game.html');

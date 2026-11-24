@@ -129,30 +129,29 @@ calls.
   other keeps the loop at the crossing, so the bridge threads the loop's opening.
   Validation allows a plan-view overlap only when the decks are at least 3.5 m
   apart vertically.
-- **Multi-crossing layouts are one authored trefoil.** A seed can replace the
-  polygon and single-crossing families with a closed 3D trefoil whose plan
-  crosses itself three times. The seed only scales the curve (10–14 m) and
-  rotates it; it never reorders catalog pieces. The curve's own height
-  separates every crossing by at least 3.5 m, so the deck stays continuous and
-  the car drives over and under its route without a jump, gap, or fork. Two or
-  three sampled segments carry boost strips. The layout is opt-in, so the
-  stock preview and existing seeds keep their old output.
+- **Double-crossing layouts are generated from catalog pieces.** The Crossovers
+  control can replace the polygon and single-crossing families with a
+  self-intersecting octagon. One long chord climbs to a bridge deck and crosses
+  two lower chords, so the plan crosses itself twice. The seed picks the vertex
+  order, mirror, and scale; the segment planner then places loops, hills, jumps,
+  obstacles, and boosts on the remaining edges. The bridge height separates
+  every crossing by at least 3.5 m, so the deck stays continuous and the car
+  drives over and under its route without a jump, gap, or fork.
 - **The preview can set minimum segment counts.** The track preview lists every
   piece kind in a scrollable vertical table with a minimum-count control:
-  **No** leaves it to the seed, **0** excludes it, and **1–5** require at least
-  that many pieces. Every non-core kind supports the full range. Generation
+  **0** means 0 or more, and **1–5** require at least that many pieces. Every
+  non-core kind supports the full range. Generation
   counts pieces by kind and searches deterministic
   salted attempts for a playable circuit satisfying every minimum; the count
   list travels through session storage to the race. The preview keeps the seed
-  and every non-default count in the URL
+  and every non-zero count in the URL
   (`?seed=...&counts=kind:value,...&crossovers=0|1|2`) and offers a copy-link
   control for bug reports. A crossovers value forces a polygon (0), the
   single-crossing bridge (1), or the two-crossing layout (2). Excluding the loop produces
   a loopless polygon circuit; structural straights, turns, and boosts stay
   always present. Elevation up and down pieces are independent, so a steep climb
-  can return on two 2-level spirals. A multi-crossing layout is one whole
-  circuit, so it cannot be combined with catalog requirements; an impossible
-  count is reported without replacing the current preview.
+  can return on two 2-level spirals. The double-crossing layout is generated
+  from catalog pieces, so the same segment counts apply to it.
 - **Elevated sections can carry the route.** Beyond the single-crossing layout, a
   seed may send the circuit up one or two stages, along an elevated stretch, and
   back down in one or two stages on a different section. Any stage can be a
@@ -273,8 +272,8 @@ calls.
 | Circuit | A closed track assembled from catalog pieces from a seed and level. |
 | Elevated section | A stretch where the deck is held one or more bridge levels above the lower route, entered on a spiral or ramp and left on a spiral or ramp in a different section. |
 | Seed | The input that selects the circuit combination; a fresh random seed is drawn on every page load and race start. |
-| Segment rule | A minimum count for a piece kind: No (seed choice), 0 (excluded), or 1–5 (minimum pieces). |
-| Loopless layout | A polygon circuit assembled without the loop and loop return, used when the loop is excluded. |
+| Segment rule | A minimum count for a piece kind: 0 (0 or more) or 1–5 (minimum pieces). |
+| Loopless layout | A polygon circuit assembled without the loop and loop return when the generator is asked to exclude it. |
 | Piece | An authored catalog module: straight, banked turn, loop, hill, jump, shift, boost straight, steep ramp, spiral, or bridge. |
 | Level | A difficulty rung controlling the piece pool, radii, bank angle, boost count, and damage sensitivity. |
 | Damage | Accumulated impact value that reduces acceleration and top speed; it never ends the race. |
@@ -299,7 +298,6 @@ calls.
 | Countdown | 3 s |
 | Track scale | 1.5× the base catalogue |
 | Single-crossing share | about half of seeds |
-| Multi-crossing share | about a quarter of layout-enabled seeds |
 | Track width | 7 world units (seven car widths) |
 | Guide rail height | 0.9 world units (at least one car height) |
 | Design speed | 12 m/s |

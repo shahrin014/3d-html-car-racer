@@ -456,11 +456,11 @@ climb, such as a steep descent or two 2-level spiral descents.
 - **AND** the loop's ring sits under the bridge at the crossing
 - **AND** no deck or rail of the two branches touches
 
-#### Scenario: Multi-crossing layout
+#### Scenario: Double-crossing layout
 
-- **GIVEN** a multi-crossing circuit
+- **GIVEN** a double-crossing circuit
 - **WHEN** the route passes over itself
-- **THEN** each of its three plan crossings has at least 3.5 m between the upper
+- **THEN** each of its two plan crossings has at least 3.5 m between the upper
   and lower decks
 - **AND** the route is one closed continuous deck with no forks, jumps, or gaps
 - **AND** at least two boost strips push the car through the layout
