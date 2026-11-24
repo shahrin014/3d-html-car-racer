@@ -216,9 +216,13 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 
 The track preview SHALL list every selectable `Piece` kind in a scrollable
 vertical table with a minimum-count control offering **No**, **0**, **1**,
-**2**, **3**, **4**, and **5**. **No** SHALL leave the choice to the seed;
-**0** SHALL exclude the kind; a positive value SHALL require at least that many
-pieces in the generated circuit. The generator SHALL count pieces by kind and
+**2**, **3**, **4**, and **5** up to the authored repeat limit. **No** SHALL
+leave the choice to the seed; **0** SHALL exclude the kind; a positive value
+SHALL require at least that many pieces in the generated circuit. The control
+SHALL offer at most **1** for loop, loop return, bridge deck, obstacle corridor,
+and hill crest, at most **2** for boost strips, the steep pair, and the jump
+pieces, and up to **5** for the other repeatable kinds. A count above the
+authored limit SHALL be clamped. The generator SHALL count pieces by kind and
 search deterministic seed offsets and salted attempts until it finds a playable
 circuit satisfying every minimum, and the same seed and count list SHALL always
 settle on the same circuit. Structural kinds (straight, turn, and boost) are
@@ -281,7 +285,8 @@ race, so the race uses the same circuit.
 
 #### Scenario: Impossible count is reported
 
-- **GIVEN** a count the generator cannot assemble, such as two loops
+- **GIVEN** a count the generator cannot assemble, such as more transitions
+  than the free legs can hold
 - **WHEN** the player regenerates
 - **THEN** the preview reports that the rules cannot be fitted
 - **AND** the previous circuit stays visible

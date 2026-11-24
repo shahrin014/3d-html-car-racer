@@ -35,6 +35,19 @@ jobs:
       - name: Typecheck, test, and build (enforces the gzip budget)
         run: npm run check
 
+      - name: Publish unit test summary
+        if: always()
+        run: node build/test-report-summary.ts
+
+      - name: Upload unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: test-results/vitest-junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
   browser:
     name: Browser smoke tests
     runs-on: ubuntu-latest

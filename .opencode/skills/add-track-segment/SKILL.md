@@ -306,7 +306,8 @@ Before committing, confirm the inventory contract:
   `SEGMENTS` in `src/game/requiredSegments.test.ts`, so the preview table can
   set its minimum count and the segment-rule test covers it;
 - structural kinds (straight, turn, boost) stay non-excludable; a new optional
-  kind gets `minimumCounts` assembly support and a rule test;
+  kind gets `minimumCounts` assembly support, a `MAX_COUNTS` entry, and a rule
+  test;
 - a new layout family has a **Circuit layouts** row and a matching preview
   entry, not a fake piece row;
 - every solid piece has a rendered PNG and a `.glb` under `assets/track/`, and

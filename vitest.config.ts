@@ -9,5 +9,13 @@ export default defineConfig({
     // keeps peak memory low enough for CI runners and small dev machines.
     fileParallelism: false,
     maxWorkers: 1,
+    // CI publishes a JUnit report as an artifact and job summary. Local runs
+    // keep the normal terminal reporter and do not write test-results/.
+    ...(process.env.CI
+      ? {
+          reporters: ['default', 'junit'],
+          outputFile: { junit: 'test-results/vitest-junit.xml' },
+        }
+      : {}),
   },
 });
