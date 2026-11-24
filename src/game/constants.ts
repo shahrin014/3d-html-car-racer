@@ -284,16 +284,6 @@ export const SKY_JUMP_GAP_LENGTH = 4;
 export const SKY_JUMP_LANDING_LENGTH = 18;
 
 /**
- * Multi-crossing layout: a closed 3D trefoil whose plan crosses itself three
- * times. The seed scales and rotates the authored curve; it is not assembled
- * from the catalog pieces. Crossings are separated by the curve's own height,
- * so the car drives over and under its route without a gap.
- */
-export const MULTI_CROSSING_SHARE = 0.25;
-export const MULTI_CROSSING_SCALE = 10;
-export const MULTI_CROSSING_SCALE_VARIANCE = 4;
-export const MULTI_CROSSING_SEGMENTS = 12;
-/**
  * Extra leg length added to every leg when the seed plans a steep pair. The
  * sky-jump module plus the lead straight and a boost strip is about 71 m; this
  * keeps the climb eligible on short level-1 legs instead of starving the

@@ -20,11 +20,9 @@ by shape and crossing count:
 | Polygon | 0 | Three to six banked corners joined by legs; no self-crossing. |
 | Single-crossing | 1 | The current four-corner bridge layout, with one pass over another. |
 | Double-crossing | 2 | A closed 3D route that passes over itself twice. |
-| Multi-crossing | 3 or 4 | A closed 3D route that passes over itself three or four times. |
 
 The former names "figure-eight" and "bowtie" are not used for any layout. The
-current multi-crossing variant is the 3-crossing trefoil; a fourth crossing
-would be a 4-crossing knot, not a "figure-eight".
+two-crossing layout is a closed curve with two over/under passes.
 
 ## Default Values
 
@@ -37,12 +35,8 @@ of the requirements.
 | Corner counts | 3, 4, 5, or 6 |
 | Single-crossing share | about half of seeds |
 | Crossovers | Auto, 0, 1, or 2 in the preview |
-| Multi-crossing share | about a quarter of layout-enabled seeds |
-| Multi-crossing counts | 3 or 4 crossings |
-| Multi-crossing scale | 10–14 m for the base crossing curve |
 | Crossing clearance | at least 3.5 m between the upper and lower passes |
-| Multi-crossing boost strips | 2–3 per layout |
-| Multi-crossing segments | 12 sampled pieces for mesh, boost, and progress
+| Double-crossing boost strips | 2–3 per layout |
 | Double-crossing scale | 12–16 m for the base two-crossing curve |
 | Double-crossing segments | 12 sampled pieces for mesh, boost, and progress
 | Turn radius | 12–27 m across the level ladder |
@@ -131,19 +125,21 @@ Elevated routes SHALL NOT be limited to the single-crossing family. The seed
 SHALL be able to send a polygon circuit up a spiral or ramp, along the circuit
 at bridge height, and back down in a different section, as set out below.
 
-Some seeds SHALL instead produce a multi-crossing layout: one closed 3D route
-whose plan passes over itself three or four times. At every crossing the upper
-pass SHALL clear the lower pass by at least the elevated clearance, so no two
-branches share a deck. The route SHALL be a single closed path with no forks
-and no rescue-forcing breaks. It SHALL carry at least two boost strips, and the
-car, rivals, lap checkpoints, rescue, and camera SHALL use the same sampled
-frames as every other layout. Crossings SHALL be achieved by vertical
-separation, not by a jump, gap, or disconnected bridge: the deck SHALL remain
-continuous through each crossing, with the lower branch visible beneath the
-upper deck. The multi-crossing scale SHALL keep the tightest turn drivable at
-racing speed. The layout family SHALL be chosen deterministically from the seed
-and SHALL be identical in the track preview and the race. A representative
-sample SHALL include polygon, single-crossing, and multi-crossing layouts.
+When the crossovers control selects 2, the generator SHALL produce a
+double-crossing layout: one closed 3D route whose plan passes over itself twice. At every crossing the upper pass SHALL
+clear the lower pass by at least the elevated clearance, so no two branches
+share a deck. The route SHALL be a single closed path with no forks and no
+rescue-forcing breaks. It SHALL carry at least two boost strips, and the car,
+rivals, lap checkpoints, rescue, and camera SHALL use the same sampled frames as
+every other layout. Crossings SHALL be achieved by vertical separation, not by a
+jump, gap, or disconnected bridge: the deck SHALL remain continuous through each
+crossing, with the lower branch visible beneath the upper deck. The
+generated layout SHALL keep the tightest turn drivable at racing speed. The
+layout SHALL be assembled from the same catalog pieces as every other family,
+so segment counts apply to it. The layout family SHALL be chosen
+deterministically from the seed and the crossovers control and SHALL be
+identical in the track preview and the race. The preview SHALL be able to
+request polygon, single-crossing, and double-crossing layouts.
 
 #### Scenario: Every race is randomized
 
@@ -156,8 +152,9 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 
 - **GIVEN** several seeds at one level
 - **WHEN** the circuits are generated
-- **THEN** more than one layout shape appears, including polygon circuits,
-  single-crossing layouts, and multi-crossing layouts
+- **THEN** more than one layout shape appears, including polygon circuits and
+  single-crossing layouts
+- **AND** the crossovers control can request a double-crossing layout
 - **AND** some circuits carry a crest where others carry a jump
 - **AND** every circuit is closed
 - **AND** polygon layouts turn the same way at every corner, so they stay convex
@@ -183,24 +180,24 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 - **THEN** it rises on a two-level spiral and descends on a matching spiral
 - **AND** each spiral leaves an opening wide enough for a landmark building
 
-#### Scenario: Multi-crossing layout
+#### Scenario: Double-crossing layout
 
-- **GIVEN** a seed selected for a multi-crossing layout
+- **GIVEN** the crossovers control set to 2
 - **WHEN** the circuit is generated
-- **THEN** its plan crosses itself three or four times
+- **THEN** its plan crosses itself twice
 - **AND** every crossing has at least the elevated clearance between passes
 - **AND** the route is one closed path with at least two boost strips
 - **AND** it carries the car through a lap without a rescue
 
 #### Scenario: Preview and race share the layout
 
-- **GIVEN** a previewed multi-crossing seed
+- **GIVEN** a previewed double-crossing seed
 - **WHEN** the player starts the race from the preview
-- **THEN** the race uses the same multi-crossing circuit and crossing count
+- **THEN** the race uses the same double-crossing circuit and crossing count
 
-#### Scenario: Multi-crossing is deterministic
+#### Scenario: Double-crossing is deterministic
 
-- **GIVEN** a seed selected for a multi-crossing layout
+- **GIVEN** the crossovers control set to 2
 - **WHEN** the circuit is generated twice
 - **THEN** every crossing, boost strip, and track frame is identical
 
@@ -210,45 +207,45 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 - **WHEN** both circuits are generated
 - **THEN** every loop, hill, obstacle segment, ramp, spiral, and shift keeps
   its authored size
-- **AND** every turn keeps the level's authored radius
-- **AND** the multi-crossing curve keeps its authored shape; the seed only
-  scales and rotates it
+- **AND** every turn keeps the level's authored radius, except the
+  two-crossing layout, which may use a tighter radius above the minimum
+- **AND** the double-crossing layout is assembled from the same catalog pieces
+  as the other families
 - **AND** only the layout family, crossing count, combination, corner count,
   straight lengths, obstacle rows, and elevation route differ
 
 ### Requirement: The preview can set minimum segment counts
 
-The track preview SHALL list every selectable `Piece` kind in a scrollable
-vertical table with a minimum-count control offering **No**, **0**, **1**,
-**2**, **3**, **4**, and **5** for every non-core kind. **No** SHALL leave the
-choice to the seed; **0** SHALL exclude the kind; a positive value SHALL require
-at least that many pieces in the generated circuit. Structural straights, turns,
-and boost strips remain always present. A minimum for a climb SHALL NOT require
-the same number of matching descents; the planner SHALL balance it with any
-allowed descent combination. The generator SHALL count pieces by kind and
-search deterministic seed offsets and salted attempts until it finds a playable
-circuit satisfying every minimum, and the same seed and count list SHALL always
-settle on the same circuit. Structural kinds (straight, turn, and boost) are
-always present and SHALL NOT be excludable. The loop and its return SHALL move
-together, and the jump launch, gap, and landing SHALL move together. Elevation
-up and down pieces SHALL be independent: a climb may return on any allowed
-combination of descents, such as a steep climb followed by two 2-level spiral
-descents. Excluding the loop SHALL produce a loopless polygon circuit that is
-still closed and playable. The preview SHALL also offer a crossovers control with **Auto**, **0**, **1**,
-and **2**: 0 forces a polygon, 1 forces the single-crossing layout, and 2
-forces the double-crossing layout. A double-crossing or multi-crossing layout is
-one whole circuit and SHALL NOT be combined with catalog segment counts. The
-preview SHALL provide a button that randomizes a compatible mix of counts and
-regenerates. Requiring a multi-crossing layout
-together with catalog segments SHALL be rejected, because the trefoil is one
-whole circuit. If a count set cannot be assembled, the preview SHALL report it,
-keep the previous circuit visible, and keep Start race disabled until a track
-builds. Starting the race from the preview SHALL pass the count list to the
-race, so the race uses the same circuit. The preview SHALL keep the seed and
-every non-default count in the URL as
+The track preview SHALL list every selectable catalog `Piece` kind in a
+scrollable vertical table with a minimum-count control offering **0**, **1**,
+**2**, **3**, **4**, and **5** for every non-core catalog kind.
+Whole-layout families are selected by the Crossovers control, not by a count.
+**0** SHALL mean "0 or more": no minimum, so the seed decides. A positive value
+SHALL require at least that many pieces in the generated circuit. Structural
+straights, turns, and boost strips remain always present. A minimum for a climb
+SHALL NOT require the same number of matching descents; the planner SHALL
+balance it with any allowed descent combination. The generator SHALL count
+pieces by kind and search deterministic seed offsets and salted attempts until
+it finds a playable circuit satisfying every minimum, and the same seed and
+count list SHALL always settle on the same circuit. Structural kinds (straight,
+turn, and boost) are always present and SHALL NOT be configurable. The loop and
+its return SHALL move together, and the jump launch, gap, and landing SHALL move
+together. Elevation up and down pieces SHALL be independent: a climb may return
+on any allowed combination of descents, such as a steep climb followed by two
+2-level spiral descents. The preview SHALL also offer a crossovers control with
+**Auto**, **0**, **1**, and **2**: 0 forces a polygon, 1 forces the
+single-crossing layout, and 2 forces the double-crossing layout. The
+double-crossing layout is generated from the same catalog pieces, so catalog
+segment counts apply to it like any other layout. The preview SHALL provide a button that randomizes a
+compatible mix of counts and regenerates. No count set SHALL be rejected: if the
+requested minimums cannot be assembled, the preview SHALL keep the chosen counts
+in the table, build the seed's best circuit without them, and leave Start race
+enabled. Starting the race from the preview SHALL pass the counts of the circuit
+that was actually built to the race, so the race uses the same circuit. The
+preview SHALL keep the seed and every non-zero count in the URL as
 `?seed=<seed>&counts=<kind>:<value>,...&crossovers=0|1|2` and SHALL provide a control to copy
 that link. Loading the link SHALL reproduce the same circuit. Legacy
-`require`/`exclude` links MAY still be accepted.
+Legacy `require` links MAY still be accepted.
 
 #### Scenario: Crossover count is forced
 
@@ -288,26 +285,26 @@ that link. Loading the link SHALL reproduce the same circuit. Legacy
 - **THEN** the circuit contains at least five of that feature
 - **AND** the feature-slot planner distributes them across the legs
 
-#### Scenario: Zero excludes a segment
+#### Scenario: Zero means no minimum
 
 - **GIVEN** the preview and a segment with minimum 0
 - **WHEN** the track is regenerated
-- **THEN** the circuit contains no piece of that kind
+- **THEN** the seed is free to include or omit that kind
 - **AND** the preview reports that every rule is met
 
 #### Scenario: Independent elevation transitions
 
-- **GIVEN** the preview with a steep climb minimum and the steep descent excluded
+- **GIVEN** the preview with a steep climb minimum and the steep descent at 0
 - **WHEN** the track is regenerated
-- **THEN** the circuit contains the steep climb and no steep descent
-- **AND** it returns to the lower deck on other allowed descents
+- **THEN** the circuit contains at least the steep climb minimum
+- **AND** it may return to the lower deck on any allowed descent combination
 
-#### Scenario: Loopless circuit stays playable
+#### Scenario: Zero leaves the loop to the seed
 
 - **GIVEN** the preview with the loop set to 0
 - **WHEN** the track is regenerated
-- **THEN** the circuit has no loop or loop return
-- **AND** it closes and contains at least two banked turns and two boost strips
+- **THEN** the seed may include or omit the loop
+- **AND** the circuit always closes and contains at least two banked turns and two boost strips
 - **AND** the car can complete a lap without a rescue
 
 #### Scenario: Randomize segment counts
@@ -317,20 +314,20 @@ that link. Loading the link SHALL reproduce the same circuit. Legacy
 - **THEN** a random compatible mix of minimum counts is set
 - **AND** the track regenerates with every rule met
 
-#### Scenario: Impossible count is reported
+#### Scenario: Impossible count still builds a track
 
 - **GIVEN** a count the generator cannot assemble, such as more transitions
   than the free legs can hold
 - **WHEN** the player regenerates
-- **THEN** the preview reports that the rules cannot be fitted
-- **AND** the previous circuit stays visible
-- **AND** Start race stays disabled until a track builds
+- **THEN** the preview keeps the chosen counts in the table
+- **AND** builds the seed's best circuit without them
+- **AND** Start race stays enabled and races that circuit
 
 #### Scenario: Shareable preview URL
 
 - **GIVEN** a preview with a seed and segment counts
 - **WHEN** the player copies the link or reloads the page
-- **THEN** the URL contains the seed, every non-default count, and the
+- **THEN** the URL contains the seed, every non-zero count, and the
   crossovers selection
 - **AND** loading the URL produces the same circuit
 
@@ -339,7 +336,7 @@ that link. Loading the link SHALL reproduce the same circuit. Legacy
 - **GIVEN** a preview with minimum counts
 - **WHEN** the player starts the race
 - **THEN** the race circuit meets every minimum
-- **AND** it contains none of the excluded kinds
+- **AND** it matches the circuit the preview actually built
 
 ### Requirement: Obstacle segments are seeded and leave a gap in every row
 
@@ -609,7 +606,7 @@ a downhill descent it picks between a ramp, a spiral, and a jump.
 
 A generated circuit SHALL be a closed loop: position and heading SHALL match at
 the seam. It SHALL contain at least two banked turns and at least two boost
-strips. Unless the preview explicitly excludes the loop, it SHALL also contain
+strips. Unless the generator is asked to exclude the loop, it SHALL also contain
 at least one vertical loop. It SHALL NOT self-intersect at one elevation,
 SHALL keep at least one car width of clear air between the edges of non-adjacent
 sections that share a height, and SHALL keep every turn radius above the
@@ -627,7 +624,7 @@ SHALL be rejected and regenerated from the next deterministic seed offset.
 
 - **GIVEN** any accepted circuit
 - **THEN** it contains two banked turns and two boost strips
-- **AND** it contains at least one loop unless the loop was explicitly excluded
+- **AND** it contains at least one loop unless the generator was asked to exclude it
 
 #### Scenario: Unplayable layout is rejected
 

@@ -24,7 +24,6 @@ import { randomSeed } from './game/seed';
 import {
   takePendingCounts,
   takePendingCrossovers,
-  takePendingExclusions,
   takePendingRequirements,
   takePendingSeed,
   takePendingStart,
@@ -311,11 +310,9 @@ async function bootGame(): Promise<void> {
   // apply when there is a previewed seed; a normal menu start ignores them.
   const previewSeed = takePendingSeed();
   const pendingRequirements = takePendingRequirements();
-  const pendingExclusions = takePendingExclusions();
   const pendingCounts = takePendingCounts();
   const pendingCrossovers = takePendingCrossovers();
   const previewRequirements = previewSeed ? pendingRequirements : [];
-  const previewExclusions = previewSeed ? pendingExclusions : [];
   const previewCounts = previewSeed ? pendingCounts : {};
   const previewCrossovers = previewSeed ? pendingCrossovers : null;
   // A direct load or refresh of game.html has no race to show. Leave for the
@@ -398,7 +395,6 @@ async function bootGame(): Promise<void> {
       readOpponentCount(),
       carId,
       previewRequirements,
-      previewExclusions,
       previewCounts,
       previewCrossovers ?? undefined,
     );

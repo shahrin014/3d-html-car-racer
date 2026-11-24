@@ -227,12 +227,15 @@ still gets a row, with `—` in the image column and a note that it has no mesh.
 Never leave a new kind off the inventory because it is "only" a connector, and
 fix a missing row you notice while touching the catalog.
 
-A layout family (such as the multi-crossing trefoil) is not a `Piece`: it is a
-whole circuit assembled by its own module, so its sampled segments use one
-`Piece['kind']`. Give it a preview entry with `kind: 'layout'`, `closed: true`,
-and a runtime `track` config, add the same id to the render and GLB tools, and
-add a **Circuit layouts** row instead of a **Track pieces** row. Keep the
-preview curve identical to the game module, including its height axis and
+A layout family is not a `Piece`: it is a whole circuit assembled from the
+catalog. The double-crossing family is generated inside `assembleCircuit` from
+the same straights, turns, bridge, and feature pieces as every other layout, so
+it has no separate mesh or module. Keep the preview and race on the same
+generator path. If you add a new whole-layout curve, give it a preview entry
+with `kind: 'layout'`, `closed: true`, and a runtime `track` config, add the
+same id to the render and GLB tools, and add a **Circuit layouts** row instead
+of a **Track pieces** row. Keep the preview curve identical to the game module,
+including its height axis and
 crossing count.
 
 Catalogue renders use catalogue scale. The game widens the deck to 7 m and

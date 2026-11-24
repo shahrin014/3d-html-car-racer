@@ -23,7 +23,6 @@ import {
   LOOP_RADIUS,
   LOOP_RETURN_LENGTH,
   MIN_TURN_RADIUS,
-  MULTI_CROSSING_SHARE,
   OBSTACLE_SEGMENT_LENGTH,
   SKY_JUMP_ENTRY_HEIGHT,
   SKY_JUMP_GAP_LENGTH,
@@ -41,8 +40,6 @@ import {
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
-import { assembleDoubleCrossingCircuit } from './doubleCrossing';
-import { assembleMultiCrossingCircuit } from './multiCrossing';
 
 /** A sampled point on the track with the frame needed to place mesh and car. */
 export interface TrackFrame {
@@ -658,8 +655,7 @@ export interface Piece {
     | 'steep-ramp'
     | 'steep-ramp-down'
     | 'spiral-up'
-    | 'spiral-down'
-    | 'multi-crossing';
+    | 'spiral-down';
   path: TrackPath;
   length: number;
   /** Matrix that places the piece's local frame in the circuit. */
@@ -693,10 +689,10 @@ export interface Circuit {
   /** Deterministic retry offset that produced the accepted combination. */
   seedOffset: number;
   /** Layout family; absent means the original polygon family. */
-  layout?: 'polygon' | 'single-crossing' | 'double-crossing' | 'multi-crossing';
+  layout?: 'polygon' | 'single-crossing' | 'double-crossing';
   pieces: Piece[];
   frameCount: number;
-  /** Arc length of a multi-crossing layout; other layouts use their pieces. */
+  /** Arc length of a whole-layout circuit; other layouts use their pieces. */
   totalLength?: number;
 }
 
@@ -783,6 +779,8 @@ interface AssemblyConstraints {
   forceSingleCrossing?: boolean;
   /** Force the polygon family. */
   forcePolygon?: boolean;
+  /** Force the generated two-crossing family. */
+  forceDoubleCrossing?: boolean;
   /** Allow a hill crest on the feature leg. */
   allowHill?: boolean;
   /** Allow the jump group on the feature leg. */
@@ -1000,6 +998,235 @@ function assembleCircuit(
       }
     }
   };
+
+  const doubleCrossing = constraints.forceDoubleCrossing === true;
+  if (doubleCrossing) {
+    // A two-crossing circuit is generated from the same catalog pieces as the
+    // other families. The plan is a self-intersecting octagon: one long chord
+    // climbs to a bridge deck and crosses two lower chords, so the route passes
+    // over itself exactly twice. The seed picks the vertex order, the mirror,
+    // and the scale, so every seed gets its own two-crossing shape.
+    const orders: { order: number[]; bridge: number }[] = [
+      { order: [0, 1, 2, 5, 6, 7, 4, 3], bridge: 2 },
+      { order: [0, 1, 2, 7, 6, 3, 4, 5], bridge: 7 },
+      { order: [0, 1, 4, 3, 2, 7, 6, 5], bridge: 4 },
+      { order: [0, 1, 4, 5, 6, 3, 2, 7], bridge: 1 },
+      { order: [0, 1, 6, 5, 2, 3, 4, 7], bridge: 6 },
+      { order: [0, 3, 2, 1, 6, 5, 4, 7], bridge: 3 },
+      { order: [0, 3, 4, 5, 2, 1, 6, 7], bridge: 0 },
+      { order: [0, 5, 4, 1, 2, 3, 6, 7], bridge: 5 },
+    ];
+    const picked = orders[Math.floor(random() * orders.length)] ?? orders[0]!;
+    const order = picked.order;
+    const bridgeEdge = picked.bridge;
+    const mirror = random() < 0.5;
+    const layoutRadius = Math.max(MIN_TURN_RADIUS, radius * 0.5);
+    const n = order.length;
+    const unitPoints = Array.from({ length: n }, (_, label) => {
+      const angle = (2 * Math.PI * label) / n;
+      return new THREE.Vector2(Math.cos(angle), Math.sin(angle));
+    });
+    const unitLength: number[] = [];
+    const turnAngle: number[] = [];
+    for (let index = 0; index < n; index += 1) {
+      const a = unitPoints[order[(index - 1 + n) % n]!]!;
+      const b = unitPoints[order[index]!]!;
+      const c = unitPoints[order[(index + 1) % n]!]!;
+      unitLength.push(b.distanceTo(c));
+      const u = b.clone().sub(a);
+      const v = c.clone().sub(b);
+      const cross = u.x * v.y - u.y * v.x;
+      const dot = u.dot(v);
+      const angle = (Math.atan2(cross, dot) * 180) / Math.PI;
+      turnAngle.push(mirror ? -angle : angle);
+    }
+    const tangent = (angle: number): number =>
+      layoutRadius * Math.tan((Math.abs(angle) * Math.PI) / 360);
+    // The tightest corner sets the minimum octagon size: every straight must
+    // keep a short lead between its two turn arcs.
+    const minStraight = 10;
+    let size = 0;
+    for (let index = 0; index < n; index += 1) {
+      const room =
+        tangent(turnAngle[index]!) + tangent(turnAngle[(index + 1) % n]!);
+      size = Math.max(size, (room + minStraight) / unitLength[index]!);
+    }
+    size += 6 + random() * 10;
+    const edgeLength = unitLength.map((length) => length * size);
+    const straightLength = edgeLength.map(
+      (length, index) =>
+        length -
+        tangent(turnAngle[index]!) -
+        tangent(turnAngle[(index + 1) % n]!),
+    );
+
+    type PlanSegment = {
+      kind: 'straight' | 'boost' | 'bridge' | 'loop' | 'hill' | 'jump' | 'obstacles';
+      length: number;
+    };
+    const loopCount = Math.max(
+      0,
+      featureMinimums.loop ?? (allowLoopless ? 0 : 1),
+    );
+    const jumpCount = Math.max(
+      featureMinimums.kicker ?? 0,
+      featureMinimums.gap ?? 0,
+      featureMinimums.landing ?? 0,
+    );
+    const defaultJump = allowJump && jumpCount === 0 && random() < 0.5;
+    const hillCount = Math.max(
+      0,
+      featureMinimums.hill ??
+        (allowHill && !defaultJump && jumpCount === 0 ? 1 : 0),
+    );
+    const obstacleCount = Math.max(0, featureMinimums.obstacles ?? 0);
+    const queue: PlanSegment[] = [];
+    for (let index = 0; index < loopCount; index += 1) {
+      queue.push({ kind: 'loop', length: LOOP_RETURN_LENGTH });
+    }
+    for (let index = 0; index < hillCount; index += 1) {
+      queue.push({ kind: 'hill', length: HILL_LENGTH });
+    }
+    for (let index = 0; index < Math.max(jumpCount, defaultJump ? 1 : 0); index += 1) {
+      queue.push({ kind: 'jump', length: jumpPlanarLength() });
+    }
+    for (let index = 0; index < obstacleCount; index += 1) {
+      queue.push({ kind: 'obstacles', length: OBSTACLE_SEGMENT_LENGTH });
+    }
+
+    const planStraight = (length: number): PlanSegment[] => {
+      if (queue.length === 0 || length < CIRCUIT_LEAD_STRAIGHT * 2) {
+        return [{ kind: 'straight', length }];
+      }
+      const features: PlanSegment[] = [];
+      let remaining = length - CIRCUIT_LEAD_STRAIGHT;
+      while (
+        queue.length > 0 &&
+        queue[0]!.length <= remaining - CIRCUIT_LEAD_STRAIGHT
+      ) {
+        const feature = queue.shift()!;
+        features.push(feature);
+        remaining -= feature.length;
+      }
+      if (features.length === 0) {
+        return [{ kind: 'straight', length }];
+      }
+      return [
+        { kind: 'straight', length: CIRCUIT_LEAD_STRAIGHT },
+        ...features,
+        { kind: 'straight', length: remaining },
+      ];
+    };
+
+    const edgePlan: PlanSegment[][] = [];
+    for (let index = 0; index < n; index += 1) {
+      edgePlan.push(
+        index === bridgeEdge
+          ? [{ kind: 'straight', length: straightLength[index]! }]
+          : planStraight(straightLength[index]!),
+      );
+    }
+
+    const bridgeLength = straightLength[bridgeEdge]!;
+    const boost = CIRCUIT_BOOST_LENGTH;
+    const bridgePlan: PlanSegment[] =
+      bridgeLength >= boost * 2 + CIRCUIT_LEAD_STRAIGHT * 2
+        ? [
+            { kind: 'straight', length: CIRCUIT_LEAD_STRAIGHT },
+            { kind: 'boost', length: boost },
+            {
+              kind: 'bridge',
+              length: bridgeLength - boost * 2 - CIRCUIT_LEAD_STRAIGHT * 2,
+            },
+            { kind: 'boost', length: boost },
+            { kind: 'straight', length: CIRCUIT_LEAD_STRAIGHT },
+          ]
+        : [{ kind: 'bridge', length: bridgeLength }];
+
+    const addLayoutTurn = (angle: number, clockwise: boolean): void => {
+      const last = pieces[pieces.length - 1];
+      const matrix = last ? frameAt(last.matrix, last.path, 1) : identity.clone();
+      pieces.push({
+        kind: 'turn',
+        path: turnPath(layoutRadius, angle, clockwise),
+        length: (layoutRadius * angle * Math.PI) / 180,
+        matrix,
+        radius: layoutRadius,
+        angleDegrees: angle,
+      });
+    };
+    const addSegment = (segment: PlanSegment): void => {
+      switch (segment.kind) {
+        case 'straight':
+          addStraight(segment.length);
+          break;
+        case 'boost':
+          addStraight(segment.length, true);
+          break;
+        case 'bridge':
+          addPiece(
+            'bridge',
+            bridgeDeckPath(segment.length),
+            segment.length,
+          );
+          break;
+        case 'loop':
+          addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
+          addPiece(
+            'shift',
+            shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH),
+            LOOP_RETURN_LENGTH,
+          );
+          break;
+        case 'hill':
+          addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
+          break;
+        case 'jump':
+          addJump();
+          break;
+        case 'obstacles':
+          addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
+          break;
+      }
+    };
+
+    const sequence = Array.from(
+      { length: n },
+      (_, index) => (bridgeEdge + index) % n,
+    );
+    for (let index = 0; index < sequence.length; index += 1) {
+      const edge = sequence[index]!;
+      if (index > 0) {
+        const angle = turnAngle[edge]!;
+        addLayoutTurn(Math.abs(angle), angle < 0);
+      }
+      if (edge === bridgeEdge) {
+        addSpiral('spiral-up', spiralUpPath(), spiralArcLength(), SPIRAL_RADIUS, true);
+        for (const segment of bridgePlan) {
+          addSegment(segment);
+        }
+        addSpiral('spiral-down', spiralDownPath(), spiralArcLength(), SPIRAL_RADIUS, true);
+      } else {
+        for (const segment of edgePlan[edge]!) {
+          addSegment(segment);
+        }
+      }
+    }
+    const closeAngle = turnAngle[bridgeEdge]!;
+    addLayoutTurn(Math.abs(closeAngle), closeAngle < 0);
+
+    return {
+      seed,
+      level,
+      seedOffset,
+      layout: 'double-crossing',
+      pieces,
+      frameCount: pieces.reduce(
+        (count, piece) => count + Math.ceil(piece.length / 0.4),
+        0,
+      ),
+    };
+  }
 
   const pick = <T,>(values: readonly T[]): T => {
     const value = values[Math.floor(random() * values.length)];
@@ -2047,9 +2274,6 @@ export function validateCircuit(
 ): CircuitValidation {
   const reasons = new Set<string>();
 
-  const wholeLayout =
-    circuit.layout === 'multi-crossing' ||
-    circuit.layout === 'double-crossing';
   const loops = circuit.pieces.filter((piece) => piece.kind === 'loop').length;
   const turns = circuit.pieces.filter((piece) => piece.kind === 'turn').length;
   // A steep ramp is a boost strip too, even though its piece kind is not
@@ -2057,27 +2281,14 @@ export function validateCircuit(
   const boosts = circuit.pieces.filter(
     (piece) => piece.kind === 'boost' || piece.boost === true,
   ).length;
-  if (!wholeLayout) {
-    if (!options.allowLoopless && loops < 1) {
-      reasons.add('missing a vertical loop');
-    }
-    if (turns < 2) {
-      reasons.add('needs at least two banked turns');
-    }
+  if (!options.allowLoopless && loops < 1) {
+    reasons.add('missing a vertical loop');
+  }
+  if (turns < 2) {
+    reasons.add('needs at least two banked turns');
   }
   if (boosts < 2) {
     reasons.add('needs at least two boost strips');
-  }
-  if (wholeLayout) {
-    if (circuit.pieces.length < 2) {
-      reasons.add('whole-layout circuit has no pieces');
-    }
-    for (const piece of circuit.pieces) {
-      if (piece.kind !== 'multi-crossing') {
-        reasons.add('whole-layout circuit mixes catalog pieces');
-        break;
-      }
-    }
   }
 
   for (const piece of circuit.pieces) {
@@ -2160,11 +2371,10 @@ export function validateCircuit(
 }
 
 /**
- * Options for circuit generation. Multi-crossing layouts are opt-in so the
- * stock preview and existing seeds keep the polygon/single-crossing output.
+ * Options for circuit generation. The crossovers option forces a whole-layout
+ * family; otherwise the seed picks polygon, single-crossing, or double-crossing.
  */
 export interface CircuitOptions {
-  allowMultiCrossing?: boolean;
   /**
    * Piece kinds the circuit must contain. The generator searches deterministic
    * seed offsets and salted attempts until it finds a playable circuit with
@@ -2179,7 +2389,7 @@ export interface CircuitOptions {
   excludedKinds?: readonly Piece['kind'][];
   /**
    * Minimum piece counts. A positive value requires at least that many pieces
-   * of the kind; zero excludes it. Overrides requiredKinds/excludedKinds.
+   * of the kind; zero means "0 or more" and adds no rule.
    */
   minimumCounts?: Partial<Record<Piece['kind'], number>>;
   /**
@@ -2195,7 +2405,6 @@ export interface CircuitOptions {
  * seed offset, so the same seed and level always settle on the same circuit.
  *
  * The layout family is rolled once from its own seed stream. Seeds that do not
- * allow multi-crossing never consume that stream, so their output is unchanged.
  */
 export function generateCircuit(
   seed: string,
@@ -2205,18 +2414,13 @@ export function generateCircuit(
   const fail = (reason: string): never => {
     throw new Error(`Cannot fit the selected segment rules: ${reason}`);
   };
-  const requiredOptions = new Set(options.requiredKinds ?? []);
-  for (const kind of options.excludedKinds ?? []) {
-    if (requiredOptions.has(kind)) {
-      fail(`${kind} is both required and excluded`);
-    }
-  }
+  const forbidden = new Set(options.excludedKinds ?? []);
   const counts = new Map<Piece['kind'], number>();
   for (const kind of options.requiredKinds ?? []) {
+    if (forbidden.has(kind)) {
+      fail(`${kind} is both required and excluded`);
+    }
     counts.set(kind, 1);
-  }
-  for (const kind of options.excludedKinds ?? []) {
-    counts.set(kind, 0);
   }
   for (const [kind, value] of Object.entries(
     options.minimumCounts ?? {},
@@ -2228,35 +2432,16 @@ export function generateCircuit(
     if (!Number.isFinite(count) || count < 0) {
       fail(`${kind} needs a whole, non-negative minimum`);
     }
-    counts.set(kind, count);
+    // A minimum of 0 means "0 or more": it adds no rule and never excludes a
+    // kind. The planner may still add it when the route needs it.
+    if (count > 0) {
+      counts.set(kind, count);
+    }
   }
-  const required = [...counts]
-    .filter(([, count]) => count > 0)
-    .map(([kind]) => kind);
-  const excluded = [...counts]
-    .filter(([, count]) => count === 0)
-    .map(([kind]) => kind);
-  const wanted = new Set(required);
-  const forbidden = new Set(excluded);
 
   for (const kind of ['straight', 'turn', 'boost'] as const) {
     if (forbidden.has(kind)) {
       fail(`${kind} is structural and cannot be excluded`);
-    }
-  }
-  const multiCount = counts.get('multi-crossing') ?? 0;
-  if (multiCount > 0) {
-    if (
-      [...counts].some(
-        ([kind, count]) => kind !== 'multi-crossing' && count > 0,
-      )
-    ) {
-      fail(
-        'multi-crossing is one whole circuit and cannot be combined with catalog segments',
-      );
-    }
-    if (multiCount > 12) {
-      fail('a multi-crossing circuit has twelve sampled pieces');
     }
   }
   const loopCount = counts.get('loop') ?? 0;
@@ -2272,7 +2457,7 @@ export function generateCircuit(
   const jumpKinds = ['kicker', 'gap', 'landing'] as const;
   if (
     jumpKinds.some((kind) => (counts.get(kind) ?? 0) > 0) &&
-    jumpKinds.some((kind) => counts.get(kind) === 0)
+    jumpKinds.some((kind) => forbidden.has(kind))
   ) {
     fail('the jump launch, gap, and landing must be included or excluded together');
   }
@@ -2309,7 +2494,7 @@ export function generateCircuit(
     }
     for (const [kind, minimum] of counts) {
       const count = actual.get(kind) ?? 0;
-      if (minimum === 0 ? count !== 0 : count < minimum) {
+      if (count < minimum) {
         return false;
       }
     }
@@ -2354,6 +2539,7 @@ export function generateCircuit(
     allowLoopless: excludeLoop,
     forceSingleCrossing: crossovers === 1,
     forcePolygon: crossovers === 0,
+    forceDoubleCrossing: crossovers === 2,
     allowSingleCrossing:
       crossovers === 1
         ? true
@@ -2371,7 +2557,7 @@ export function generateCircuit(
       !forbidden.has('steep-ramp-down'),
     elevationMinimums,
     featureMinimums,
-    excludedElevation: excluded.filter((kind) =>
+    excludedElevation: [...forbidden].filter((kind) =>
       plannerElevationKinds.includes(kind),
     ),
   };
@@ -2387,73 +2573,6 @@ export function generateCircuit(
     failures.push(`${label}: ${validation.reasons.join(', ')}`);
     return null;
   };
-
-  if (crossovers === 2) {
-    const catalogRequired = [...counts].some(
-      ([kind, minimum]) => minimum > 0 && kind !== 'multi-crossing',
-    );
-    if (catalogRequired) {
-      fail(
-        'A 2-crossing layout is one whole circuit and cannot be combined with catalog segments',
-      );
-    }
-    const doubleFailures: string[] = [];
-    for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
-      const circuit = assembleDoubleCrossingCircuit(
-        seed,
-        level,
-        offset,
-        seededRandom(`${seed}:${level}:${offset}:double-crossing`),
-      );
-      if (!hasSatisfied(circuit)) {
-        continue;
-      }
-      const accepted = tryCircuit(circuit, `double-crossing offset ${offset}`);
-      if (accepted) {
-        return accepted;
-      }
-      doubleFailures.push(
-        `offset ${offset}: ${validateCircuit(circuit).reasons.join(', ')}`,
-      );
-    }
-    throw new Error(
-      `Could not assemble a playable 2-crossing circuit for ${seed} at level ${level}: ${doubleFailures
-        .slice(0, 3)
-        .join(' | ')}`,
-    );
-  }
-
-  const multiCrossing =
-    crossovers === undefined &&
-    (wanted.has('multi-crossing') ||
-      (options.allowMultiCrossing === true &&
-        wanted.size === 0 &&
-        !forbidden.has('multi-crossing') &&
-        seededRandom(`${seed}:${level}:layout`)() < MULTI_CROSSING_SHARE));
-  if (multiCrossing) {
-    for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
-      const circuit = assembleMultiCrossingCircuit(
-        seed,
-        level,
-        offset,
-        seededRandom(`${seed}:${level}:${offset}:multi-crossing`),
-      );
-      if (!hasSatisfied(circuit)) {
-        continue;
-      }
-      const accepted = tryCircuit(circuit, `multi-crossing offset ${offset}`);
-      if (accepted) {
-        return accepted;
-      }
-    }
-    if (wanted.has('multi-crossing')) {
-      throw new Error(
-        `Could not assemble a playable multi-crossing circuit for ${seed} at level ${level}: ${failures
-          .slice(0, 3)
-          .join(' | ')}`,
-      );
-    }
-  }
 
   // Rule searches need more independent attempts than one seed offset ladder.
   // Salt 0 is the normal ladder; later salts only run when the caller asked

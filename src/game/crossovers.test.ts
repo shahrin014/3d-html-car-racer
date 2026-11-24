@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { BRIDGE_HEIGHT } from './constants';
+import { BRIDGE_CLEARANCE, BRIDGE_HEIGHT, TRACK_WIDTH } from './constants';
 import {
+  buildFrames,
   generateCircuit,
   validateCircuit,
   type Piece,
@@ -12,6 +13,87 @@ function count(
   kind: Piece['kind'],
 ): number {
   return circuit.pieces.filter((piece) => piece.kind === kind).length;
+}
+
+/** Count separate places where the route passes over another part of itself. */
+function countPlanCrossings(
+  circuit: ReturnType<typeof generateCircuit>,
+): number {
+  const frames = buildFrames(circuit, 0.8);
+  const total = frames[frames.length - 1]!.s;
+  const starts: { at: number; kind: Piece['kind'] }[] = [];
+  let distance = 0;
+  for (const piece of circuit.pieces) {
+    starts.push({ at: distance, kind: piece.kind });
+    distance += piece.length;
+  }
+  const kindAt = (s: number): Piece['kind'] => {
+    let kind: Piece['kind'] = starts[0]?.kind ?? 'straight';
+    for (const start of starts) {
+      if (start.at <= s + 1e-6) {
+        kind = start.kind;
+      } else {
+        break;
+      }
+    }
+    return kind;
+  };
+  const lower: number[] = [];
+  for (let a = 0; a < frames.length; a += 1) {
+    const upper = frames[a]!;
+    const upperKind = kindAt(upper.s);
+    if (
+      upperKind === 'loop' ||
+      upperKind === 'gap' ||
+      upperKind === 'spiral-up' ||
+      upperKind === 'spiral-down' ||
+      upperKind === 'turn'
+    ) {
+      continue;
+    }
+    for (let b = a + 1; b < frames.length; b += 1) {
+      const lowerFrame = frames[b]!;
+      const lowerKind = kindAt(lowerFrame.s);
+      if (
+        lowerKind === 'loop' ||
+        lowerKind === 'gap' ||
+        lowerKind === 'spiral-up' ||
+        lowerKind === 'spiral-down' ||
+        lowerKind === 'turn'
+      ) {
+        continue;
+      }
+      const direct = Math.abs(upper.s - lowerFrame.s);
+      const arc = Math.min(direct, Math.max(0, total - direct));
+      if (arc < TRACK_WIDTH * 2) {
+        continue;
+      }
+      const horizontal = Math.hypot(
+        upper.position.x - lowerFrame.position.x,
+        upper.position.z - lowerFrame.position.z,
+      );
+      if (horizontal >= TRACK_WIDTH * 0.5) {
+        continue;
+      }
+      if (
+        Math.abs(upper.position.y - lowerFrame.position.y) <
+        BRIDGE_CLEARANCE
+      ) {
+        continue;
+      }
+      lower.push(lowerFrame.s);
+    }
+  }
+  lower.sort((left, right) => left - right);
+  let clusters = 0;
+  let last = Number.NEGATIVE_INFINITY;
+  for (const at of lower) {
+    if (at - last > TRACK_WIDTH * 2) {
+      clusters += 1;
+      last = at;
+    }
+  }
+  return clusters;
 }
 
 describe('crossover parameter', () => {
@@ -42,28 +124,32 @@ describe('crossover parameter', () => {
 
     const double = generateCircuit('cross-2', 1, { crossovers: 2 });
     expect(double.layout).toBe('double-crossing');
-    expect(count(double, 'multi-crossing')).toBeGreaterThanOrEqual(12);
+    expect(count(double, 'loop')).toBeGreaterThanOrEqual(1);
+    expect(count(double, 'bridge')).toBeGreaterThanOrEqual(1);
     expect(validateCircuit(double).ok).toBe(true);
+    expect(countPlanCrossings(double)).toBe(2);
   }, 30_000);
 
-  it('lets a two-crossing layout satisfy a multi-crossing count', () => {
+  it('generates a valid two-crossing layout for many seeds', () => {
+    for (let index = 0; index < 8; index += 1) {
+      const circuit = generateCircuit(`double-seed-${index}`, 1, {
+        crossovers: 2,
+      });
+      expect(validateCircuit(circuit).ok).toBe(true);
+      expect(countPlanCrossings(circuit)).toBe(2);
+    }
+  }, 60_000);
+
+  it('honors catalog counts on a two-crossing layout', () => {
     const circuit = generateCircuit('cross-2-count', 1, {
       crossovers: 2,
-      minimumCounts: { 'multi-crossing': 2 },
+      minimumCounts: { loop: 2, obstacles: 1 },
     });
     expect(circuit.layout).toBe('double-crossing');
-    expect(count(circuit, 'multi-crossing')).toBeGreaterThanOrEqual(2);
+    expect(count(circuit, 'loop')).toBeGreaterThanOrEqual(2);
+    expect(count(circuit, 'obstacles')).toBeGreaterThanOrEqual(1);
     expect(validateCircuit(circuit).ok).toBe(true);
   }, 30_000);
-
-  it('rejects catalog counts on a two-crossing layout', () => {
-    expect(() =>
-      generateCircuit('cross-2-loop', 1, {
-        crossovers: 2,
-        minimumCounts: { loop: 1 },
-      }),
-    ).toThrow(/cannot be combined with catalog segments/);
-  });
 
   it('is deterministic for the same seed and crossover count', () => {
     const first = generateCircuit('cross-determinism', 1, { crossovers: 2 });

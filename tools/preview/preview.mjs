@@ -254,56 +254,6 @@ function shiftPath(
   };
 }
 
-const MULTI_CROSSING = {
-  /** Catalogue-scale curve; the game rolls 10–14 m from the seed. */
-  scale: 12,
-};
-
-/**
- * The game's multi-crossing layout: the standard trefoil plan, whose projection
- * crosses itself three times, with the third component as height. Game Y is up.
- */
-function multiCrossingPath(scale = MULTI_CROSSING.scale) {
-  const lift = scale + 0.12 + 0.25;
-  return (t) => {
-    const angle = t * Math.PI * 2;
-    const rawX = scale * (Math.sin(angle) + 2 * Math.sin(2 * angle));
-    const rawY = scale * -Math.sin(3 * angle);
-    const rawZ = scale * (Math.cos(angle) - 2 * Math.cos(2 * angle));
-    const rawTx = scale * (Math.cos(angle) + 4 * Math.cos(2 * angle));
-    const rawTy = scale * (-3 * Math.cos(3 * angle));
-    const rawTz = scale * (-Math.sin(angle) + 4 * Math.sin(2 * angle));
-    const tangent = new THREE.Vector3(rawTx, rawTy, rawTz).normalize();
-    const right = new THREE.Vector3(tangent.z, 0, -tangent.x);
-    if (right.lengthSq() < 1e-10) {
-      right.set(1, 0, 0);
-    }
-    right.normalize();
-    const up = new THREE.Vector3().crossVectors(tangent, right).normalize();
-    return {
-      position: new THREE.Vector3(rawX, rawY + lift, rawZ),
-      tangent,
-      up,
-      bank: 0,
-    };
-  };
-}
-
-function pathLength(path, steps = 1600) {
-  let length = 0;
-  let previous = null;
-  for (let index = 0; index <= steps; index += 1) {
-    const point = path(index / steps).position;
-    if (previous) {
-      length += point.distanceTo(previous);
-    }
-    previous = point;
-  }
-  return length;
-}
-
-const MULTI_CROSSING_PATH = multiCrossingPath();
-const MULTI_CROSSING_LENGTH = pathLength(MULTI_CROSSING_PATH);
 
 const SPIRAL_ONE_LEVEL = {
   radius: 12,
@@ -554,15 +504,6 @@ const PIECES = {
     view: new THREE.Vector3(0.9, 0.55, 1),
     showLeadIn: true,
     leadOut: { x: 0, y: 0, z: BRIDGE.flat },
-  },
-  'multi-crossing-trefoil': {
-    title: 'Multi-crossing layout · trefoil',
-    meta: 'closed 3D route · three plan crossings · two or three boost strips',
-    length: MULTI_CROSSING_LENGTH,
-    path: MULTI_CROSSING_PATH,
-    track: OBSTACLE_TRACK,
-    closed: true,
-    view: new THREE.Vector3(1, 0.62, 1),
   },
   'spiral-r12-1': {
     title: 'Spiral ramp · R12 · one level',

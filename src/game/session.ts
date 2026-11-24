@@ -11,7 +11,6 @@ import type { Piece } from './track';
 export const PENDING_START_KEY = 'neon-racer.pending-start';
 export const PENDING_SEED_KEY = 'neon-racer.pending-seed';
 export const PENDING_REQUIREMENTS_KEY = 'neon-racer.pending-requirements';
-export const PENDING_EXCLUSIONS_KEY = 'neon-racer.pending-exclusions';
 export const PENDING_COUNTS_KEY = 'neon-racer.pending-counts';
 export const PENDING_CROSSOVERS_KEY = 'neon-racer.pending-crossovers';
 
@@ -38,7 +37,6 @@ export function clearPendingSeed(): void {
   try {
     window.sessionStorage.removeItem(PENDING_SEED_KEY);
     window.sessionStorage.removeItem(PENDING_REQUIREMENTS_KEY);
-    window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
     window.sessionStorage.removeItem(PENDING_COUNTS_KEY);
     window.sessionStorage.removeItem(PENDING_CROSSOVERS_KEY);
   } catch {
@@ -68,31 +66,6 @@ export function markPendingRequirements(
 export function clearPendingRequirements(): void {
   try {
     window.sessionStorage.removeItem(PENDING_REQUIREMENTS_KEY);
-  } catch {
-    // Persistence is best effort.
-  }
-}
-
-/** Hand the previewed excluded segments to the race page. */
-export function markPendingExclusions(kinds: readonly Piece['kind'][]): void {
-  try {
-    if (kinds.length === 0) {
-      window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
-      return;
-    }
-    window.sessionStorage.setItem(
-      PENDING_EXCLUSIONS_KEY,
-      JSON.stringify([...new Set(kinds)]),
-    );
-  } catch {
-    // Without session storage the race still draws its own circuit.
-  }
-}
-
-/** Drop any previewed exclusions. */
-export function clearPendingExclusions(): void {
-  try {
-    window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
   } catch {
     // Persistence is best effort.
   }
@@ -218,9 +191,4 @@ function takePendingKinds(key: string): Piece['kind'][] {
 /** Read and clear the previewed segment requirements. */
 export function takePendingRequirements(): Piece['kind'][] {
   return takePendingKinds(PENDING_REQUIREMENTS_KEY);
-}
-
-/** Read and clear the previewed excluded segments. */
-export function takePendingExclusions(): Piece['kind'][] {
-  return takePendingKinds(PENDING_EXCLUSIONS_KEY);
 }
