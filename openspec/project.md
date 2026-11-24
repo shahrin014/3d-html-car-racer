@@ -137,16 +137,17 @@ calls.
   the car drives over and under its route without a jump, gap, or fork. Two or
   three sampled segments carry boost strips. The layout is opt-in, so the
   stock preview and existing seeds keep their old output.
-- **The preview can require or exclude segments.** The track preview lists
-  every piece kind with a round, three-state control: no rule, required, or
-  excluded. Generation searches deterministic salted attempts for a playable
-  circuit satisfying every rule, and both lists travel through session storage
-  to the race so the previewed circuit is the raced circuit. Excluding the loop
-  produces a loopless polygon circuit; structural straights, turns, and boosts
-  stay always present. Elevation up and down pieces are independent, so a steep
-  climb can return on two 2-level spirals. A multi-crossing layout is one whole
-  circuit, so it cannot be combined with catalog requirements; an impossible set
-  is reported without replacing the current preview.
+- **The preview can set minimum segment counts.** The track preview lists every
+  piece kind in a scrollable vertical table with a minimum-count control:
+  **No** leaves it to the seed, **0** excludes it, and **1–5** require at least
+  that many pieces. Generation counts pieces by kind and searches deterministic
+  salted attempts for a playable circuit satisfying every minimum; the count
+  list travels through session storage to the race. Excluding the loop produces
+  a loopless polygon circuit; structural straights, turns, and boosts stay
+  always present. Elevation up and down pieces are independent, so a steep climb
+  can return on two 2-level spirals. A multi-crossing layout is one whole
+  circuit, so it cannot be combined with catalog requirements; an impossible
+  count is reported without replacing the current preview.
 - **Elevated sections can carry the route.** Beyond the single-crossing layout, a
   seed may send the circuit up one or two stages, along an elevated stretch, and
   back down in one or two stages on a different section. Any stage can be a
@@ -267,7 +268,7 @@ calls.
 | Circuit | A closed track assembled from catalog pieces from a seed and level. |
 | Elevated section | A stretch where the deck is held one or more bridge levels above the lower route, entered on a spiral or ramp and left on a spiral or ramp in a different section. |
 | Seed | The input that selects the circuit combination; a fresh random seed is drawn on every page load and race start. |
-| Segment rule | A piece kind the track preview requires, excludes, or leaves to the seed. |
+| Segment rule | A minimum count for a piece kind: No (seed choice), 0 (excluded), or 1–5 (minimum pieces). |
 | Loopless layout | A polygon circuit assembled without the loop and loop return, used when the loop is excluded. |
 | Piece | An authored catalog module: straight, banked turn, loop, hill, jump, shift, boost straight, steep ramp, spiral, or bridge. |
 | Level | A difficulty rung controlling the piece pool, radii, bank angle, boost count, and damage sensitivity. |

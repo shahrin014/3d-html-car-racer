@@ -65,9 +65,20 @@
               id="preview-requirements-note"
               aria-live="polite"
             >
-              Click a segment to require it; click again to exclude it.
+              Set a minimum count; No leaves it to the seed, 0 excludes it.
             </p>
-            <div id="preview-segments"></div>
+            <div class="preview__segment-table-wrap">
+              <table class="preview__segment-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Segment</th>
+                    <th scope="col">Min</th>
+                    <th scope="col">Now</th>
+                  </tr>
+                </thead>
+                <tbody id="preview-segments"></tbody>
+              </table>
+            </div>
           </div>
         </section>
       </div>

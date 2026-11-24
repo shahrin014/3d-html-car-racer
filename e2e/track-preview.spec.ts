@@ -1,25 +1,26 @@
 import { expect, test } from '@playwright/test';
 import { expectNoIssues, watchPage } from './helpers.ts';
 
-test('preview forces segments, reports impossible sets, and races them', async ({
+test('preview honors minimum counts and races the same rules', async ({
   page,
 }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(180_000);
   const issues = watchPage(page);
 
-  // An impossible set leaves the preview usable and the start button disabled.
-  await page.goto('/track.html?seed=preview-impossible&require=ramp-up,steep-ramp');
+  // A minimum the authored circuit cannot repeat leaves the preview usable and
+  // the start button disabled.
+  await page.goto('/track.html?seed=preview-impossible&require=loop:2');
   await expect(page.locator('#preview-requirements-note')).toContainText(
     'cannot be fitted together',
     { timeout: 30_000 },
   );
   await expect(page.locator('#preview-start')).toBeDisabled();
 
-  // Excluding the loop removes it, and the rule is reported as met.
+  // Zero excludes the loop and its return; the rule is reported as met.
   await page.goto('/track.html?seed=preview-excluded&exclude=loop');
-  await expect(page.locator('.preview__segment')).toHaveCount(18);
+  await expect(page.locator('.preview__segment-row')).toHaveCount(18);
   await expect(page.locator('#preview-requirements-note')).toContainText(
-    '2 excluded · all met.',
+    '2 rules · all met.',
     { timeout: 30_000 },
   );
   await expect(page.locator('#preview-start')).toBeEnabled();
@@ -30,21 +31,37 @@ test('preview forces segments, reports impossible sets, and races them', async (
     '/track.html?seed=preview-steep&require=steep-ramp&exclude=steep-ramp-down',
   );
   await expect(page.locator('#preview-requirements-note')).toContainText(
-    '1 required · 1 excluded · all met.',
+    '2 rules · all met.',
     { timeout: 30_000 },
   );
   await expect(
-    page.locator('.preview__segment[data-kind="steep-ramp"]'),
-  ).toHaveAttribute('data-state', 'require');
+    page.locator('.preview__segment-row[data-kind="steep-ramp"] select'),
+  ).toHaveValue('1');
   await expect(
-    page.locator('.preview__segment[data-kind="steep-ramp-down"]'),
-  ).toHaveAttribute('data-state', 'exclude');
+    page.locator('.preview__segment-row[data-kind="steep-ramp-down"] select'),
+  ).toHaveValue('0');
   await expect(page.locator('#preview-start')).toBeEnabled();
 
+  // A count above one is a minimum, not an exact target.
+  await page.goto('/track.html?seed=preview-count&require=spiral-down:2');
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    '1 rule · all met.',
+    { timeout: 30_000 },
+  );
+  await expect(
+    page.locator('.preview__segment-row[data-kind="spiral-down"] select'),
+  ).toHaveValue('2');
+  const spirals = Number(
+    await page
+      .locator('.preview__segment-row[data-kind="spiral-down"] .preview__segment-now')
+      .textContent(),
+  );
+  expect(spirals).toBeGreaterThanOrEqual(2);
+
   // A feasible set builds, reports every rule, and hands the same seed and
-  // rules to the race page.
+  // counts to the race page.
   await page.goto('/track.html?seed=preview-required&require=obstacles,bridge');
-  await expect(page.locator('.preview__segment')).toHaveCount(18);
+  await expect(page.locator('.preview__segment-row')).toHaveCount(18);
   await expect(page.locator('#preview-requirements-note')).toContainText(
     'all met.',
     { timeout: 30_000 },
