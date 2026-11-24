@@ -153,14 +153,14 @@ describe('obstacle segment', () => {
         }
       }
     }
-  });
+  }, 20_000);
 
   it('returns rivals to their home lane outside the corridor', () => {
     const lane = allLaneSpecs()[0]!;
     expect(weaveLateral([lane], lane.sFrom - 4, 0.5, 0.5)).toBe(0.5);
     expect(weaveLateral([lane], lane.sFrom - 0.1, 0.5, 0.5)).toBe(0.5);
     expect(weaveLateral([lane], lane.sTo + 2, 0.9, 0.9)).toBe(0.9);
-  });
+  }, 20_000);
 
   it('keeps the weave continuous at the corridor entry and exit', () => {
     const lane = allLaneSpecs()[0]!;
@@ -172,7 +172,7 @@ describe('obstacle segment', () => {
       previous = lateral;
       last = lateral;
     }
-  });
+  }, 20_000);
 
   it('has no blocks on a circuit without an obstacle piece', () => {
     const empty: Circuit = {

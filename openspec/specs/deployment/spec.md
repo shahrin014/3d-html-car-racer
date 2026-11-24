@@ -148,8 +148,10 @@ When a pull request is used, a `pull_request` workflow SHALL run the quality gat
 without deploy permissions. It SHALL run type checking, unit tests, the
 production build (including the transfer budget), and the browser smoke suite.
 The browser suite SHALL run at a landscape phone viewport and SHALL cover
-orientation handling and the input fallbacks. The workflow SHALL request only
-`contents: read` and SHALL NOT deploy.
+orientation handling and the input fallbacks. The check job SHALL publish a
+JUnit unit-test report in the job summary and upload it as an artifact on every
+run, including failures. The workflow SHALL request only `contents: read` and
+SHALL NOT deploy.
 
 #### Scenario: Pull request runs the gate
 
@@ -157,6 +159,13 @@ orientation handling and the input fallbacks. The workflow SHALL request only
 - **WHEN** it is opened or updated
 - **THEN** the checks workflow runs type checking, unit tests, the build, and the browser smoke tests
 - **AND** no deployment is triggered
+
+#### Scenario: Unit test report is visible
+
+- **GIVEN** a pull request run
+- **WHEN** the unit tests finish, pass or fail
+- **THEN** the check job summary lists the test totals and any failed test names
+- **AND** `test-results/vitest-junit.xml` is available as the `unit-test-report` artifact
 
 #### Scenario: Landscape coverage
 

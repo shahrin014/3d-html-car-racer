@@ -140,7 +140,9 @@ calls.
 - **The preview can set minimum segment counts.** The track preview lists every
   piece kind in a scrollable vertical table with a minimum-count control:
   **No** leaves it to the seed, **0** excludes it, and **1–5** require at least
-  that many pieces. Generation counts pieces by kind and searches deterministic
+  that many pieces, capped at the authored repeat limit (1 for loop, loop
+  return, bridge, obstacles, and hill; 2 for boost, steep, and jump pieces).
+  Generation counts pieces by kind and searches deterministic
   salted attempts for a playable circuit satisfying every minimum; the count
   list travels through session storage to the race. Excluding the loop produces
   a loopless polygon circuit; structural straights, turns, and boosts stay
