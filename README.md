@@ -33,8 +33,9 @@ The track preview lists every segment kind in a scrollable table with a
 minimum-count control: No leaves it to the seed, 0 excludes it, and 1–5 require
 at least that many pieces. Elevation up and down pieces are independent, so a
 steep climb can return on spirals or any other allowed descents. Randomize picks
-a compatible mix, and a race started from the preview uses the same seed and
-counts.
+a compatible mix. The seed and counts are kept in the URL
+(`?seed=...&counts=kind:value,...`), and **Copy link** makes the exact preview
+easy to share. A race started from the preview uses the same seed and counts.
 
 ## Local development
 

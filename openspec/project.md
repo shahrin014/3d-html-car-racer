@@ -143,7 +143,9 @@ calls.
   that many pieces. Every non-core kind supports the full range. Generation
   counts pieces by kind and searches deterministic
   salted attempts for a playable circuit satisfying every minimum; the count
-  list travels through session storage to the race. Excluding the loop produces
+  list travels through session storage to the race. The preview keeps the seed
+  and every non-default count in the URL (`?seed=...&counts=kind:value,...`)
+  and offers a copy-link control for bug reports. Excluding the loop produces
   a loopless polygon circuit; structural straights, turns, and boosts stay
   always present. Elevation up and down pieces are independent, so a steep climb
   can return on two 2-level spirals. A multi-crossing layout is one whole

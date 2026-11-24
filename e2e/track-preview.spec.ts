@@ -84,6 +84,37 @@ test('preview honors minimum counts and races the same rules', async ({
   );
   expect(spirals).toBeGreaterThanOrEqual(2);
 
+  // The canonical URL carries the seed and every count, so the exact preview
+  // can be reopened or shared.
+  await page.goto('/track.html?seed=url-state&counts=loop:4,spiral-up:5');
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    '3 rules · all met.',
+    { timeout: 30_000 },
+  );
+  await expect(
+    page.locator('.preview__segment-row[data-kind="loop"] select'),
+  ).toHaveValue('4');
+  await expect(
+    page.locator('.preview__segment-row[data-kind="spiral-up"] select'),
+  ).toHaveValue('5');
+  const shared = new URL(page.url());
+  expect(shared.searchParams.get('seed')).toBe('url-state');
+  expect(shared.searchParams.get('counts')).toContain('loop:4');
+  expect(shared.searchParams.get('counts')).toContain('spiral-up:5');
+
+  await page.selectOption(
+    '.preview__segment-row[data-kind="obstacles"] select',
+    '2',
+  );
+  await page.waitForFunction(
+    () => !document.body.classList.contains('is-building'),
+    undefined,
+    { timeout: 30_000 },
+  );
+  const updated = new URL(page.url());
+  expect(updated.searchParams.get('seed')).toBe('url-state');
+  expect(updated.searchParams.get('counts')).toContain('obstacles:2');
+
   // A feasible set builds, reports every rule, and hands the same seed and
   // counts to the race page.
   await page.goto('/track.html?seed=preview-required&require=obstacles,bridge');

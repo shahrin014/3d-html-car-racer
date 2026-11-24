@@ -1097,6 +1097,10 @@ kbd {
   padding: 0 20px;
 }
 
+.preview__buttons .preview__copy {
+  min-width: 110px;
+}
+
 .preview__loading {
   position: fixed;
   inset: 0;
