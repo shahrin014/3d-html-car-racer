@@ -47,6 +47,86 @@ export function createTrackTexture(boost = false): THREE.CanvasTexture {
   return texture;
 }
 
+/** Black-and-white checker strip laid across the start/finish line. */
+function createStartLineTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('2D canvas is unavailable');
+  }
+  const columns = 16;
+  const rows = 2;
+  const cellWidth = canvas.width / columns;
+  const cellHeight = canvas.height / rows;
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      ctx.fillStyle = (row + column) % 2 === 0 ? '#f8fafc' : '#0b1220';
+      ctx.fillRect(
+        column * cellWidth,
+        row * cellHeight,
+        cellWidth,
+        cellHeight,
+      );
+    }
+  }
+  ctx.strokeStyle = '#19e3ff';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+/** Neon start/finish banner. */
+function createBannerTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1280;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('2D canvas is unavailable');
+  }
+  ctx.fillStyle = '#07101a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cell = 32;
+  for (let row = 0; row < 2; row += 1) {
+    for (let column = 0; column < canvas.width / cell; column += 1) {
+      ctx.fillStyle = (row + column) % 2 === 0 ? '#f8fafc' : '#0b1220';
+      ctx.fillRect(column * cell, row * cell, cell, cell);
+      ctx.fillRect(
+        column * cell,
+        canvas.height - (row + 1) * cell,
+        cell,
+        cell,
+      );
+    }
+  }
+  ctx.strokeStyle = '#ff7a18';
+  ctx.lineWidth = 14;
+  ctx.strokeRect(7, 7, canvas.width - 14, canvas.height - 14);
+  ctx.strokeStyle = '#19e3ff';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = "bold 96px 'Arial Black', Arial, sans-serif";
+  ctx.shadowColor = '#19e3ff';
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillText('START / FINISH', canvas.width / 2, canvas.height / 2 + 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+
 function stripGeometry(
   frames: TrackFrame[],
   pointA: (frame: TrackFrame) => THREE.Vector3,
@@ -167,6 +247,7 @@ export function buildTrackMesh(
   });
   const textures: THREE.Texture[] = [];
   const geometries: THREE.BufferGeometry[] = [];
+  const materials: THREE.Material[] = [];
 
   for (const piece of pieces) {
     const frames = piece.frames;
@@ -182,6 +263,7 @@ export function buildTrackMesh(
       metalness: 0.06,
       side: THREE.DoubleSide,
     });
+    materials.push(material);
 
     // The deck is half the piece's (possibly widened) width from the frame
     // centreline, so a jump landing flares to twice the running track.
@@ -252,6 +334,118 @@ export function buildTrackMesh(
     }
   }
 
+  const startFrame = pieces[0]?.frames[0];
+  if (startFrame) {
+    const lineDepth = 1.2;
+    const half = startFrame.halfWidth;
+    const right = startFrame.right;
+    const up = startFrame.up;
+    const tangent = startFrame.tangent;
+    const center = startFrame.position
+      .clone()
+      .addScaledVector(up, 0.05);
+    const corner = (side: number, forward: number): THREE.Vector3 =>
+      center
+        .clone()
+        .addScaledVector(right, side * half)
+        .addScaledVector(tangent, forward * (lineDepth / 2));
+    const startGeometry = new THREE.BufferGeometry();
+    startGeometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(
+        [
+          ...corner(-1, -1).toArray(),
+          ...corner(1, -1).toArray(),
+          ...corner(1, 1).toArray(),
+          ...corner(-1, 1).toArray(),
+        ],
+        3,
+      ),
+    );
+    startGeometry.setAttribute(
+      'uv',
+      new THREE.Float32BufferAttribute(
+        [0, 0, 1, 0, 1, 1, 0, 1],
+        2,
+      ),
+    );
+    startGeometry.setIndex([0, 1, 2, 0, 2, 3]);
+    startGeometry.computeVertexNormals();
+    const startTexture = createStartLineTexture();
+    textures.push(startTexture);
+    const startMaterial = new THREE.MeshBasicMaterial({
+      map: startTexture,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    materials.push(startMaterial);
+    geometries.push(startGeometry);
+    const startLine = new THREE.Mesh(startGeometry, startMaterial);
+    startLine.frustumCulled = false;
+    group.add(startLine);
+
+    const gate = new THREE.Group();
+    gate.position.copy(startFrame.position);
+    gate.quaternion.setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(right, up, tangent),
+    );
+    const postHeight = 5.4;
+    const postOffset = half + 1.2;
+    const bannerHeight = 1.8;
+    const bannerWidth = postOffset * 2 - 0.3;
+    const gateMaterial = new THREE.MeshStandardMaterial({
+      color: 0x101820,
+      roughness: 0.42,
+      metalness: 0.55,
+    });
+    materials.push(gateMaterial);
+    const postGeometry = new THREE.BoxGeometry(0.22, postHeight, 0.22);
+    const crossGeometry = new THREE.BoxGeometry(
+      postOffset * 2,
+      0.22,
+      0.22,
+    );
+    geometries.push(postGeometry, crossGeometry);
+    for (const side of [-1, 1]) {
+      const post = new THREE.Mesh(postGeometry, gateMaterial);
+      post.position.set(side * postOffset, postHeight / 2, 0);
+      post.frustumCulled = false;
+      gate.add(post);
+    }
+    const crossbar = new THREE.Mesh(crossGeometry, gateMaterial);
+    crossbar.position.set(0, postHeight, 0);
+    crossbar.frustumCulled = false;
+    gate.add(crossbar);
+
+    const bannerGeometry = new THREE.PlaneGeometry(
+      bannerWidth,
+      bannerHeight,
+    );
+    geometries.push(bannerGeometry);
+    const bannerTexture = createBannerTexture();
+    textures.push(bannerTexture);
+    const bannerMaterial = new THREE.MeshBasicMaterial({
+      map: bannerTexture,
+      side: THREE.FrontSide,
+      toneMapped: false,
+    });
+    materials.push(bannerMaterial);
+    const bannerY = postHeight - bannerHeight / 2 - 0.12;
+    const frontBanner = new THREE.Mesh(bannerGeometry, bannerMaterial);
+    frontBanner.position.set(0, bannerY, 0.02);
+    frontBanner.frustumCulled = false;
+    gate.add(frontBanner);
+    const backBanner = new THREE.Mesh(bannerGeometry, bannerMaterial);
+    backBanner.position.set(0, bannerY, -0.02);
+    backBanner.rotation.y = Math.PI;
+    backBanner.frustumCulled = false;
+    gate.add(backBanner);
+    group.add(gate);
+  }
+
   return {
     group,
     dispose: () => {
@@ -260,6 +454,9 @@ export function buildTrackMesh(
       }
       for (const texture of textures) {
         texture.dispose();
+      }
+      for (const material of materials) {
+        material.dispose();
       }
       railMaterial.dispose();
     },
