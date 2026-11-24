@@ -722,6 +722,8 @@ function seededRandom(seed: string): () => number {
 /** Straight lengths the seeded assembly may choose from, in metres. */
 const HILL_LENGTH = 30;
 const HILL_HEIGHT = 2.4;
+/** Extra leg length added when repeated flat features need room. */
+const FEATURE_LEG_EXTRA = 30;
 const TURN_RADII = [18, 14, 10, 8] as const;
 const MAX_ASSEMBLY_ATTEMPTS = 32;
 
@@ -788,6 +790,8 @@ interface AssemblyConstraints {
   allowSteep?: boolean;
   /** Minimum piece counts for the elevation planner. */
   elevationMinimums?: Partial<Record<Piece['kind'], number>>;
+  /** Minimum piece counts for flat loop/hill/jump/obstacle/bridge features. */
+  featureMinimums?: Partial<Record<Piece['kind'], number>>;
   /** Elevation kinds the circuit must not contain. */
   excludedElevation?: readonly Piece['kind'][];
 }
@@ -814,6 +818,7 @@ function assembleCircuit(
   const allowElevated = constraints.allowElevated !== false;
   const allowSteep = constraints.allowSteep !== false;
   const elevationMinimums = constraints.elevationMinimums ?? {};
+  const featureMinimums = constraints.featureMinimums ?? {};
   const excludedElevation = new Set(constraints.excludedElevation ?? []);
   const radius = turnRadiusForLevel(level);
   const loopRadius = loopRadiusForLevel(level);
@@ -885,7 +890,8 @@ function assembleCircuit(
       | 'ramp-down'
       | 'steep-jump'
       | 'steep-ramp-down'
-      | 'jump-down';
+      | 'jump-down'
+      | 'straight';
     path: TrackPath;
     length: number;
     /** Forward distance consumed in plan view; a spiral consumes none. */
@@ -1116,10 +1122,59 @@ function assembleCircuit(
   // applies to every leg, preserving the regular/alternating polygon closure.
   const skyJumpRoll = random();
   const skyJump = allowSteep && corners >= 4 && skyJumpRoll < 0.3;
+  const jumpFeatureKinds = ['kicker', 'gap', 'landing'] as const;
+  const jumpMinimums = jumpFeatureKinds.map(
+    (kind) => featureMinimums[kind],
+  );
+  const jumpSpecified = jumpMinimums.some(
+    (minimum) => minimum !== undefined,
+  );
+  const jumpCount = jumpSpecified
+    ? Math.max(...jumpMinimums.map((minimum) => minimum ?? 0))
+    : allowJump && jump
+      ? 1
+      : 0;
+  const hillCount =
+    featureMinimums.hill ?? (allowHill && !jump ? 1 : 0);
+  const loopCount = Math.max(
+    featureMinimums.loop ?? (allowLoopless ? 0 : 1),
+    featureMinimums.shift ?? 0,
+  );
+  const obstacleCount = featureMinimums.obstacles ?? 0;
+  const bridgeCount = featureMinimums.bridge ?? 0;
+  const defaultLoop = allowLoopless ? 0 : 1;
+  const defaultHill = allowHill && !jump ? 1 : 0;
+  const defaultJump = allowJump && jump ? 1 : 0;
+  const loopExtras = Math.max(0, loopCount - defaultLoop);
+  const hillExtras = Math.max(0, hillCount - defaultHill);
+  const jumpExtras = Math.max(0, jumpCount - defaultJump);
+  const obstacleExtras = obstacleCount;
+  const bridgeExtras = bridgeCount;
+  const flatExtraPlan =
+    loopExtras * LOOP_RETURN_LENGTH +
+    hillExtras * HILL_LENGTH +
+    jumpExtras * jumpPlanarLength() +
+    obstacleExtras * OBSTACLE_SEGMENT_LENGTH +
+    bridgeExtras * BRIDGE_FLAT_LENGTH;
+  const elevationExtra = Object.values(elevationMinimums).some(
+    (minimum) => (minimum ?? 0) > 1,
+  )
+    ? Math.max(FEATURE_LEG_EXTRA, 60)
+    : 0;
+  const featureExtra =
+    flatExtraPlan > 0
+      ? Math.max(
+          FEATURE_LEG_EXTRA,
+          elevationExtra,
+          Math.ceil(flatExtraPlan / corners),
+        )
+      : elevationExtra;
+  const useExtraFeatures = flatExtraPlan > 0;
   const legBase =
     CIRCUIT_LEG_BASE +
     pick(straights) +
-    (skyJump ? SKY_JUMP_LEG_EXTRA : 0);
+    (skyJump ? SKY_JUMP_LEG_EXTRA : 0) +
+    featureExtra;
   const alternating = corners % 2 === 0 && random() < 0.8;
   const legLong = legBase + 6 + Math.round(random() * 10);
   const legs = Array.from({ length: corners }, (_, index) =>
@@ -1169,7 +1224,15 @@ function assembleCircuit(
   const freeLegs = legs
     .map((_, index) => index)
     .filter((index) => !reservedLegs.has(index));
-  const transitions = new Map<number, Transition>();
+  const defaultFeaturePlan = (index: number): number =>
+    index === loopLeg && !allowLoopless
+      ? LOOP_RETURN_LENGTH
+      : index === hillLeg && !noHillOrJump
+        ? jump
+          ? jumpPlanarLength()
+          : HILL_LENGTH
+        : 0;
+  const transitions = new Map<number, Transition[]>();
 
   if (elevated && freeLegs.length >= 2) {
     const steepUpPlan = skyJumpPlanarLength();
@@ -1547,29 +1610,302 @@ function assembleCircuit(
       const assignment =
         assignments[Math.floor(random() * assignments.length)]!;
       for (const { choice, leg } of assignment.ups) {
-        transitions.set(leg, makeTransition(choice));
+        transitions.set(leg, [makeTransition(choice)]);
       }
       for (const { choice, leg } of assignment.downs) {
-        transitions.set(leg, makeTransition(choice));
+        transitions.set(leg, [makeTransition(choice)]);
+      }
+    } else {
+      // High counts need more transitions than there are free legs. Put a
+      // balanced climb/descent group on a leg, return to the base height, and
+      // repeat on later legs. This is the "per-leg pair" fallback.
+      const remaining = new Map<Piece['kind'], number>();
+      for (const [kind, minimum] of Object.entries(elevationMinimums)) {
+        if (minimum !== undefined && minimum > 0) {
+          remaining.set(kind as Piece['kind'], minimum);
+        }
+      }
+      const consume = (choice: ElevationChoice): void => {
+        const kind = pieceKindOf(choice);
+        if (kind) {
+          remaining.set(
+            kind,
+            Math.max(0, (remaining.get(kind) ?? 0) - 1),
+          );
+        }
+      };
+      const choose = <T,>(values: T[]): T | null =>
+        values.length > 0
+          ? values[Math.floor(random() * values.length)]!
+          : null;
+      const pickDowns = (
+        levels: 1 | 2 | 4,
+      ): ElevationChoice[] | null => {
+        const single = downChoices.filter(
+          (choice) => choice.levels === levels,
+        );
+        const preferred = single.filter((choice) => {
+          const kind = pieceKindOf(choice);
+          return kind !== null && (remaining.get(kind) ?? 0) > 0;
+        });
+        const one = choose(preferred.length > 0 ? preferred : single);
+        if (one) {
+          consume(one);
+          return [one];
+        }
+        for (const partition of partitionsFor(levels)) {
+          const groups = choicesFor(downChoices, partition);
+          if (groups.some((group) => group.length === 0)) {
+            continue;
+          }
+          const combo = choose(combinations(groups));
+          if (combo) {
+            combo.forEach(consume);
+            return combo;
+          }
+        }
+        return null;
+      };
+      const pickUps = (
+        levels: 1 | 2 | 4,
+      ): ElevationChoice[] | null => {
+        const single = upChoices.filter(
+          (choice) => choice.levels === levels,
+        );
+        const preferred = single.filter((choice) => {
+          const kind = pieceKindOf(choice);
+          return kind !== null && (remaining.get(kind) ?? 0) > 0;
+        });
+        const one = choose(preferred.length > 0 ? preferred : single);
+        if (one) {
+          consume(one);
+          return [one];
+        }
+        for (const partition of partitionsFor(levels)) {
+          const groups = choicesFor(upChoices, partition);
+          if (groups.some((group) => group.length === 0)) {
+            continue;
+          }
+          const combo = choose(combinations(groups));
+          if (combo) {
+            combo.forEach(consume);
+            return combo;
+          }
+        }
+        return null;
+      };
+      const spacer = (length: number): Transition => ({
+        kind: 'straight',
+        path: straightPath(length),
+        length,
+        plan: length,
+      });
+      const spiralSpacer = 2 * SPIRAL_RADIUS + 12;
+      const groups: { transitions: Transition[]; plan: number }[] = [];
+      for (const [kind, minimum] of [...remaining]) {
+        const ups = upChoices
+          .filter((choice) => pieceKindOf(choice) === kind)
+          .sort((a, b) => b.levels - a.levels);
+        if (ups.length === 0) {
+          continue;
+        }
+        for (let index = 0; index < minimum; index += 1) {
+          const up = choose(ups);
+          if (!up) {
+            break;
+          }
+          consume(up);
+          const downs = pickDowns(up.levels);
+          if (!downs) {
+            break;
+          }
+          const groupTransitions = [
+            makeTransition(up),
+            ...(up.kind === 'spiral-up' ||
+            downs.some((choice) => choice.kind === 'spiral-down')
+              ? [spacer(spiralSpacer)]
+              : []),
+            ...downs.map(makeTransition),
+          ];
+          groups.push({
+            transitions: groupTransitions,
+            plan: groupTransitions.reduce(
+              (total, transition) => total + transition.plan,
+              0,
+            ),
+          });
+        }
+      }
+      for (const [kind, minimum] of [...remaining]) {
+        const downs = downChoices
+          .filter((choice) => pieceKindOf(choice) === kind)
+          .sort((a, b) => b.levels - a.levels);
+        if (downs.length === 0 || minimum <= 0) {
+          continue;
+        }
+        for (let index = 0; index < minimum; index += 1) {
+          const down = choose(downs);
+          if (!down) {
+            break;
+          }
+          consume(down);
+          const ups = pickUps(down.levels);
+          if (!ups) {
+            break;
+          }
+          const groupTransitions = [
+            ...ups.map(makeTransition),
+            ...(ups.some((choice) => choice.kind === 'spiral-up') ||
+            down.kind === 'spiral-down'
+              ? [spacer(spiralSpacer)]
+              : []),
+            makeTransition(down),
+          ];
+          groups.push({
+            transitions: groupTransitions,
+            plan: groupTransitions.reduce(
+              (total, transition) => total + transition.plan,
+              0,
+            ),
+          });
+        }
+      }
+      if (groups.length > 0 && groups.length <= legs.length) {
+        const available = legs.map(
+          (leg, index) =>
+            leg -
+            CIRCUIT_LEAD_STRAIGHT -
+            defaultFeaturePlan(index) -
+            (boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0),
+        );
+        const used = new Set<number>();
+        groups.sort((a, b) => b.plan - a.plan);
+        let ok = true;
+        for (const group of groups) {
+          const candidates = legs
+            .map((_, index) => index)
+            .filter(
+              (index) =>
+                !used.has(index) &&
+                (available[index] ?? 0) >= group.plan,
+            );
+          if (candidates.length === 0) {
+            ok = false;
+            break;
+          }
+          const leg =
+            candidates[Math.floor(random() * candidates.length)]!;
+          used.add(leg);
+          available[leg] = (available[leg] ?? 0) - group.plan;
+          transitions.set(leg, group.transitions);
+        }
+        if (!ok) {
+          transitions.clear();
+        }
       }
     }
+  }
+
+  interface FlatFeature {
+    kind: 'loop' | 'hill' | 'jump' | 'obstacles' | 'bridge';
+    plan: number;
+    add: () => void;
+  }
+  const flatFeatures: FlatFeature[] = [];
+  for (let index = 0; index < loopExtras; index += 1) {
+    flatFeatures.push({
+      kind: 'loop',
+      plan: LOOP_RETURN_LENGTH,
+      add: () => {
+        addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
+        addPiece(
+          'shift',
+          shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH),
+          LOOP_RETURN_LENGTH,
+        );
+      },
+    });
+  }
+  for (let index = 0; index < hillExtras; index += 1) {
+    flatFeatures.push({
+      kind: 'hill',
+      plan: HILL_LENGTH,
+      add: () => {
+        addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
+      },
+    });
+  }
+  for (let index = 0; index < jumpExtras; index += 1) {
+    flatFeatures.push({
+      kind: 'jump',
+      plan: jumpPlanarLength(),
+      add: () => addJump(),
+    });
+  }
+  for (let index = 0; index < obstacleExtras; index += 1) {
+    flatFeatures.push({
+      kind: 'obstacles',
+      plan: OBSTACLE_SEGMENT_LENGTH,
+      add: () => {
+        addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
+      },
+    });
+  }
+  for (let index = 0; index < bridgeExtras; index += 1) {
+    flatFeatures.push({
+      kind: 'bridge',
+      plan: BRIDGE_FLAT_LENGTH,
+      add: () => {
+        addPiece(
+          'bridge',
+          bridgeDeckPath(BRIDGE_FLAT_LENGTH),
+          BRIDGE_FLAT_LENGTH,
+        );
+      },
+    });
+  }
+  const featureBudgets = legs.map(
+    (leg, index) =>
+      leg -
+      CIRCUIT_LEAD_STRAIGHT -
+      defaultFeaturePlan(index) -
+      (boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0) -
+      (transitions.get(index) ?? []).reduce(
+        (total, transition) => total + transition.plan,
+        0,
+      ),
+  );
+  const extraFeaturesByLeg: FlatFeature[][] = legs.map(() => []);
+  flatFeatures.sort((a, b) => b.plan - a.plan);
+  for (const feature of flatFeatures) {
+    const candidates = featureBudgets
+      .map((budget, index) => (budget >= feature.plan ? index : -1))
+      .filter((index) => index >= 0);
+    if (candidates.length === 0) {
+      continue;
+    }
+    const leg =
+      candidates[Math.floor(random() * candidates.length)]!;
+    featureBudgets[leg] = featureBudgets[leg]! - feature.plan;
+    extraFeaturesByLeg[leg]!.push(feature);
   }
 
   // Up to one obstacle corridor per circuit, chosen during the leg loop below.
   let obstacleHost: number | null = null;
 
   legs.forEach((leg, index) => {
-    const feature =
-      index === loopLeg && !allowLoopless
-        ? LOOP_RETURN_LENGTH
-        : index === hillLeg && !noHillOrJump
-          ? jump
-            ? jumpPlanarLength()
-            : HILL_LENGTH
-          : 0;
+    const featurePlan = defaultFeaturePlan(index);
+    const extraFeatures = extraFeaturesByLeg[index] ?? [];
+    const extraPlan = extraFeatures.reduce(
+      (total, feature) => total + feature.plan,
+      0,
+    );
     const boost = boostLegs.has(index) ? CIRCUIT_BOOST_LENGTH : 0;
-    const transition = transitions.get(index);
-    const transitionPlan = transition?.plan ?? 0;
+    const transitionList = transitions.get(index) ?? [];
+    const transitionPlan = transitionList.reduce(
+      (total, transition) => total + transition.plan,
+      0,
+    );
     // At most one obstacle corridor per circuit. The decision is made on the
     // first leg that can carry one: it must not be the grid, the loop or hill
     // leg, or a climb/descent leg, and it must have room in its pad. A boost
@@ -1580,23 +1916,33 @@ function assembleCircuit(
     // seed with no obstacles assembles exactly as it always did.
     if (
       allowObstacles &&
+      !useExtraFeatures &&
       obstacleHost === null &&
       index !== 0 &&
       index !== loopLeg &&
       index !== hillLeg &&
-      !transition &&
-      leg - CIRCUIT_LEAD_STRAIGHT - feature - boost - transitionPlan >=
+      transitionPlan === 0 &&
+      leg - CIRCUIT_LEAD_STRAIGHT - featurePlan - boost - transitionPlan >=
         OBSTACLE_SEGMENT_LENGTH &&
       random() < 0.45
     ) {
       obstacleHost = index;
     }
-    const obstacle = obstacleHost === index ? OBSTACLE_SEGMENT_LENGTH : 0;
+    const obstacle =
+      !useExtraFeatures && obstacleHost === index
+        ? OBSTACLE_SEGMENT_LENGTH
+        : 0;
     const pad =
-      leg - CIRCUIT_LEAD_STRAIGHT - feature - boost - transitionPlan - obstacle;
+      leg -
+      CIRCUIT_LEAD_STRAIGHT -
+      featurePlan -
+      boost -
+      transitionPlan -
+      obstacle -
+      extraPlan;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
-    if (transition) {
+    for (const transition of transitionList) {
       addTransition(transition);
     }
     if (index === loopLeg && !allowLoopless) {
@@ -1614,6 +1960,9 @@ function assembleCircuit(
       } else {
         addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
       }
+    }
+    for (const feature of extraFeatures) {
+      feature.add();
     }
     if (obstacle > 0) {
       addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
@@ -1894,18 +2243,12 @@ export function generateCircuit(
   const loopCount = counts.get('loop') ?? 0;
   const shiftCount = counts.get('shift') ?? 0;
   const excludeLoop = forbidden.has('loop') || forbidden.has('shift');
-  if (loopCount > 1 || shiftCount > 1) {
-    fail('the loop is authored once; its minimum cannot exceed 1');
-  }
   if (excludeLoop && (loopCount > 0 || shiftCount > 0)) {
     fail('loop and loop return must be included or excluded together');
   }
   const bridgeCount = counts.get('bridge') ?? 0;
   if (bridgeCount > 0 && excludeLoop) {
     fail('a bridge deck needs the loop it threads');
-  }
-  if (bridgeCount > 1) {
-    fail('the bridge deck is authored once; its minimum cannot exceed 1');
   }
   const jumpKinds = ['kicker', 'gap', 'landing'] as const;
   if (
@@ -1914,14 +2257,20 @@ export function generateCircuit(
   ) {
     fail('the jump launch, gap, and landing must be included or excluded together');
   }
-  for (const kind of ['obstacles', 'hill'] as const) {
-    if ((counts.get(kind) ?? 0) > 1) {
-      fail(`${kind} is authored once; its minimum cannot exceed 1`);
-    }
-  }
   if ((counts.get('boost') ?? 0) > 2) {
     fail('a catalog circuit carries at most two boost strips');
   }
+  const flatRepeatKinds: Piece['kind'][] = [
+    'loop',
+    'shift',
+    'hill',
+    'obstacles',
+    'bridge',
+    ...jumpKinds,
+  ];
+  const hasRepeatedFlatFeature = flatRepeatKinds.some(
+    (kind) => (counts.get(kind) ?? 0) > 1,
+  );
   const plannerElevationKinds: Piece['kind'][] = [
     'spiral-up',
     'spiral-down',
@@ -1964,9 +2313,29 @@ export function generateCircuit(
       elevationMinimums[kind] = minimum;
     }
   }
+  const flatFeatureKinds: Piece['kind'][] = [
+    'loop',
+    'shift',
+    'hill',
+    'kicker',
+    'gap',
+    'landing',
+    'obstacles',
+    'bridge',
+  ];
+  const featureMinimums: Partial<Record<Piece['kind'], number>> = {};
+  for (const kind of flatFeatureKinds) {
+    const minimum = counts.get(kind);
+    if (minimum !== undefined && minimum > 0) {
+      featureMinimums[kind] = minimum;
+    }
+  }
   const constraints: AssemblyConstraints = {
     allowLoopless: excludeLoop,
-    allowSingleCrossing: !forbidden.has('bridge') && !excludeLoop,
+    allowSingleCrossing:
+      !forbidden.has('bridge') &&
+      !excludeLoop &&
+      !hasRepeatedFlatFeature,
     allowHill: !forbidden.has('hill'),
     allowJump: !jumpKinds.some((kind) => forbidden.has(kind)),
     allowObstacles: !forbidden.has('obstacles'),
@@ -1975,6 +2344,7 @@ export function generateCircuit(
       !forbidden.has('steep-ramp') ||
       !forbidden.has('steep-ramp-down'),
     elevationMinimums,
+    featureMinimums,
     excludedElevation: excluded.filter((kind) =>
       plannerElevationKinds.includes(kind),
     ),
@@ -2053,7 +2423,7 @@ export function generateCircuit(
       )
       .join(' ');
     throw new Error(
-      `Could not assemble a playable circuit for ${seed} at level ${level} with rules: ${rules}`,
+      `Could not assemble a playable circuit for ${seed} at level ${level} with rules: ${rules}${failures.length > 0 ? ` (${failures.slice(0, 3).join(' | ')})` : ''}`,
     );
   }
   throw new Error(

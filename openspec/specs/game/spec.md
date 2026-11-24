@@ -265,8 +265,9 @@ Returning to the menu SHALL discard the race.
 
 The game SHALL run in landscape orientation. It SHALL fill the viewport, respect
 safe-area insets, keep the car and HUD readable, and keep every control reachable
-with a thumb without overlap. A portrait viewport SHALL show a rotate prompt and
-SHALL pause the race. The pixel ratio SHALL be capped at 2.
+with a thumb without overlap. A portrait viewport SHALL show a rotate prompt on
+the race screen only and SHALL pause an active race; the menu and track preview
+SHALL remain usable in portrait. The pixel ratio SHALL be capped at 2.
 
 #### Scenario: Standard landscape phone
 
@@ -282,10 +283,17 @@ SHALL pause the race. The pixel ratio SHALL be capped at 2.
 - **THEN** text does not clip or overflow
 - **AND** all primary actions remain reachable
 
-#### Scenario: Portrait orientation
+#### Scenario: Portrait menu and preview
 
 - **GIVEN** the device is in portrait
-- **WHEN** the page is open
+- **WHEN** the menu or track preview is open
+- **THEN** no rotate prompt is shown
+- **AND** the page remains usable
+
+#### Scenario: Portrait during a race
+
+- **GIVEN** the device is in portrait
+- **WHEN** the race screen is open
 - **THEN** a rotate prompt is shown
 - **AND** the race is paused and no time is credited
 

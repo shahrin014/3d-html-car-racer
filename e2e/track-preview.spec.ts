@@ -7,19 +7,18 @@ test('preview honors minimum counts and races the same rules', async ({
   test.setTimeout(180_000);
   const issues = watchPage(page);
 
-  // A count that needs more transitions than the free legs can hold leaves the
-  // preview usable and the start button disabled.
-  await page.goto(
-    '/track.html?seed=preview-impossible&require=ramp-up:5,ramp-down:5',
-  );
+  // Counts above the control's maximum clamp to 5 rather than failing.
+  await page.goto('/track.html?seed=preview-max&require=loop:9');
   await expect(page.locator('#preview-requirements-note')).toContainText(
-    'cannot be fitted together',
+    '2 rules · all met.',
     { timeout: 30_000 },
   );
-  await expect(page.locator('#preview-start')).toBeDisabled();
+  await expect(
+    page.locator('.preview__segment-row[data-kind="loop"] select'),
+  ).toHaveValue('5');
+  await expect(page.locator('#preview-start')).toBeEnabled();
 
-  // A single-instance segment clamps an out-of-range URL count instead of
-  // leaving Regenerate stuck on an impossible request.
+  // Repeating a segment works through the feature-slot planner.
   await page.goto('/track.html?seed=preview-loop4&require=loop:4');
   await expect(page.locator('#preview-requirements-note')).toContainText(
     '2 rules · all met.',
@@ -27,7 +26,13 @@ test('preview honors minimum counts and races the same rules', async ({
   );
   await expect(
     page.locator('.preview__segment-row[data-kind="loop"] select'),
-  ).toHaveValue('1');
+  ).toHaveValue('4');
+  const loopNow = Number(
+    await page
+      .locator('.preview__segment-row[data-kind="loop"] .preview__segment-now')
+      .textContent(),
+  );
+  expect(loopNow).toBeGreaterThanOrEqual(4);
   const loopSeed = await page.textContent('#preview-seed');
   await page.click('#preview-regenerate');
   await expect
