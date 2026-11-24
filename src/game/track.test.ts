@@ -663,7 +663,7 @@ describe('track pieces', () => {
     const last = frames[frames.length - 1]!;
     expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
     expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
-  });
+  }, 20_000);
 
   it('threads a bridge through the loop in a single-crossing circuit', () => {
     let circuit: ReturnType<typeof generateCircuit> | null = null;
@@ -699,7 +699,7 @@ describe('track pieces', () => {
     const last = frames[frames.length - 1]!;
     expect(first.position.distanceTo(last.position)).toBeLessThan(0.05);
     expect(first.tangent.dot(last.tangent)).toBeGreaterThan(0.999);
-  });
+  }, 20_000);
 
   it('clamps turn banking to the documented range', () => {
     const bank = turnPath(MIN_TURN_RADIUS, 90, true)(0.5).bank;

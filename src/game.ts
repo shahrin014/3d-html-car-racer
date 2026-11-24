@@ -23,6 +23,7 @@ import { paintById } from './game/palette';
 import { randomSeed } from './game/seed';
 import {
   takePendingCounts,
+  takePendingCrossovers,
   takePendingExclusions,
   takePendingRequirements,
   takePendingSeed,
@@ -312,9 +313,11 @@ async function bootGame(): Promise<void> {
   const pendingRequirements = takePendingRequirements();
   const pendingExclusions = takePendingExclusions();
   const pendingCounts = takePendingCounts();
+  const pendingCrossovers = takePendingCrossovers();
   const previewRequirements = previewSeed ? pendingRequirements : [];
   const previewExclusions = previewSeed ? pendingExclusions : [];
   const previewCounts = previewSeed ? pendingCounts : {};
+  const previewCrossovers = previewSeed ? pendingCrossovers : null;
   // A direct load or refresh of game.html has no race to show. Leave for the
   // menu before loading models or building the scene, so the redirect happens
   // immediately instead of after a full boot. The menu sets the pending-start
@@ -397,6 +400,7 @@ async function bootGame(): Promise<void> {
       previewRequirements,
       previewExclusions,
       previewCounts,
+      previewCrossovers ?? undefined,
     );
   } catch (error) {
     console.error('WebGL could not be initialised.', error);

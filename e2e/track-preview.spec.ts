@@ -115,6 +115,34 @@ test('preview honors minimum counts and races the same rules', async ({
   expect(updated.searchParams.get('seed')).toBe('url-state');
   expect(updated.searchParams.get('counts')).toContain('obstacles:2');
 
+  // Crossovers are an explicit layout parameter.
+  await page.goto('/track.html?seed=cross-1&crossovers=1');
+  await expect(page.locator('#preview-crossovers')).toHaveValue('1');
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    '1 crossover',
+    { timeout: 30_000 },
+  );
+  await expect(page.locator('#preview-start')).toBeEnabled();
+
+  await page.goto('/track.html?seed=cross-2&crossovers=2');
+  await expect(page.locator('#preview-crossovers')).toHaveValue('2');
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    '2 crossovers',
+    { timeout: 30_000 },
+  );
+  expect(new URL(page.url()).searchParams.get('crossovers')).toBe('2');
+  await expect(page.locator('#preview-start')).toBeEnabled();
+
+  // A whole-layout crossover count cannot carry catalog segment counts.
+  await page.goto(
+    '/track.html?seed=cross-2-counts&crossovers=2&counts=loop:1',
+  );
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    'whole circuit',
+    { timeout: 30_000 },
+  );
+  await expect(page.locator('#preview-start')).toBeDisabled();
+
   // A feasible set builds, reports every rule, and hands the same seed and
   // counts to the race page.
   await page.goto('/track.html?seed=preview-required&require=obstacles,bridge');

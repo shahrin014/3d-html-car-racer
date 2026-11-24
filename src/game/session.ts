@@ -13,6 +13,7 @@ export const PENDING_SEED_KEY = 'neon-racer.pending-seed';
 export const PENDING_REQUIREMENTS_KEY = 'neon-racer.pending-requirements';
 export const PENDING_EXCLUSIONS_KEY = 'neon-racer.pending-exclusions';
 export const PENDING_COUNTS_KEY = 'neon-racer.pending-counts';
+export const PENDING_CROSSOVERS_KEY = 'neon-racer.pending-crossovers';
 
 /** Mark the next load of game.html as a real race start. */
 export function markPendingStart(): void {
@@ -39,6 +40,7 @@ export function clearPendingSeed(): void {
     window.sessionStorage.removeItem(PENDING_REQUIREMENTS_KEY);
     window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
     window.sessionStorage.removeItem(PENDING_COUNTS_KEY);
+    window.sessionStorage.removeItem(PENDING_CROSSOVERS_KEY);
   } catch {
     // Persistence is best effort.
   }
@@ -139,6 +141,36 @@ export function takePendingCounts(): Partial<Record<Piece['kind'], number>> {
     return counts;
   } catch {
     return {};
+  }
+}
+
+/** Hand the previewed crossover count to the race page. */
+export function markPendingCrossovers(crossovers: 0 | 1 | 2 | null): void {
+  try {
+    if (crossovers === null) {
+      window.sessionStorage.removeItem(PENDING_CROSSOVERS_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(
+      PENDING_CROSSOVERS_KEY,
+      String(crossovers),
+    );
+  } catch {
+    // Without session storage the race still draws its own circuit.
+  }
+}
+
+/** Read and clear the previewed crossover count. */
+export function takePendingCrossovers(): 0 | 1 | 2 | null {
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_CROSSOVERS_KEY);
+    window.sessionStorage.removeItem(PENDING_CROSSOVERS_KEY);
+    if (raw === '0' || raw === '1' || raw === '2') {
+      return Number(raw) as 0 | 1 | 2;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 

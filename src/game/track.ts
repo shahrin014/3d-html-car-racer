@@ -41,6 +41,7 @@ import {
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
+import { assembleDoubleCrossingCircuit } from './doubleCrossing';
 import { assembleMultiCrossingCircuit } from './multiCrossing';
 
 /** A sampled point on the track with the frame needed to place mesh and car. */
@@ -692,7 +693,7 @@ export interface Circuit {
   /** Deterministic retry offset that produced the accepted combination. */
   seedOffset: number;
   /** Layout family; absent means the original polygon family. */
-  layout?: 'polygon' | 'single-crossing' | 'multi-crossing';
+  layout?: 'polygon' | 'single-crossing' | 'double-crossing' | 'multi-crossing';
   pieces: Piece[];
   frameCount: number;
   /** Arc length of a multi-crossing layout; other layouts use their pieces. */
@@ -778,6 +779,10 @@ interface AssemblyConstraints {
   allowLoopless?: boolean;
   /** Allow the single-crossing bridge family. */
   allowSingleCrossing?: boolean;
+  /** Force the single-crossing bridge family. */
+  forceSingleCrossing?: boolean;
+  /** Force the polygon family. */
+  forcePolygon?: boolean;
   /** Allow a hill crest on the feature leg. */
   allowHill?: boolean;
   /** Allow the jump group on the feature leg. */
@@ -1027,7 +1032,13 @@ function assembleCircuit(
   const noHillOrJump = !allowHill && !allowJump;
   const singleCrossoverRoll = random();
   const singleCrossover =
-    allowSingleCrossing && !allowLoopless && singleCrossoverRoll < 0.5;
+    constraints.forceSingleCrossing === true
+      ? true
+      : constraints.forcePolygon === true
+        ? false
+        : allowSingleCrossing &&
+          !allowLoopless &&
+          singleCrossoverRoll < 0.5;
 
   if (singleCrossover) {
     // A single-crossing layout closes when the two vertical legs match and the diagonals are
@@ -2036,7 +2047,9 @@ export function validateCircuit(
 ): CircuitValidation {
   const reasons = new Set<string>();
 
-  const multiCrossing = circuit.layout === 'multi-crossing';
+  const wholeLayout =
+    circuit.layout === 'multi-crossing' ||
+    circuit.layout === 'double-crossing';
   const loops = circuit.pieces.filter((piece) => piece.kind === 'loop').length;
   const turns = circuit.pieces.filter((piece) => piece.kind === 'turn').length;
   // A steep ramp is a boost strip too, even though its piece kind is not
@@ -2044,7 +2057,7 @@ export function validateCircuit(
   const boosts = circuit.pieces.filter(
     (piece) => piece.kind === 'boost' || piece.boost === true,
   ).length;
-  if (!multiCrossing) {
+  if (!wholeLayout) {
     if (!options.allowLoopless && loops < 1) {
       reasons.add('missing a vertical loop');
     }
@@ -2055,13 +2068,13 @@ export function validateCircuit(
   if (boosts < 2) {
     reasons.add('needs at least two boost strips');
   }
-  if (multiCrossing) {
+  if (wholeLayout) {
     if (circuit.pieces.length < 2) {
-      reasons.add('multi-crossing layout has no pieces');
+      reasons.add('whole-layout circuit has no pieces');
     }
     for (const piece of circuit.pieces) {
       if (piece.kind !== 'multi-crossing') {
-        reasons.add('multi-crossing layout mixes catalog pieces');
+        reasons.add('whole-layout circuit mixes catalog pieces');
         break;
       }
     }
@@ -2169,6 +2182,12 @@ export interface CircuitOptions {
    * of the kind; zero excludes it. Overrides requiredKinds/excludedKinds.
    */
   minimumCounts?: Partial<Record<Piece['kind'], number>>;
+  /**
+   * Force the plan-view crossing count: 0 for a polygon, 1 for the
+   * single-crossing bridge, or 2 for the two-crossing layout. Omit to let the
+   * seed choose.
+   */
+  crossovers?: 0 | 1 | 2;
 }
 
 /**
@@ -2330,12 +2349,19 @@ export function generateCircuit(
       featureMinimums[kind] = minimum;
     }
   }
+  const crossovers = options.crossovers;
   const constraints: AssemblyConstraints = {
     allowLoopless: excludeLoop,
+    forceSingleCrossing: crossovers === 1,
+    forcePolygon: crossovers === 0,
     allowSingleCrossing:
-      !forbidden.has('bridge') &&
-      !excludeLoop &&
-      !hasRepeatedFlatFeature,
+      crossovers === 1
+        ? true
+        : crossovers === 0
+          ? false
+          : !forbidden.has('bridge') &&
+            !excludeLoop &&
+            !hasRepeatedFlatFeature,
     allowHill: !forbidden.has('hill'),
     allowJump: !jumpKinds.some((kind) => forbidden.has(kind)),
     allowObstacles: !forbidden.has('obstacles'),
@@ -2362,12 +2388,48 @@ export function generateCircuit(
     return null;
   };
 
+  if (crossovers === 2) {
+    const catalogRequired = [...counts].some(
+      ([kind, minimum]) => minimum > 0 && kind !== 'multi-crossing',
+    );
+    if (catalogRequired) {
+      fail(
+        'A 2-crossing layout is one whole circuit and cannot be combined with catalog segments',
+      );
+    }
+    const doubleFailures: string[] = [];
+    for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
+      const circuit = assembleDoubleCrossingCircuit(
+        seed,
+        level,
+        offset,
+        seededRandom(`${seed}:${level}:${offset}:double-crossing`),
+      );
+      if (!hasSatisfied(circuit)) {
+        continue;
+      }
+      const accepted = tryCircuit(circuit, `double-crossing offset ${offset}`);
+      if (accepted) {
+        return accepted;
+      }
+      doubleFailures.push(
+        `offset ${offset}: ${validateCircuit(circuit).reasons.join(', ')}`,
+      );
+    }
+    throw new Error(
+      `Could not assemble a playable 2-crossing circuit for ${seed} at level ${level}: ${doubleFailures
+        .slice(0, 3)
+        .join(' | ')}`,
+    );
+  }
+
   const multiCrossing =
-    wanted.has('multi-crossing') ||
-    (options.allowMultiCrossing === true &&
-      wanted.size === 0 &&
-      !forbidden.has('multi-crossing') &&
-      seededRandom(`${seed}:${level}:layout`)() < MULTI_CROSSING_SHARE);
+    crossovers === undefined &&
+    (wanted.has('multi-crossing') ||
+      (options.allowMultiCrossing === true &&
+        wanted.size === 0 &&
+        !forbidden.has('multi-crossing') &&
+        seededRandom(`${seed}:${level}:layout`)() < MULTI_CROSSING_SHARE));
   if (multiCrossing) {
     for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
       const circuit = assembleMultiCrossingCircuit(
