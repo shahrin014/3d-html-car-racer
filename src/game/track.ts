@@ -786,8 +786,8 @@ interface AssemblyConstraints {
   allowElevated?: boolean;
   /** Allow the steep sky-jump pair. */
   allowSteep?: boolean;
-  /** Elevation kinds the circuit must contain. */
-  requiredElevation?: readonly Piece['kind'][];
+  /** Minimum piece counts for the elevation planner. */
+  elevationMinimums?: Partial<Record<Piece['kind'], number>>;
   /** Elevation kinds the circuit must not contain. */
   excludedElevation?: readonly Piece['kind'][];
 }
@@ -813,7 +813,7 @@ function assembleCircuit(
   const allowObstacles = constraints.allowObstacles !== false;
   const allowElevated = constraints.allowElevated !== false;
   const allowSteep = constraints.allowSteep !== false;
-  const requiredElevation = new Set(constraints.requiredElevation ?? []);
+  const elevationMinimums = constraints.elevationMinimums ?? {};
   const excludedElevation = new Set(constraints.excludedElevation ?? []);
   const radius = turnRadiusForLevel(level);
   const loopRadius = loopRadiusForLevel(level);
@@ -1155,7 +1155,10 @@ function assembleCircuit(
   // circuit has exactly two free legs; three-corner circuits have only one and
   // stay at ground.
   const elevatedRoll = random();
-  const elevated = allowElevated && corners >= 4 && elevatedRoll < 0.75;
+  const elevated =
+    allowElevated &&
+    corners >= 4 &&
+    (Object.keys(elevationMinimums).length > 0 || elevatedRoll < 0.75);
   const reservedLegs = new Set<number>();
   if (!allowLoopless) {
     reservedLegs.add(loopLeg);
@@ -1310,10 +1313,53 @@ function assembleCircuit(
         choices.filter((choice) => choice.levels === level),
       );
 
+    let maxLevels = 4;
+    for (const [kind, minimum] of Object.entries(elevationMinimums)) {
+      if (!minimum) {
+        continue;
+      }
+      const levelsPerPiece =
+        kind === 'steep-ramp' || kind === 'steep-ramp-down' ? 4 : 1;
+      maxLevels = Math.max(maxLevels, minimum * levelsPerPiece);
+    }
+    maxLevels = Math.min(8, Math.max(4, maxLevels));
+
+    const upMinimums = Object.entries(elevationMinimums).filter(
+      ([kind]) =>
+        upChoices.some((choice) => pieceKindOf(choice) === kind),
+    );
+    const downMinimums = Object.entries(elevationMinimums).filter(
+      ([kind]) =>
+        downChoices.some((choice) => pieceKindOf(choice) === kind),
+    );
+    const partitionCanSatisfy = (
+      levels: (1 | 2 | 4)[],
+      choices: ElevationChoice[],
+      minimums: [string, number | undefined][],
+    ): boolean =>
+      minimums.every(([kind, minimum]) => {
+        if (!minimum) {
+          return true;
+        }
+        const slots = levels.filter((level) =>
+          choices.some(
+            (choice) =>
+              pieceKindOf(choice) === kind && choice.levels === level,
+          ),
+        ).length;
+        return slots >= minimum;
+      });
+
     const plans: ElevationPlan[] = [];
-    for (let total = 1; total <= 4; total += 1) {
+    for (let total = 1; total <= maxLevels; total += 1) {
       for (const upLevels of partitionsFor(total)) {
         for (const downLevels of partitionsFor(total)) {
+          if (
+            !partitionCanSatisfy(upLevels, upChoices, upMinimums) ||
+            !partitionCanSatisfy(downLevels, downChoices, downMinimums)
+          ) {
+            continue;
+          }
           const upGroups = choicesFor(upChoices, upLevels);
           const downGroups = choicesFor(downChoices, downLevels);
           if (
@@ -1327,15 +1373,19 @@ function assembleCircuit(
               if (ups.length + downs.length > freeLegs.length) {
                 continue;
               }
-              const used = new Set(
-                [...ups, ...downs]
-                  .map(pieceKindOf)
-                  .filter(
-                    (kind): kind is Piece['kind'] => kind !== null,
-                  ),
-              );
+              const used = new Map<Piece['kind'], number>();
+              for (const choice of [...ups, ...downs]) {
+                const kind = pieceKindOf(choice);
+                if (kind) {
+                  used.set(kind, (used.get(kind) ?? 0) + 1);
+                }
+              }
               if (
-                [...requiredElevation].some((kind) => !used.has(kind))
+                Object.entries(elevationMinimums).some(
+                  ([kind, minimum]) =>
+                    minimum !== undefined &&
+                    (used.get(kind as Piece['kind']) ?? 0) < minimum,
+                )
               ) {
                 continue;
               }
@@ -1358,7 +1408,7 @@ function assembleCircuit(
       }
     } else if (
       freeLegs.length >= 3 &&
-      requiredElevation.size === 0 &&
+      Object.keys(elevationMinimums).length === 0 &&
       random() < 0.5
     ) {
       // Keep the old mix of one- and two-level spirals in one circuit when
@@ -1765,6 +1815,11 @@ export interface CircuitOptions {
    * loopless polygon circuit.
    */
   excludedKinds?: readonly Piece['kind'][];
+  /**
+   * Minimum piece counts. A positive value requires at least that many pieces
+   * of the kind; zero excludes it. Overrides requiredKinds/excludedKinds.
+   */
+  minimumCounts?: Partial<Record<Piece['kind'], number>>;
 }
 
 /**
@@ -1779,45 +1834,93 @@ export function generateCircuit(
   level: number,
   options: CircuitOptions = {},
 ): Circuit {
-  const required = [...new Set(options.requiredKinds ?? [])];
-  const excluded = [...new Set(options.excludedKinds ?? [])];
-  const wanted = new Set(required);
-  const forbidden = new Set(excluded);
   const fail = (reason: string): never => {
     throw new Error(`Cannot fit the selected segment rules: ${reason}`);
   };
-
-  for (const kind of wanted) {
-    if (forbidden.has(kind)) {
+  const requiredOptions = new Set(options.requiredKinds ?? []);
+  for (const kind of options.excludedKinds ?? []) {
+    if (requiredOptions.has(kind)) {
       fail(`${kind} is both required and excluded`);
     }
   }
+  const counts = new Map<Piece['kind'], number>();
+  for (const kind of options.requiredKinds ?? []) {
+    counts.set(kind, 1);
+  }
+  for (const kind of options.excludedKinds ?? []) {
+    counts.set(kind, 0);
+  }
+  for (const [kind, value] of Object.entries(
+    options.minimumCounts ?? {},
+  ) as [Piece['kind'], number | undefined][]) {
+    if (value === undefined) {
+      continue;
+    }
+    const count = Math.floor(value);
+    if (!Number.isFinite(count) || count < 0) {
+      fail(`${kind} needs a whole, non-negative minimum`);
+    }
+    counts.set(kind, count);
+  }
+  const required = [...counts]
+    .filter(([, count]) => count > 0)
+    .map(([kind]) => kind);
+  const excluded = [...counts]
+    .filter(([, count]) => count === 0)
+    .map(([kind]) => kind);
+  const wanted = new Set(required);
+  const forbidden = new Set(excluded);
+
   for (const kind of ['straight', 'turn', 'boost'] as const) {
     if (forbidden.has(kind)) {
       fail(`${kind} is structural and cannot be excluded`);
     }
   }
-  if (wanted.has('multi-crossing')) {
-    if (wanted.size > 1) {
-      fail('multi-crossing is one whole circuit and cannot be combined with catalog segments');
+  const multiCount = counts.get('multi-crossing') ?? 0;
+  if (multiCount > 0) {
+    if (
+      [...counts].some(
+        ([kind, count]) => kind !== 'multi-crossing' && count > 0,
+      )
+    ) {
+      fail(
+        'multi-crossing is one whole circuit and cannot be combined with catalog segments',
+      );
     }
-    if (forbidden.has('multi-crossing')) {
-      fail('multi-crossing is both required and excluded');
+    if (multiCount > 12) {
+      fail('a multi-crossing circuit has twelve sampled pieces');
     }
   }
+  const loopCount = counts.get('loop') ?? 0;
+  const shiftCount = counts.get('shift') ?? 0;
   const excludeLoop = forbidden.has('loop') || forbidden.has('shift');
-  if (excludeLoop && (wanted.has('loop') || wanted.has('shift'))) {
+  if (loopCount > 1 || shiftCount > 1) {
+    fail('the loop is authored once; its minimum cannot exceed 1');
+  }
+  if (excludeLoop && (loopCount > 0 || shiftCount > 0)) {
     fail('loop and loop return must be included or excluded together');
   }
-  if (wanted.has('bridge') && excludeLoop) {
+  const bridgeCount = counts.get('bridge') ?? 0;
+  if (bridgeCount > 0 && excludeLoop) {
     fail('a bridge deck needs the loop it threads');
+  }
+  if (bridgeCount > 1) {
+    fail('the bridge deck is authored once; its minimum cannot exceed 1');
   }
   const jumpKinds = ['kicker', 'gap', 'landing'] as const;
   if (
-    jumpKinds.some((kind) => wanted.has(kind)) &&
-    jumpKinds.some((kind) => forbidden.has(kind))
+    jumpKinds.some((kind) => (counts.get(kind) ?? 0) > 0) &&
+    jumpKinds.some((kind) => counts.get(kind) === 0)
   ) {
     fail('the jump launch, gap, and landing must be included or excluded together');
+  }
+  for (const kind of ['obstacles', 'hill'] as const) {
+    if ((counts.get(kind) ?? 0) > 1) {
+      fail(`${kind} is authored once; its minimum cannot exceed 1`);
+    }
+  }
+  if ((counts.get('boost') ?? 0) > 2) {
+    fail('a catalog circuit carries at most two boost strips');
   }
   const plannerElevationKinds: Piece['kind'][] = [
     'spiral-up',
@@ -1829,17 +1932,16 @@ export function generateCircuit(
   ];
 
   const hasSatisfied = (circuit: Circuit): boolean => {
-    if (wanted.size === 0 && forbidden.size === 0) {
+    if (counts.size === 0) {
       return true;
     }
-    const kinds = new Set(circuit.pieces.map((piece) => piece.kind));
-    for (const kind of wanted) {
-      if (!kinds.has(kind)) {
-        return false;
-      }
+    const actual = new Map<Piece['kind'], number>();
+    for (const piece of circuit.pieces) {
+      actual.set(piece.kind, (actual.get(piece.kind) ?? 0) + 1);
     }
-    for (const kind of forbidden) {
-      if (kinds.has(kind)) {
+    for (const [kind, minimum] of counts) {
+      const count = actual.get(kind) ?? 0;
+      if (minimum === 0 ? count !== 0 : count < minimum) {
         return false;
       }
     }
@@ -1855,6 +1957,13 @@ export function generateCircuit(
     'steep-ramp',
     'steep-ramp-down',
   ];
+  const elevationMinimums: Partial<Record<Piece['kind'], number>> = {};
+  for (const kind of plannerElevationKinds) {
+    const minimum = counts.get(kind);
+    if (minimum !== undefined && minimum > 0) {
+      elevationMinimums[kind] = minimum;
+    }
+  }
   const constraints: AssemblyConstraints = {
     allowLoopless: excludeLoop,
     allowSingleCrossing: !forbidden.has('bridge') && !excludeLoop,
@@ -1865,9 +1974,7 @@ export function generateCircuit(
     allowSteep:
       !forbidden.has('steep-ramp') ||
       !forbidden.has('steep-ramp-down'),
-    requiredElevation: required.filter((kind) =>
-      plannerElevationKinds.includes(kind),
-    ),
+    elevationMinimums,
     excludedElevation: excluded.filter((kind) =>
       plannerElevationKinds.includes(kind),
     ),
@@ -1919,7 +2026,7 @@ export function generateCircuit(
   // Rule searches need more independent attempts than one seed offset ladder.
   // Salt 0 is the normal ladder; later salts only run when the caller asked
   // for specific segments.
-  const salts = wanted.size > 0 || forbidden.size > 0 ? 6 : 1;
+  const salts = counts.size > 0 ? 6 : 1;
   for (let salt = 0; salt < salts; salt += 1) {
     for (let offset = 0; offset < MAX_ASSEMBLY_ATTEMPTS; offset += 1) {
       const circuit = assembleCircuit(seed, level, offset, salt, constraints);
@@ -1935,11 +2042,16 @@ export function generateCircuit(
       }
     }
   }
-  if (wanted.size > 0 || forbidden.size > 0) {
-    const rules = [
-      ...required.map((kind) => `+${kind}`),
-      ...excluded.map((kind) => `-${kind}`),
-    ].join(' ');
+  if (counts.size > 0) {
+    const rules = [...counts]
+      .map(([kind, minimum]) =>
+        minimum === 0
+          ? `-${kind}`
+          : minimum === 1
+            ? `+${kind}`
+            : `+${kind}:${minimum}`,
+      )
+      .join(' ');
     throw new Error(
       `Could not assemble a playable circuit for ${seed} at level ${level} with rules: ${rules}`,
     );

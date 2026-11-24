@@ -172,6 +172,7 @@ export class Game {
     carId = PLAYER_CAR,
     requiredKinds: readonly Piece['kind'][] = [],
     excludedKinds: readonly Piece['kind'][] = [],
+    minimumCounts: Partial<Record<Piece['kind'], number>> = {},
   ) {
     this.carId = carId;
     this.container = container;
@@ -212,6 +213,7 @@ export class Game {
         allowMultiCrossing: true,
         requiredKinds,
         excludedKinds,
+        minimumCounts,
       }),
     );
 

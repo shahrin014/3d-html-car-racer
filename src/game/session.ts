@@ -12,6 +12,7 @@ export const PENDING_START_KEY = 'neon-racer.pending-start';
 export const PENDING_SEED_KEY = 'neon-racer.pending-seed';
 export const PENDING_REQUIREMENTS_KEY = 'neon-racer.pending-requirements';
 export const PENDING_EXCLUSIONS_KEY = 'neon-racer.pending-exclusions';
+export const PENDING_COUNTS_KEY = 'neon-racer.pending-counts';
 
 /** Mark the next load of game.html as a real race start. */
 export function markPendingStart(): void {
@@ -37,6 +38,7 @@ export function clearPendingSeed(): void {
     window.sessionStorage.removeItem(PENDING_SEED_KEY);
     window.sessionStorage.removeItem(PENDING_REQUIREMENTS_KEY);
     window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
+    window.sessionStorage.removeItem(PENDING_COUNTS_KEY);
   } catch {
     // Persistence is best effort.
   }
@@ -91,6 +93,52 @@ export function clearPendingExclusions(): void {
     window.sessionStorage.removeItem(PENDING_EXCLUSIONS_KEY);
   } catch {
     // Persistence is best effort.
+  }
+}
+
+/** Hand the previewed minimum piece counts to the race page. */
+export function markPendingCounts(
+  counts: Partial<Record<Piece['kind'], number>>,
+): void {
+  try {
+    const entries = Object.entries(counts).filter(
+      (entry): entry is [string, number] =>
+        typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+    );
+    if (entries.length === 0) {
+      window.sessionStorage.removeItem(PENDING_COUNTS_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(
+      PENDING_COUNTS_KEY,
+      JSON.stringify(Object.fromEntries(entries)),
+    );
+  } catch {
+    // Without session storage the race still draws its own circuit.
+  }
+}
+
+/** Read and clear the previewed minimum piece counts. */
+export function takePendingCounts(): Partial<Record<Piece['kind'], number>> {
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_COUNTS_KEY);
+    window.sessionStorage.removeItem(PENDING_COUNTS_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+    const counts: Partial<Record<Piece['kind'], number>> = {};
+    for (const [kind, value] of Object.entries(parsed)) {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        counts[kind as Piece['kind']] = Math.max(0, Math.floor(value));
+      }
+    }
+    return counts;
+  } catch {
+    return {};
   }
 }
 

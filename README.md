@@ -29,11 +29,12 @@ pausing leaves fullscreen. Throttle is automatic. The HUD shows level, lap, lap 
 and damage. Damage reduces acceleration and top speed but never ends the race.
 Being stuck or off the track triggers a timed rescue at the last checkpoint.
 
-The track preview lists every segment kind with a round three-state control:
-click once to require it, again to exclude it, and again to clear the rule.
-Elevation up and down pieces are independent, so a steep climb can return on
-spirals or any other allowed descents. Randomize picks a compatible mix, and a
-race started from the preview uses the same seed and rules.
+The track preview lists every segment kind in a scrollable table with a
+minimum-count control: No leaves it to the seed, 0 excludes it, and 1–5 require
+at least that many pieces. Elevation up and down pieces are independent, so a
+steep climb can return on spirals or any other allowed descents. Randomize picks
+a compatible mix, and a race started from the preview uses the same seed and
+counts.
 
 ## Local development
 

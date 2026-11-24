@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   generateCircuit,
   validateCircuit,
+  type Circuit,
   type Piece,
 } from './track';
 
@@ -234,6 +235,51 @@ describe('required segments', () => {
       expect(kinds).not.toContain(kind);
     }
   }, 30_000);
+
+  it('honors minimum piece counts', () => {
+    const count = (circuit: Circuit, kind: Piece['kind']): number =>
+      circuit.pieces.filter((piece) => piece.kind === kind).length;
+
+    const spirals = generateCircuit('count-spirals', 1, {
+      minimumCounts: { 'spiral-down': 2 },
+    });
+    expect(count(spirals, 'spiral-down')).toBeGreaterThanOrEqual(2);
+
+    const steeps = generateCircuit('count-steeps', 1, {
+      minimumCounts: { 'steep-ramp': 2 },
+    });
+    expect(count(steeps, 'steep-ramp')).toBeGreaterThanOrEqual(2);
+
+    const turns = generateCircuit('count-turns', 1, {
+      minimumCounts: { turn: 3 },
+    });
+    expect(count(turns, 'turn')).toBeGreaterThanOrEqual(3);
+
+    const loopless = generateCircuit('count-no-loop', 1, {
+      minimumCounts: { loop: 0 },
+    });
+    expect(count(loopless, 'loop')).toBe(0);
+    expect(count(loopless, 'shift')).toBe(0);
+
+    const steepUpOnly = generateCircuit('count-steep-up', 1, {
+      minimumCounts: { 'steep-ramp': 1, 'steep-ramp-down': 0 },
+    });
+    expect(count(steepUpOnly, 'steep-ramp')).toBeGreaterThanOrEqual(1);
+    expect(count(steepUpOnly, 'steep-ramp-down')).toBe(0);
+  }, 30_000);
+
+  it('rejects a minimum the authored circuit cannot repeat', () => {
+    expect(() =>
+      generateCircuit('count-loop-twice', 1, {
+        minimumCounts: { loop: 2 },
+      }),
+    ).toThrow(/loop is authored once/);
+    expect(() =>
+      generateCircuit('count-obstacles-twice', 1, {
+        minimumCounts: { obstacles: 2 },
+      }),
+    ).toThrow(/obstacles is authored once/);
+  });
 
   it('returns the same circuit for the same exclusion rules', () => {
     const options = {

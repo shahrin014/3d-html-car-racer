@@ -212,79 +212,87 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 - **AND** only the layout family, crossing count, combination, corner count,
   straight lengths, obstacle rows, and elevation route differ
 
-### Requirement: The preview can require or exclude segments
+### Requirement: The preview can set minimum segment counts
 
-The track preview SHALL list every selectable `Piece` kind with a round,
-three-state control: no rule, required, or excluded. A required kind SHALL
-appear in the next generated circuit; an excluded kind SHALL NOT appear; no
-rule SHALL leave the choice to the seed. The generator SHALL search
-deterministic seed offsets and salted attempts until it finds a playable
-circuit satisfying every rule, and the same seed and rule list SHALL always
+The track preview SHALL list every selectable `Piece` kind in a scrollable
+vertical table with a minimum-count control offering **No**, **0**, **1**,
+**2**, **3**, **4**, and **5**. **No** SHALL leave the choice to the seed;
+**0** SHALL exclude the kind; a positive value SHALL require at least that many
+pieces in the generated circuit. The generator SHALL count pieces by kind and
+search deterministic seed offsets and salted attempts until it finds a playable
+circuit satisfying every minimum, and the same seed and count list SHALL always
 settle on the same circuit. Structural kinds (straight, turn, and boost) are
 always present and SHALL NOT be excludable. The loop and its return SHALL move
 together, and the jump launch, gap, and landing SHALL move together. Elevation
 up and down pieces SHALL be independent: a climb may return on any allowed
 combination of descents, such as a steep climb followed by two 2-level spiral
-descents. Excluding the loop SHALL produce a loopless polygon circuit that is still
-closed and playable. The preview SHALL provide a button that randomizes a
-compatible mix of rules and regenerates. Requiring a multi-crossing layout
+descents. Excluding the loop SHALL produce a loopless polygon circuit that is
+still closed and playable. The preview SHALL provide a button that randomizes a
+compatible mix of counts and regenerates. Requiring a multi-crossing layout
 together with catalog segments SHALL be rejected, because the trefoil is one
-whole circuit. If a rule set cannot be assembled, the preview SHALL report it,
+whole circuit. If a count set cannot be assembled, the preview SHALL report it,
 keep the previous circuit visible, and keep Start race disabled until a track
-builds. Starting the race from the preview SHALL pass both the required and
-excluded kinds to the race, so the race uses the same circuit.
+builds. Starting the race from the preview SHALL pass the count list to the
+race, so the race uses the same circuit.
 
-#### Scenario: Required segment appears
+#### Scenario: Minimum count appears
 
-- **GIVEN** the preview and a segment marked required
+- **GIVEN** the preview and a segment with minimum 1
 - **WHEN** the track is regenerated
 - **THEN** the circuit contains at least one piece of that kind
 - **AND** the circuit is closed and playable
 - **AND** the preview reports that every rule is met
 
-#### Scenario: Excluded segment disappears
+#### Scenario: Minimum count above one
 
-- **GIVEN** the preview and a segment marked excluded
+- **GIVEN** the preview and a segment with minimum 2
+- **WHEN** the track is regenerated
+- **THEN** the circuit contains at least two pieces of that kind
+- **AND** the preview reports the actual count and that the rule is met
+
+#### Scenario: Zero excludes a segment
+
+- **GIVEN** the preview and a segment with minimum 0
 - **WHEN** the track is regenerated
 - **THEN** the circuit contains no piece of that kind
 - **AND** the preview reports that every rule is met
 
 #### Scenario: Independent elevation transitions
 
-- **GIVEN** the preview with a steep climb required and the steep descent excluded
+- **GIVEN** the preview with a steep climb minimum and the steep descent excluded
 - **WHEN** the track is regenerated
 - **THEN** the circuit contains the steep climb and no steep descent
 - **AND** it returns to the lower deck on other allowed descents
 
 #### Scenario: Loopless circuit stays playable
 
-- **GIVEN** the preview with the loop marked excluded
+- **GIVEN** the preview with the loop set to 0
 - **WHEN** the track is regenerated
 - **THEN** the circuit has no loop or loop return
 - **AND** it closes and contains at least two banked turns and two boost strips
 - **AND** the car can complete a lap without a rescue
 
-#### Scenario: Randomize segment rules
+#### Scenario: Randomize segment counts
 
 - **GIVEN** the preview with no rules set
 - **WHEN** the player presses Randomize
-- **THEN** a random compatible mix of required and excluded segments is set
+- **THEN** a random compatible mix of minimum counts is set
 - **AND** the track regenerates with every rule met
 
-#### Scenario: Impossible combination is reported
+#### Scenario: Impossible count is reported
 
-- **GIVEN** a rule set the generator cannot assemble
+- **GIVEN** a count the generator cannot assemble, such as two loops
 - **WHEN** the player regenerates
 - **THEN** the preview reports that the rules cannot be fitted
 - **AND** the previous circuit stays visible
 - **AND** Start race stays disabled until a track builds
 
-#### Scenario: Preview and race share segment rules
+#### Scenario: Preview and race share segment counts
 
-- **GIVEN** a preview with required and excluded segments
+- **GIVEN** a preview with minimum counts
 - **WHEN** the player starts the race
-- **THEN** the race circuit contains every required segment
-- **AND** it contains none of the excluded segments
+- **THEN** the race circuit meets every minimum
+- **AND** it contains none of the excluded kinds
 
 ### Requirement: Obstacle segments are seeded and leave a gap in every row
 
