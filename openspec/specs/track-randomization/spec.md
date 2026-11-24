@@ -216,13 +216,12 @@ sample SHALL include polygon, single-crossing, and multi-crossing layouts.
 
 The track preview SHALL list every selectable `Piece` kind in a scrollable
 vertical table with a minimum-count control offering **No**, **0**, **1**,
-**2**, **3**, **4**, and **5** up to the authored repeat limit. **No** SHALL
-leave the choice to the seed; **0** SHALL exclude the kind; a positive value
-SHALL require at least that many pieces in the generated circuit. The control
-SHALL offer at most **1** for loop, loop return, bridge deck, obstacle corridor,
-and hill crest, at most **2** for boost strips, the steep pair, and the jump
-pieces, and up to **5** for the other repeatable kinds. A count above the
-authored limit SHALL be clamped. The generator SHALL count pieces by kind and
+**2**, **3**, **4**, and **5** for every non-core kind. **No** SHALL leave the
+choice to the seed; **0** SHALL exclude the kind; a positive value SHALL require
+at least that many pieces in the generated circuit. Structural straights, turns,
+and boost strips remain always present. A minimum for a climb SHALL NOT require
+the same number of matching descents; the planner SHALL balance it with any
+allowed descent combination. The generator SHALL count pieces by kind and
 search deterministic seed offsets and salted attempts until it finds a playable
 circuit satisfying every minimum, and the same seed and count list SHALL always
 settle on the same circuit. Structural kinds (straight, turn, and boost) are
@@ -253,6 +252,20 @@ race, so the race uses the same circuit.
 - **WHEN** the track is regenerated
 - **THEN** the circuit contains at least two pieces of that kind
 - **AND** the preview reports the actual count and that the rule is met
+
+#### Scenario: A minimum does not force a matching descent
+
+- **GIVEN** the preview with spiral-up minimum 5 and spiral-down minimum 1
+- **WHEN** the track is regenerated
+- **THEN** the circuit contains at least five spiral climbs and one spiral descent
+- **AND** the remaining descents may be ramps, jumps, or other allowed descents
+
+#### Scenario: Repeated flat features
+
+- **GIVEN** the preview with a flat feature minimum of 5
+- **WHEN** the track is regenerated
+- **THEN** the circuit contains at least five of that feature
+- **AND** the feature-slot planner distributes them across the legs
 
 #### Scenario: Zero excludes a segment
 

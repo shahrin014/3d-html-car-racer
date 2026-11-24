@@ -140,9 +140,8 @@ calls.
 - **The preview can set minimum segment counts.** The track preview lists every
   piece kind in a scrollable vertical table with a minimum-count control:
   **No** leaves it to the seed, **0** excludes it, and **1–5** require at least
-  that many pieces, capped at the authored repeat limit (1 for loop, loop
-  return, bridge, obstacles, and hill; 2 for boost, steep, and jump pieces).
-  Generation counts pieces by kind and searches deterministic
+  that many pieces. Every non-core kind supports the full range. Generation
+  counts pieces by kind and searches deterministic
   salted attempts for a playable circuit satisfying every minimum; the count
   list travels through session storage to the race. Excluding the loop produces
   a loopless polygon circuit; structural straights, turns, and boosts stay
@@ -344,7 +343,8 @@ Exact object shapes belong in code, not in behavior specs.
 ## Important Constraints
 
 - **Landscape first.** Landscape phones are the primary target. A portrait
-  viewport shows a rotate prompt and pauses the race.
+  viewport shows a rotate prompt and pauses the race, but only on the race
+  screen; the menu and track preview remain usable in portrait.
 - **Touch without page gestures.** Swipes, drags, taps, and button presses must
   not scroll, zoom, select text, or trigger the browser's back gesture.
 - **Tilt is the touch steering input.** Touch steering uses the phone's tilt and

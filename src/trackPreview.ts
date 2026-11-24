@@ -517,23 +517,7 @@ const SPIRAL_KINDS: Piece['kind'][] = ['spiral-up', 'spiral-down'];
 const RAMP_KINDS: Piece['kind'][] = ['ramp-up', 'ramp-down'];
 const STEEP_KINDS: Piece['kind'][] = ['steep-ramp', 'steep-ramp-down'];
 const COUNT_OPTIONS: SegmentCount[] = [null, 0, 1, 2, 3, 4, 5];
-const MAX_COUNTS: Partial<Record<Piece['kind'], number>> = {
-  loop: 1,
-  shift: 1,
-  bridge: 1,
-  obstacles: 1,
-  hill: 1,
-  boost: 2,
-  'steep-ramp': 2,
-  'steep-ramp-down': 2,
-  kicker: 2,
-  gap: 2,
-  landing: 2,
-};
-
-function maxCountFor(kind: Piece['kind']): number {
-  return MAX_COUNTS[kind] ?? 5;
-}
+const MAX_COUNT = 5;
 
 const segmentCounts = new Map<Piece['kind'], SegmentCount>();
 const segmentSelects = new Map<Piece['kind'], HTMLSelectElement>();
@@ -594,9 +578,6 @@ for (const group of SEGMENT_GROUPS) {
       select.className = 'preview__segment-count';
       select.setAttribute('aria-label', `Minimum ${choice.label} count`);
       for (const option of COUNT_OPTIONS) {
-        if (option !== null && option > maxCountFor(choice.kind)) {
-          continue;
-        }
         const element = document.createElement('option');
         element.value = countToOption(option);
         element.textContent = option === null ? 'No' : String(option);
@@ -649,7 +630,7 @@ function setCount(kind: Piece['kind'], value: SegmentCount): void {
     return;
   }
   if (value !== null) {
-    value = Math.min(value, maxCountFor(kind));
+    value = Math.min(value, MAX_COUNT);
   }
   segmentCounts.set(kind, value);
   if (JUMP_KINDS.includes(kind)) {
@@ -701,8 +682,8 @@ function normalizeCounts(): void {
     segmentCounts.set(kind, null);
   }
   for (const [kind, value] of segmentCounts) {
-    if (value !== null && value > maxCountFor(kind)) {
-      segmentCounts.set(kind, maxCountFor(kind));
+    if (value !== null && value > MAX_COUNT) {
+      segmentCounts.set(kind, MAX_COUNT);
     }
   }
   const multi = segmentCounts.get('multi-crossing') ?? null;

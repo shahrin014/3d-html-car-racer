@@ -6,6 +6,10 @@ import {
   type Piece,
 } from './track';
 
+function count(circuit: Circuit, kind: Piece['kind']): number {
+  return circuit.pieces.filter((piece) => piece.kind === kind).length;
+}
+
 const SEGMENTS: Piece['kind'][] = [
   'straight',
   'turn',
@@ -51,7 +55,7 @@ describe('required segments', () => {
     for (const kind of ['bridge', 'loop', 'gap', 'obstacles'] as const) {
       expect(kinds.has(kind), kind).toBe(true);
     }
-    expect(circuit.layout).toBe('single-crossing');
+    expect(['single-crossing', 'polygon']).toContain(circuit.layout);
     expect(validateCircuit(circuit).ok).toBe(true);
   }, 30_000);
 
@@ -73,9 +77,10 @@ describe('required segments', () => {
     expect(() =>
       generateCircuit('required-impossible', 1, {
         allowMultiCrossing: true,
-        requiredKinds: ['bridge', 'steep-ramp'],
+        requiredKinds: ['bridge'],
+        excludedKinds: ['loop'],
       }),
-    ).toThrow(/with rules: \+bridge \+steep-ramp/);
+    ).toThrow(/bridge deck needs the loop/);
   });
 
   it('does not mix a multi-crossing layout with catalog segments', () => {
@@ -268,17 +273,54 @@ describe('required segments', () => {
     expect(count(steepUpOnly, 'steep-ramp-down')).toBe(0);
   }, 30_000);
 
+  it('supports five of every repeatable non-core feature', () => {
+    const cases: {
+      kind: Piece['kind'];
+      counts: Partial<Record<Piece['kind'], number>>;
+    }[] = [
+      { kind: 'loop', counts: { loop: 5 } },
+      { kind: 'obstacles', counts: { obstacles: 5 } },
+      { kind: 'hill', counts: { hill: 5 } },
+      {
+        kind: 'kicker',
+        counts: { kicker: 5, gap: 5, landing: 5 },
+      },
+      { kind: 'bridge', counts: { bridge: 5 } },
+      { kind: 'spiral-up', counts: { 'spiral-up': 5 } },
+      { kind: 'spiral-down', counts: { 'spiral-down': 5 } },
+      { kind: 'ramp-up', counts: { 'ramp-up': 5 } },
+      { kind: 'ramp-down', counts: { 'ramp-down': 5 } },
+      { kind: 'steep-ramp', counts: { 'steep-ramp': 5 } },
+      {
+        kind: 'steep-ramp-down',
+        counts: { 'steep-ramp-down': 5 },
+      },
+      { kind: 'multi-crossing', counts: { 'multi-crossing': 5 } },
+    ];
+    for (const testCase of cases) {
+      const circuit = generateCircuit('count-five', 1, {
+        allowMultiCrossing: true,
+        minimumCounts: testCase.counts,
+      });
+      expect(
+        count(circuit, testCase.kind),
+        testCase.kind,
+      ).toBeGreaterThanOrEqual(5);
+      expect(validateCircuit(circuit).ok, testCase.kind).toBe(true);
+    }
+  }, 60_000);
+
   it('rejects a minimum the authored circuit cannot repeat', () => {
     expect(() =>
-      generateCircuit('count-loop-twice', 1, {
-        minimumCounts: { loop: 2 },
+      generateCircuit('count-boost-three', 1, {
+        minimumCounts: { boost: 3 },
       }),
-    ).toThrow(/loop is authored once/);
+    ).toThrow(/at most two boost strips/);
     expect(() =>
-      generateCircuit('count-obstacles-twice', 1, {
-        minimumCounts: { obstacles: 2 },
+      generateCircuit('count-multi-thirteen', 1, {
+        minimumCounts: { 'multi-crossing': 13 },
       }),
-    ).toThrow(/obstacles is authored once/);
+    ).toThrow(/twelve sampled pieces/);
   });
 
   it('returns the same circuit for the same exclusion rules', () => {

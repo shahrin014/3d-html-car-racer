@@ -94,9 +94,14 @@ describe('track generation from preview dropdowns', () => {
     ).toThrow(/Invalid dropdown value for loop/);
   });
 
-  it('rejects an impossible authored minimum', () => {
-    expect(() => generateFromDropdowns({ loop: '4' })).toThrow(
-      /loop is authored once/,
+  it('supports a repeatable feature above one', () => {
+    const circuit = generateFromDropdowns({ loop: '4' });
+    expect(count(circuit, 'loop')).toBeGreaterThanOrEqual(4);
+  }, 30_000);
+
+  it('rejects a minimum the authored circuit cannot repeat', () => {
+    expect(() => generateFromDropdowns({ boost: '4' })).toThrow(
+      /at most two boost strips/,
     );
   });
 

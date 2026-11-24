@@ -173,6 +173,8 @@ SHALL NOT deploy.
 - **WHEN** the browser job runs
 - **THEN** the suite runs at 844×390
 - **AND** it exercises keyboard steering and the brake control with tilt unavailable
+- **AND** a portrait viewport shows the rotate prompt on the race screen but not
+  on the menu or track preview
 
 #### Scenario: Fork pull request
 

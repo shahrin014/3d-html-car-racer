@@ -814,7 +814,10 @@ kbd {
 }
 
 @media (orientation: portrait) {
-  .rotate {
+  /* Only the race itself requires landscape. The menu and track preview stay
+     usable in portrait so the player can choose a car or inspect a circuit. */
+  body[data-screen='countdown'] .rotate,
+  body[data-screen='racing'] .rotate {
     display: grid;
   }
 }
