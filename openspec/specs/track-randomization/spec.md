@@ -189,6 +189,15 @@ request polygon, single-crossing, and double-crossing layouts.
 - **AND** the route is one closed path with at least two boost strips
 - **AND** it carries the car through a lap without a rescue
 
+#### Scenario: Elevation counts on a two-crossing layout
+
+- **GIVEN** the crossovers control set to 2 and minimums for spirals, ramps, or
+  steep ramps
+- **WHEN** the circuit is generated
+- **THEN** the bridge approach and exit carry those pieces
+- **AND** every climb stays on the crossing chord
+- **AND** the layout still has two plan crossings
+
 #### Scenario: Preview and race share the layout
 
 - **GIVEN** a previewed double-crossing seed

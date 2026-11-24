@@ -134,9 +134,11 @@ calls.
   self-intersecting octagon. One long chord climbs to a bridge deck and crosses
   two lower chords, so the plan crosses itself twice. The seed picks the vertex
   order, mirror, and scale; the segment planner then places loops, hills, jumps,
-  obstacles, and boosts on the remaining edges. The bridge height separates
-  every crossing by at least 3.5 m, so the deck stays continuous and the car
-  drives over and under its route without a jump, gap, or fork.
+  obstacles, and boosts on the remaining edges. Elevation minimums for spirals,
+  ramps, and steep ramps are spent on the bridge approach and exit, so every
+  climb stays on the crossing chord. The bridge height separates every crossing
+  by at least 3.5 m, so the deck stays continuous and the car drives over and
+  under its route without a jump, gap, or fork.
 - **The preview can set minimum segment counts.** The track preview lists every
   piece kind in a scrollable vertical table with a minimum-count control:
   **0** means 0 or more, and **1–5** require at least that many pieces. Every
