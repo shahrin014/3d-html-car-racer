@@ -286,7 +286,12 @@ describe('track randomization', () => {
       const found = candidate.pieces.findIndex(
         (piece) => piece.kind === 'steep-ramp',
       );
-      if (found >= 0) {
+      // Elevation transitions are independent, but this test covers the
+      // matching steep-descent case, so keep searching until both appear.
+      if (
+        found >= 0 &&
+        candidate.pieces.some((piece) => piece.kind === 'steep-ramp-down')
+      ) {
         circuit = candidate;
         rampIndex = found;
         break;

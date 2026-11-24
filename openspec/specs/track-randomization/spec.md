@@ -62,7 +62,7 @@ of the requirements.
 | Sky jump at the lip | 4 m kicker to a 1 m lip, 4 m gap, 18 m wide landing |
 | Steep ramp surface | boost strip along the whole climb |
 | Steep descent | same 80° face, 2.1 m entry ease and 3.2 m exit ease |
-| Sky-jump leg extension | 24 m added to every leg when a seed selects the steep pair |
+| Sky-jump leg extension | 24 m added to every leg when a seed selects the steep climb |
 | Obstacle segment | 24 m straight with five seeded rows of edge blocks |
 | Obstacle block placement | edge (2.5 m), centre, and double-edge rows; every row keeps a car-wide gap |
 | Assembly attempts | 32 deterministic offsets |
@@ -402,8 +402,8 @@ the overpass rules for every lower section it passes over.
 - **THEN** the boost strip pushes it up the 80° face
 - **AND** it leaves the lip, crosses the gap unsupported, and lands on the
   wide landing deck at the raised height
-- **AND** the deck continues at four bridge levels until a matching steep
-  descent elsewhere
+- **AND** the deck continues at four bridge levels until the allowed descents
+  return it to the lower deck elsewhere
 - **AND** the ramp and descent meet the lower and upper decks at zero slope
 
 #### Scenario: Every segment stays in the stock rotation
@@ -413,7 +413,7 @@ the overpass rules for every lower section it passes over.
 - **THEN** every authored piece kind appears: straight, turns, loop, loop
   return, spirals, bridge ramps and deck, hill, jump pieces, steep ramp and
   descent, boost, and obstacle corridor
-- **AND** the steep pair appears without requiring a rare long leg
+- **AND** the steep climb appears without requiring a rare long leg
 
 #### Scenario: Descent is a ramp or a spiral in another section
 
@@ -553,8 +553,9 @@ a downhill descent it picks between a ramp, a spiral, and a jump.
 ### Requirement: Every generated circuit is closed and playable
 
 A generated circuit SHALL be a closed loop: position and heading SHALL match at
-the seam. It SHALL contain at least one vertical loop, at least two banked turns,
-and at least two boost strips. It SHALL NOT self-intersect at one elevation,
+the seam. It SHALL contain at least two banked turns and at least two boost
+strips. Unless the preview explicitly excludes the loop, it SHALL also contain
+at least one vertical loop. It SHALL NOT self-intersect at one elevation,
 SHALL keep at least one car width of clear air between the edges of non-adjacent
 sections that share a height, and SHALL keep every turn radius above the
 configured minimum. A plan-view crossing SHALL be accepted only when the two branches are
@@ -570,7 +571,8 @@ SHALL be rejected and regenerated from the next deterministic seed offset.
 #### Scenario: Required features
 
 - **GIVEN** any accepted circuit
-- **THEN** it contains at least one loop, two banked turns, and two boost strips
+- **THEN** it contains two banked turns and two boost strips
+- **AND** it contains at least one loop unless the loop was explicitly excluded
 
 #### Scenario: Unplayable layout is rejected
 
