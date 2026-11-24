@@ -1005,7 +1005,9 @@ function assembleCircuit(
     // other families. The plan is a self-intersecting octagon: one long chord
     // climbs to a bridge deck and crosses two lower chords, so the route passes
     // over itself exactly twice. The seed picks the vertex order, the mirror,
-    // and the scale, so every seed gets its own two-crossing shape.
+    // and the scale; the segment planner then places flat features on the
+    // remaining edges. Elevation counts are spent on the bridge approach and
+    // exit, keeping every climb on the same plan line as the crossing chord.
     const orders: { order: number[]; bridge: number }[] = [
       { order: [0, 1, 2, 5, 6, 7, 4, 3], bridge: 2 },
       { order: [0, 1, 2, 7, 6, 3, 4, 5], bridge: 7 },
@@ -1042,8 +1044,29 @@ function assembleCircuit(
     }
     const tangent = (angle: number): number =>
       layoutRadius * Math.tan((Math.abs(angle) * Math.PI) / 360);
-    // The tightest corner sets the minimum octagon size: every straight must
-    // keep a short lead between its two turn arcs.
+
+    // Every requested elevation kind becomes a piece on the bridge approach
+    // and exit. A one-turn spiral climbs one bridge level, so the counts map
+    // directly onto pieces while the plan footprint stays on the crossing chord.
+    const spiralCount = Math.max(
+      2,
+      elevationMinimums['spiral-up'] ?? 0,
+      elevationMinimums['spiral-down'] ?? 0,
+    );
+    const rampCount = Math.max(
+      elevationMinimums['ramp-up'] ?? 0,
+      elevationMinimums['ramp-down'] ?? 0,
+    );
+    const steepCount = Math.max(
+      elevationMinimums['steep-ramp'] ?? 0,
+      elevationMinimums['steep-ramp-down'] ?? 0,
+    );
+    const steepRun = steepRampRun(STEEP_RAMP_HEIGHT);
+    const upPlan =
+      (rampCount + 1) * BRIDGE_RAMP_LENGTH +
+      steepCount * steepRun;
+    const transitionPlan = upPlan * 2;
+
     const minStraight = 10;
     let size = 0;
     for (let index = 0; index < n; index += 1) {
@@ -1052,6 +1075,21 @@ function assembleCircuit(
       size = Math.max(size, (room + minStraight) / unitLength[index]!);
     }
     size += 6 + random() * 10;
+    const bridgeTangentRoom =
+      tangent(turnAngle[bridgeEdge]!) +
+      tangent(turnAngle[(bridgeEdge + 1) % n]!);
+    const bridgeLead = CIRCUIT_LEAD_STRAIGHT;
+    const minBridgeDeck = 2 * SPIRAL_RADIUS + TRACK_WIDTH;
+    const requiredBridgeStraight =
+      transitionPlan +
+      bridgeLead * 2 +
+      CIRCUIT_BOOST_LENGTH * 2 +
+      minBridgeDeck;
+    size = Math.max(
+      size,
+      (requiredBridgeStraight + bridgeTangentRoom) /
+        unitLength[bridgeEdge]!,
+    );
     const edgeLength = unitLength.map((length) => length * size);
     const straightLength = edgeLength.map(
       (length, index) =>
@@ -1084,11 +1122,15 @@ function assembleCircuit(
     for (let index = 0; index < loopCount; index += 1) {
       queue.push({ kind: 'loop', length: LOOP_RETURN_LENGTH });
     }
+    for (
+      let index = 0;
+      index < Math.max(jumpCount, defaultJump ? 1 : 0);
+      index += 1
+    ) {
+      queue.push({ kind: 'jump', length: jumpPlanarLength() });
+    }
     for (let index = 0; index < hillCount; index += 1) {
       queue.push({ kind: 'hill', length: HILL_LENGTH });
-    }
-    for (let index = 0; index < Math.max(jumpCount, defaultJump ? 1 : 0); index += 1) {
-      queue.push({ kind: 'jump', length: jumpPlanarLength() });
     }
     for (let index = 0; index < obstacleCount; index += 1) {
       queue.push({ kind: 'obstacles', length: OBSTACLE_SEGMENT_LENGTH });
@@ -1100,13 +1142,16 @@ function assembleCircuit(
       }
       const features: PlanSegment[] = [];
       let remaining = length - CIRCUIT_LEAD_STRAIGHT;
-      while (
-        queue.length > 0 &&
-        queue[0]!.length <= remaining - CIRCUIT_LEAD_STRAIGHT
-      ) {
-        const feature = queue.shift()!;
-        features.push(feature);
-        remaining -= feature.length;
+      let index = 0;
+      while (index < queue.length) {
+        const feature = queue[index]!;
+        if (feature.length <= remaining - CIRCUIT_LEAD_STRAIGHT) {
+          features.push(feature);
+          queue.splice(index, 1);
+          remaining -= feature.length;
+        } else {
+          index += 1;
+        }
       }
       if (features.length === 0) {
         return [{ kind: 'straight', length }];
@@ -1118,34 +1163,24 @@ function assembleCircuit(
       ];
     };
 
-    const edgePlan: PlanSegment[][] = [];
-    for (let index = 0; index < n; index += 1) {
-      edgePlan.push(
-        index === bridgeEdge
-          ? [{ kind: 'straight', length: straightLength[index]! }]
-          : planStraight(straightLength[index]!),
-      );
+    const edgePlan: PlanSegment[][] = Array.from({ length: n }, () => []);
+    const lowerEdges = Array.from({ length: n }, (_, index) => index)
+      .filter((index) => index !== bridgeEdge)
+      .sort((left, right) => straightLength[right]! - straightLength[left]!);
+    for (const edge of lowerEdges) {
+      edgePlan[edge] = planStraight(straightLength[edge]!);
     }
 
     const bridgeLength = straightLength[bridgeEdge]!;
     const boost = CIRCUIT_BOOST_LENGTH;
-    const bridgePlan: PlanSegment[] =
-      bridgeLength >= boost * 2 + CIRCUIT_LEAD_STRAIGHT * 2
-        ? [
-            { kind: 'straight', length: CIRCUIT_LEAD_STRAIGHT },
-            { kind: 'boost', length: boost },
-            {
-              kind: 'bridge',
-              length: bridgeLength - boost * 2 - CIRCUIT_LEAD_STRAIGHT * 2,
-            },
-            { kind: 'boost', length: boost },
-            { kind: 'straight', length: CIRCUIT_LEAD_STRAIGHT },
-          ]
-        : [{ kind: 'bridge', length: bridgeLength }];
+    const deckLength =
+      bridgeLength - bridgeLead * 2 - boost * 2 - transitionPlan;
 
     const addLayoutTurn = (angle: number, clockwise: boolean): void => {
       const last = pieces[pieces.length - 1];
-      const matrix = last ? frameAt(last.matrix, last.path, 1) : identity.clone();
+      const matrix = last
+        ? frameAt(last.matrix, last.path, 1)
+        : identity.clone();
       pieces.push({
         kind: 'turn',
         path: turnPath(layoutRadius, angle, clockwise),
@@ -1189,6 +1224,56 @@ function assembleCircuit(
           break;
       }
     };
+    const addRampUp = (): void => {
+      addPiece(
+        'ramp-up',
+        bridgeRampUpPath(BRIDGE_RAMP_LENGTH, BRIDGE_HEIGHT),
+        BRIDGE_RAMP_LENGTH,
+      );
+    };
+    const addRampDown = (): void => {
+      addPiece(
+        'ramp-down',
+        bridgeRampDownPath(BRIDGE_RAMP_LENGTH, BRIDGE_HEIGHT),
+        BRIDGE_RAMP_LENGTH,
+      );
+    };
+    const addSteepUp = (): void => {
+      addPiece(
+        'steep-ramp',
+        steepRampUpPath(STEEP_RAMP_HEIGHT),
+        steepRun,
+      );
+      const ramp = pieces[pieces.length - 1];
+      if (ramp) {
+        ramp.boost = true;
+      }
+    };
+    const addSteepDown = (): void => {
+      addPiece(
+        'steep-ramp-down',
+        steepRampDownPath(STEEP_RAMP_HEIGHT),
+        steepRun,
+      );
+    };
+    const addSpiralUp = (): void => {
+      addSpiral(
+        'spiral-up',
+        spiralUpPath(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        SPIRAL_RADIUS,
+        true,
+      );
+    };
+    const addSpiralDown = (): void => {
+      addSpiral(
+        'spiral-down',
+        spiralDownPath(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        SPIRAL_RADIUS,
+        true,
+      );
+    };
 
     const sequence = Array.from(
       { length: n },
@@ -1201,11 +1286,31 @@ function assembleCircuit(
         addLayoutTurn(Math.abs(angle), angle < 0);
       }
       if (edge === bridgeEdge) {
-        addSpiral('spiral-up', spiralUpPath(), spiralArcLength(), SPIRAL_RADIUS, true);
-        for (const segment of bridgePlan) {
-          addSegment(segment);
+        addStraight(bridgeLead);
+        addRampUp();
+        for (let count = 0; count < rampCount; count += 1) {
+          addRampUp();
         }
-        addSpiral('spiral-down', spiralDownPath(), spiralArcLength(), SPIRAL_RADIUS, true);
+        for (let count = 0; count < steepCount; count += 1) {
+          addSteepUp();
+        }
+        for (let count = 0; count < spiralCount; count += 1) {
+          addSpiralUp();
+        }
+        addStraight(boost, true);
+        addPiece('bridge', bridgeDeckPath(deckLength), deckLength);
+        addStraight(boost, true);
+        for (let count = 0; count < spiralCount; count += 1) {
+          addSpiralDown();
+        }
+        for (let count = 0; count < steepCount; count += 1) {
+          addSteepDown();
+        }
+        for (let count = 0; count < rampCount; count += 1) {
+          addRampDown();
+        }
+        addRampDown();
+        addStraight(bridgeLead);
       } else {
         for (const segment of edgePlan[edge]!) {
           addSegment(segment);
