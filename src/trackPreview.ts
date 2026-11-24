@@ -506,6 +506,7 @@ const collapseRequirementsButton = mustQuery<HTMLButtonElement>(
   '#preview-collapse-requirements',
 );
 const startButton = mustQuery<HTMLButtonElement>('#preview-start');
+const copyButton = mustQuery<HTMLButtonElement>('#preview-copy');
 const backButton = mustQuery<HTMLButtonElement>('#preview-back');
 const rotatePrompt = mustQuery<HTMLElement>('#rotate');
 const loading = mustQuery<HTMLElement>('#preview-loading');
@@ -784,23 +785,27 @@ let requirementsDirty = false;
 let hasCircuit = false;
 let buildQueued: string | null = null;
 
-// A ?seed= query makes a previewed circuit reproducible, and ?require= /
-// ?exclude= keep the segment rules in the link, which is useful for QA and
-// reloads. require entries may carry a count, e.g. require=spiral-down:2.
+// The canonical shareable URL is ?seed=<seed>&counts=<kind>:<value>,...
+// ?require= / ?exclude= are still accepted so older links keep working.
 const initialParams = new URLSearchParams(window.location.search);
 const requestedSeed = initialParams.get('seed')?.trim();
 if (requestedSeed) {
   seed = requestedSeed;
 }
+const requestedCounts = parseCountEntries(initialParams.get('counts'));
 const requestedRequirements = parseCountEntries(initialParams.get('require'));
 const requestedExclusions = parseCountEntries(initialParams.get('exclude'));
-for (const { kind, count } of requestedRequirements) {
+const requested =
+  requestedCounts.length > 0
+    ? requestedCounts
+    : [
+        ...requestedRequirements,
+        ...requestedExclusions.map(({ kind }) => ({ kind, count: 0 })),
+      ];
+for (const { kind, count } of requested) {
   segmentCounts.set(kind, count);
 }
-for (const { kind } of requestedExclusions) {
-  segmentCounts.set(kind, 0);
-}
-if (requestedRequirements.length > 0 || requestedExclusions.length > 0) {
+if (requested.length > 0) {
   normalizeCounts();
   refreshCountUi();
   showCounts();
@@ -826,29 +831,19 @@ function showSeed(next: string): void {
 
 function showCounts(): void {
   const counts = selectedCounts();
-  const required: string[] = [];
-  const excluded: string[] = [];
-  for (const [kind, count] of Object.entries(counts) as [
-    Piece['kind'],
-    number,
-  ][]) {
-    if (count === 0) {
-      excluded.push(kind);
-    } else {
-      required.push(count === 1 ? kind : `${kind}:${count}`);
-    }
-  }
+  const entries = Object.entries(counts) as [Piece['kind'], number][];
   const url = new URL(window.location.href);
-  if (required.length > 0) {
-    url.searchParams.set('require', required.join(','));
+  if (entries.length > 0) {
+    url.searchParams.set(
+      'counts',
+      entries.map(([kind, count]) => `${kind}:${count}`).join(','),
+    );
   } else {
-    url.searchParams.delete('require');
+    url.searchParams.delete('counts');
   }
-  if (excluded.length > 0) {
-    url.searchParams.set('exclude', excluded.join(','));
-  } else {
-    url.searchParams.delete('exclude');
-  }
+  // The canonical URL uses counts; drop the legacy parameters.
+  url.searchParams.delete('require');
+  url.searchParams.delete('exclude');
   window.history.replaceState(null, '', url);
 }
 
@@ -1050,6 +1045,29 @@ function randomCounts(): Partial<Record<Piece['kind'], number>> {
   obstacles();
   return counts;
 }
+
+copyButton.addEventListener('click', async () => {
+  const url = window.location.href;
+  try {
+    if (!navigator.clipboard?.writeText) {
+      throw new Error('Clipboard API unavailable');
+    }
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  }
+  copyButton.textContent = 'Copied';
+  window.setTimeout(() => {
+    copyButton.textContent = 'Copy link';
+  }, 1200);
+});
 
 regenerateButton.addEventListener('click', () => {
   if (busy) {

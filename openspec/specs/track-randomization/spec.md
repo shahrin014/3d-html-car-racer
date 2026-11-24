@@ -236,7 +236,11 @@ together with catalog segments SHALL be rejected, because the trefoil is one
 whole circuit. If a count set cannot be assembled, the preview SHALL report it,
 keep the previous circuit visible, and keep Start race disabled until a track
 builds. Starting the race from the preview SHALL pass the count list to the
-race, so the race uses the same circuit.
+race, so the race uses the same circuit. The preview SHALL keep the seed and
+every non-default count in the URL as
+`?seed=<seed>&counts=<kind>:<value>,...` and SHALL provide a control to copy
+that link. Loading the link SHALL reproduce the same circuit. Legacy
+`require`/`exclude` links MAY still be accepted.
 
 #### Scenario: Minimum count appears
 
@@ -304,6 +308,13 @@ race, so the race uses the same circuit.
 - **THEN** the preview reports that the rules cannot be fitted
 - **AND** the previous circuit stays visible
 - **AND** Start race stays disabled until a track builds
+
+#### Scenario: Shareable preview URL
+
+- **GIVEN** a preview with a seed and segment counts
+- **WHEN** the player copies the link or reloads the page
+- **THEN** the URL contains the seed and every non-default count
+- **AND** loading the URL produces the same circuit
 
 #### Scenario: Preview and race share segment counts
 
