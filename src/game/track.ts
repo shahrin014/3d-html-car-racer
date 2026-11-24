@@ -1045,27 +1045,87 @@ function assembleCircuit(
     const tangent = (angle: number): number =>
       layoutRadius * Math.tan((Math.abs(angle) * Math.PI) / 360);
 
-    // Every requested elevation kind becomes a piece on the bridge approach
-    // and exit. A one-turn spiral climbs one bridge level, so the counts map
-    // directly onto pieces while the plan footprint stays on the crossing chord.
-    const spiralCount = Math.max(
-      2,
-      elevationMinimums['spiral-up'] ?? 0,
-      elevationMinimums['spiral-down'] ?? 0,
+    // Every requested climb is placed on the bridge approach; the descent is
+    // chosen from the allowed descent kinds, so a steep climb does not force a
+    // matching steep descent. The approach and exit ramps are always present so
+    // the first and last spiral clear the lower track.
+    const requestedRampUp = Math.max(0, elevationMinimums['ramp-up'] ?? 0);
+    const requestedSteepUp = Math.max(
+      0,
+      elevationMinimums['steep-ramp'] ?? 0,
     );
-    const rampCount = Math.max(
-      elevationMinimums['ramp-up'] ?? 0,
+    const requestedSpiralUp = Math.max(
+      0,
+      elevationMinimums['spiral-up'] ?? 0,
+    );
+    const requestedRampDown = Math.max(
+      0,
       elevationMinimums['ramp-down'] ?? 0,
     );
-    const steepCount = Math.max(
-      elevationMinimums['steep-ramp'] ?? 0,
+    const requestedSteepDown = Math.max(
+      0,
       elevationMinimums['steep-ramp-down'] ?? 0,
     );
+    const requestedSpiralDown = Math.max(
+      0,
+      elevationMinimums['spiral-down'] ?? 0,
+    );
     const steepRun = steepRampRun(STEEP_RAMP_HEIGHT);
+    const rampHeight = BRIDGE_HEIGHT;
+    const spiralHeight = BRIDGE_HEIGHT;
+    const steepHeight = STEEP_RAMP_HEIGHT;
+    let climbHeight =
+      rampHeight * (1 + requestedRampUp) +
+      steepHeight * requestedSteepUp +
+      spiralHeight * requestedSpiralUp;
+    let descentHeight =
+      rampHeight * (1 + requestedRampDown) +
+      steepHeight * requestedSteepDown +
+      spiralHeight * requestedSpiralDown;
+    let extraSpiralUps = 0;
+    while (climbHeight < descentHeight) {
+      extraSpiralUps += 1;
+      climbHeight += spiralHeight;
+    }
+    type DescentKind = 'ramp-down' | 'spiral-down' | 'steep-ramp-down';
+    const fillDescents: { kind: DescentKind; plan: number }[] = [];
+    // Cycle through the allowed descent kinds instead of mirroring the climbs.
+    // A steep climb can therefore return on ramps or spirals, and a spiral
+    // climb can return on a ramp or a steep descent.
+    const descentCycle: DescentKind[] = [
+      'ramp-down',
+      'spiral-down',
+      'ramp-down',
+      'steep-ramp-down',
+      'spiral-down',
+    ];
+    let fillHeight = climbHeight - descentHeight;
+    let cycleIndex = Math.floor(random() * descentCycle.length);
+    while (fillHeight > 0) {
+      const kind = descentCycle[cycleIndex % descentCycle.length]!;
+      const height = kind === 'steep-ramp-down' ? steepHeight : rampHeight;
+      if (height <= fillHeight) {
+        fillDescents.push({
+          kind,
+          plan:
+            kind === 'ramp-down'
+              ? BRIDGE_RAMP_LENGTH
+              : kind === 'steep-ramp-down'
+                ? steepRun
+                : 0,
+        });
+        fillHeight -= height;
+      }
+      cycleIndex += 1;
+    }
     const upPlan =
-      (rampCount + 1) * BRIDGE_RAMP_LENGTH +
-      steepCount * steepRun;
-    const transitionPlan = upPlan * 2;
+      BRIDGE_RAMP_LENGTH * (1 + requestedRampUp) +
+      steepRun * requestedSteepUp;
+    const downPlan =
+      BRIDGE_RAMP_LENGTH * (1 + requestedRampDown) +
+      steepRun * requestedSteepDown +
+      fillDescents.reduce((sum, descent) => sum + descent.plan, 0);
+    const transitionPlan = upPlan + downPlan;
 
     const minStraight = 10;
     let size = 0;
@@ -1288,25 +1348,37 @@ function assembleCircuit(
       if (edge === bridgeEdge) {
         addStraight(bridgeLead);
         addRampUp();
-        for (let count = 0; count < rampCount; count += 1) {
+        for (let count = 0; count < requestedRampUp; count += 1) {
           addRampUp();
         }
-        for (let count = 0; count < steepCount; count += 1) {
+        for (let count = 0; count < requestedSteepUp; count += 1) {
           addSteepUp();
         }
-        for (let count = 0; count < spiralCount; count += 1) {
+        for (let count = 0; count < requestedSpiralUp; count += 1) {
+          addSpiralUp();
+        }
+        for (let count = 0; count < extraSpiralUps; count += 1) {
           addSpiralUp();
         }
         addStraight(boost, true);
         addPiece('bridge', bridgeDeckPath(deckLength), deckLength);
         addStraight(boost, true);
-        for (let count = 0; count < spiralCount; count += 1) {
+        for (const descent of fillDescents) {
+          if (descent.kind === 'ramp-down') {
+            addRampDown();
+          } else if (descent.kind === 'steep-ramp-down') {
+            addSteepDown();
+          } else {
+            addSpiralDown();
+          }
+        }
+        for (let count = 0; count < requestedSpiralDown; count += 1) {
           addSpiralDown();
         }
-        for (let count = 0; count < steepCount; count += 1) {
+        for (let count = 0; count < requestedSteepDown; count += 1) {
           addSteepDown();
         }
-        for (let count = 0; count < rampCount; count += 1) {
+        for (let count = 0; count < requestedRampDown; count += 1) {
           addRampDown();
         }
         addRampDown();

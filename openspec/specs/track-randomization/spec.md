@@ -196,6 +196,8 @@ request polygon, single-crossing, and double-crossing layouts.
 - **WHEN** the circuit is generated
 - **THEN** the bridge approach and exit carry those pieces
 - **AND** every climb stays on the crossing chord
+- **AND** the descents are chosen from the allowed descent kinds rather than
+  mirroring the climbs
 - **AND** the layout still has two plan crossings
 
 #### Scenario: Preview and race share the layout
