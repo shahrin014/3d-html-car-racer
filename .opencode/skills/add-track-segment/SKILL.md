@@ -27,7 +27,7 @@ Do not run the E2E suite locally.
 | --- | --- | --- |
 | Standalone piece | A leg or a fixed point in `assembleCircuit` | straight, turn, hill, obstacle |
 | Feature module | A reserved leg (loop, jump, hill) | kicker + gap + landing |
-| Level transition | `makeTransition` or the paired-steep branch / `Transition` | ramp-up, spiral-down, steep-jump |
+| Level transition | elevation planner / `makeTransition` / `Transition` | ramp-up, spiral-down, steep-jump |
 | Feature surface | Any piece carrying a special flag | `boost: true` on a straight or ramp |
 
 Write down:
@@ -46,7 +46,7 @@ Write down:
 
 Keep authored sizes, angles, and lengths here. Document the units and whether
 the value is at runtime scale or catalogue scale. For a level transition, derive
-the height from `BRIDGE_HEIGHT` so it still pairs with existing descents.
+the height from `BRIDGE_HEIGHT` so the planner can balance it with any allowed descents.
 
 ```ts
 /** A short climb to a raised deck. */
@@ -105,7 +105,7 @@ Then decide where it is selected:
 - **Fixed feature**: reserve a leg in `assembleCircuit`, subtract its plan length
   from the leg budget, and add it in the leg loop.
 - **Seeded transition**: extend `makeTransition`, return its plan distance, and
-  keep the paired descent at the same number of levels.
+  keep the descent total equal to the climb total; the descent need not be the same kind.
 - **New module with sub-pieces** (like a jump): add the pieces in order with
   `addPiece`; each sub-piece gets its own matrix.
 
@@ -141,7 +141,7 @@ rare long leg, so it never appears when the preview regenerates. Do not fix that
 by lowering the plan length until the piece is wrong. Instead, pre-roll the
 feature before the legs are sized and add enough to every leg for its module;
 the regular/alternating polygon still closes. Then force the feature when the
-pre-roll selected it. This is how the steep pair gets into the level-1
+pre-roll selected it. This is how the steep climb gets into the level-1
 rotation.
 
 ## 5. Keep frames, physics, mesh, and boost in sync
@@ -275,14 +275,14 @@ At minimum:
   - assert it reaches the top/deck and `maxGap < TRACK_WIDTH`;
   - test a slow entry as well as a fast one.
 - If the piece is a new transition, extend the elevation tests so both the
-  climb and its paired descent still return to the lower deck.
+  climb and the chosen descents still return to the lower deck.
 
 ## 9. Update behaviour docs
 
 A behaviour-changing segment updates:
 
 - `openspec/specs/track-randomization/spec.md`: default values, selection,
-  elevation pairing, and a scenario;
+  independent elevation transitions, and a scenario;
 - `openspec/specs/game/spec.md`: what the car experiences on the surface;
 - `openspec/project.md`: the decision bullet, glossary if needed, and the
   balance table;
@@ -325,7 +325,7 @@ Read these in order when you need a real reference:
 - `src/game/constants.ts` — `STEEP_RAMP_*` and `SKY_JUMP_*` constants;
 - `src/game/track.ts` — `steepEaseIntegral`, `steepRampRun`,
   `steepRampUpPath`, `steepRampDownPath`, `skyJumpPlanarLength`, and the
-  `steep-jump` / `steep-ramp-down` pair in the elevation selection;
+  `steep-jump` / `steep-ramp-down` choices in the elevation planner;
 - `src/game/track.ts` — `Piece['kind']` has both `steep-ramp` and
   `steep-ramp-down`; `Transition` has `steep-jump` and `steep-ramp-down`;
 - `src/game/track.ts` — `addTransition` handles `steep-jump` by adding the

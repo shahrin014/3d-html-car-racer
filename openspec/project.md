@@ -143,9 +143,10 @@ calls.
   circuit satisfying every rule, and both lists travel through session storage
   to the race so the previewed circuit is the raced circuit. Excluding the loop
   produces a loopless polygon circuit; structural straights, turns, and boosts
-  stay always present. A multi-crossing layout is one whole circuit, so it
-  cannot be combined with catalog requirements; an impossible set is reported
-  without replacing the current preview.
+  stay always present. Elevation up and down pieces are independent, so a steep
+  climb can return on two 2-level spirals. A multi-crossing layout is one whole
+  circuit, so it cannot be combined with catalog requirements; an impossible set
+  is reported without replacing the current preview.
 - **Elevated sections can carry the route.** Beyond the single-crossing layout, a
   seed may send the circuit up one or two stages, along an elevated stretch, and
   back down in one or two stages on a different section. Any stage can be a
@@ -158,11 +159,11 @@ calls.
   surface is a boost strip, so a car that arrives slowly is pushed up. Its top
   carries a compact kicker, a 4 m gap, and an 18 m wide landing deck at the
   raised height, so a fast car flies off the top instead of staying planted.
-  The seed pre-rolls the steep pair independently of the level's straights and
+  The seed pre-rolls the steep climb independently of the level's straights and
   extends every leg by 24 m when it does, so the module fits on short level-1
   legs and the segment stays in the normal rotation instead of depending on a
-  rare long leg. It replaces the four-level staged climb on some seeds and pairs
-  with a matching steep descent on a later leg.
+  rare long leg. It does not force a matching descent: the route can return on
+  a steep descent or any allowed combination, such as two 2-level spirals.
 - **Jumps are deckless.** A jump is a kicker, a gap, and a landing ramp. The
   kicker ends on an upward launch slope and the landing ramp enters along the
   same launch line, but its top edge sits below the lip, so the car drops onto
