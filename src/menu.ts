@@ -119,6 +119,8 @@ const paintPicker = mustQuery<HTMLElement>('#paint-picker');
 const carPicker = mustQuery<HTMLElement>('#car-picker');
 const carPreviewEl = mustQuery<HTMLElement>('#car-preview');
 const carName = mustQuery<HTMLElement>('#car-name');
+const carCount = mustQuery<HTMLElement>('#car-count');
+const paintName = mustQuery<HTMLElement>('#paint-name');
 const carDots = mustQuery<HTMLElement>('#car-dots');
 const carPrev = mustQuery<HTMLButtonElement>('#car-prev');
 const carNext = mustQuery<HTMLButtonElement>('#car-next');
@@ -136,6 +138,7 @@ function markPaint(id: string): void {
   for (const swatch of paintPicker.querySelectorAll<HTMLButtonElement>('button[data-paint]')) {
     swatch.setAttribute('aria-pressed', String(swatch.dataset.paint === id));
   }
+  paintName.textContent = paintById(id).name;
 }
 
 function setCarControlsDisabled(disabled: boolean): void {
@@ -149,7 +152,11 @@ function setCarControlsDisabled(disabled: boolean): void {
 /** Show one car in the carousel: name, the active dot, and the live preview. */
 function showCar(id: string): void {
   const option = CARS.find((car) => car.id === id) ?? CARS[0]!;
+  const index = Math.max(0, CARS.indexOf(option));
   carName.textContent = option.name;
+  carCount.textContent = `${String(index + 1).padStart(2, '0')} / ${String(
+    CARS.length,
+  ).padStart(2, '0')}`;
   for (const dot of carDots.querySelectorAll<HTMLButtonElement>('button')) {
     dot.setAttribute('aria-pressed', String(dot.dataset.car === option.id));
   }
@@ -227,6 +234,8 @@ for (const option of PAINTS) {
   swatch.setAttribute('aria-pressed', String(option.id === paint.id));
   paintPicker.append(swatch);
 }
+
+markPaint(paint.id);
 
 paintPicker.addEventListener('click', (event) => {
   const swatch = (event.target as Element | null)?.closest<HTMLButtonElement>(

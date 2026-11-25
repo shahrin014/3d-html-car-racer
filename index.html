@@ -23,21 +23,53 @@
   <body data-screen="menu">
     <section class="overlay" data-overlay="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
       <div class="panel panel--menu">
-        <div class="menu__intro">
+        <header class="menu__brand">
+          <p class="eyebrow">Neon circuit &middot; three laps</p>
           <h1 class="title" id="menu-title">NEON<br /><span>RACER</span></h1>
           <p class="credit">By Saif</p>
-          <p class="lede">
-            Tilt to steer, hold brake for the hairpins, and keep the car off the
-            rails. Three laps, one loop, two banks per circuit.
+          <p class="menu-best">
+            <span class="menu-best__label">Best lap</span>
+            <strong id="menu-best">--:--.-</strong>
           </p>
-          <p class="menu-best">Best <strong id="menu-best">--:--.-</strong></p>
-          <button type="button" class="button button--primary" id="start">Start race</button>
-          <button type="button" class="button button--ghost" id="preview-track">Preview track</button>
-          <button type="button" class="button button--ghost" id="install" hidden>Install app</button>
-          <p class="hint">
-            Tilt or <kbd>&larr;</kbd><kbd>&rarr;</kbd> &middot; <kbd>Space</kbd> drift &middot;
-            <kbd>&darr;</kbd> brake &middot; <kbd>C</kbd> camera · 3 laps
-          </p>
+        </header>
+
+        <p class="menu__brief lede">
+          Tilt to steer, hold brake for the hairpins, and keep the car off the
+          rails. Three laps, one loop, two banks per circuit.
+        </p>
+
+        <div class="menu__garage">
+          <fieldset class="cars">
+            <legend>
+              <span>Garage</span>
+              <span class="cars__count" id="car-count">01 / 05</span>
+            </legend>
+            <div
+              class="cars__carousel"
+              id="car-picker"
+              role="group"
+              aria-label="Choose a car"
+              aria-live="polite"
+            >
+              <button type="button" class="cars__arrow" id="car-prev" aria-label="Previous car">&#8249;</button>
+              <figure class="cars__slide">
+                <div class="cars__render" id="car-preview" aria-hidden="true"></div>
+                <figcaption id="car-name">Mach</figcaption>
+              </figure>
+              <button type="button" class="cars__arrow" id="car-next" aria-label="Next car">&#8250;</button>
+            </div>
+            <div class="cars__dots" id="car-dots" role="group" aria-label="Car models"></div>
+          </fieldset>
+          <fieldset class="paints">
+            <legend>
+              <span>Livery</span>
+              <span class="paints__name" id="paint-name">Stock livery</span>
+            </legend>
+            <div class="paints__grid" id="paint-picker"></div>
+          </fieldset>
+        </div>
+
+        <div class="menu__setup">
           <div class="opponents">
             <span class="opponents__label" id="opponents-label">Opponents</span>
             <div
@@ -60,30 +92,17 @@
               >+</button>
             </div>
           </div>
+          <p class="hint hint--touch">Tilt to steer &middot; hold Drift to slide</p>
+          <p class="hint hint--keys">
+            Tilt or <kbd>&larr;</kbd><kbd>&rarr;</kbd> &middot; <kbd>Space</kbd> drift &middot;
+            <kbd>&darr;</kbd> brake &middot; <kbd>C</kbd> camera
+          </p>
         </div>
-        <div class="menu__garage">
-          <fieldset class="cars">
-            <legend>Car</legend>
-            <div
-              class="cars__carousel"
-              id="car-picker"
-              role="group"
-              aria-label="Choose a car"
-              aria-live="polite"
-            >
-              <button type="button" class="cars__arrow" id="car-prev" aria-label="Previous car">&#8249;</button>
-              <figure class="cars__slide">
-                <div class="cars__render" id="car-preview" aria-hidden="true"></div>
-                <figcaption id="car-name">Mach</figcaption>
-              </figure>
-              <button type="button" class="cars__arrow" id="car-next" aria-label="Next car">&#8250;</button>
-            </div>
-            <div class="cars__dots" id="car-dots" role="group" aria-label="Car models"></div>
-          </fieldset>
-          <fieldset class="paints">
-            <legend>Car paint</legend>
-            <div class="paints__grid" id="paint-picker"></div>
-          </fieldset>
+
+        <div class="menu__actions">
+          <button type="button" class="button button--primary" id="start">Start race</button>
+          <button type="button" class="button button--ghost" id="preview-track">Preview track</button>
+          <button type="button" class="button button--quiet" id="install" hidden>Install app</button>
         </div>
       </div>
     </section>

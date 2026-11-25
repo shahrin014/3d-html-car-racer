@@ -17,12 +17,14 @@ test('paint picker offers the stock livery and nine paints, and remembers the ch
   );
   expect(new Set(names).size).toBe(10);
   await expect(swatches.first()).toHaveAttribute('aria-label', 'Stock livery');
+  await expect(page.locator('#paint-name')).toHaveText('Stock livery');
 
   // Pick a paint the default is not, and check the pressed state moved with it.
   const violet = page.locator('#paint-picker button[data-paint="violet"]');
   await expect(violet).toHaveAttribute('aria-label', 'Violet');
   await violet.click();
   await expect(violet).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#paint-name')).toHaveText('Violet');
   await expect(
     page.locator('#paint-picker button[data-paint="stock"]'),
   ).toHaveAttribute('aria-pressed', 'false');
@@ -32,6 +34,7 @@ test('paint picker offers the stock livery and nine paints, and remembers the ch
   await expect(
     page.locator('#paint-picker button[data-paint="violet"]'),
   ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#paint-name')).toHaveText('Violet');
 
   // A corrupt stored id falls back to the default instead of breaking the menu.
   await page.evaluate(() =>
@@ -41,6 +44,7 @@ test('paint picker offers the stock livery and nine paints, and remembers the ch
   await expect(
     page.locator('#paint-picker button[data-paint="stock"]'),
   ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#paint-name')).toHaveText('Stock livery');
 
   expectNoIssues(issues);
 });

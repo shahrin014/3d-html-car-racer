@@ -25,32 +25,32 @@
       <div class="preview__canvas" id="preview-canvas"></div>
     </main>
 
-    <div class="preview__hud" aria-label="Track preview controls">
-      <div class="preview__top">
-        <header class="preview__bar">
-          <div class="preview__heading">
-            <p class="eyebrow">Track preview</p>
-            <h1 class="title title--small">Neon Racer</h1>
-          </div>
-          <button type="button" class="button button--ghost preview__back" id="preview-back">
-            Back to menu
-          </button>
-        </header>
+    <div class="preview__hud" role="region" aria-label="Track preview controls">
+      <header class="preview__bar">
+        <div class="preview__heading">
+          <p class="eyebrow">Track preview</p>
+          <h1 class="title title--small">Neon Racer</h1>
+        </div>
+        <button type="button" class="button button--glass preview__back" id="preview-back">
+          <span aria-hidden="true">&larr;</span> Back to menu
+        </button>
+      </header>
 
+      <div class="preview__stage">
         <section class="preview__requirements" aria-labelledby="preview-requirements-title">
           <div class="preview__requirements-head">
             <p class="eyebrow" id="preview-requirements-title">Segment rules</p>
             <div class="preview__requirements-actions">
               <button
                 type="button"
-                class="button button--ghost preview__randomize"
+                class="button button--glass preview__randomize"
                 id="preview-randomize-requirements"
               >
                 Randomize
               </button>
               <button
                 type="button"
-                class="button button--ghost preview__collapse"
+                class="button button--glass preview__collapse"
                 id="preview-collapse-requirements"
                 aria-expanded="true"
                 aria-controls="preview-requirements-body"
@@ -89,16 +89,21 @@
               </table>
             </div>
           </div>
+          <p class="preview__scroll-hint" aria-hidden="true">Scroll for more</p>
         </section>
+
+        <p class="preview__orbit-hint" aria-hidden="true">
+          Drag to orbit &middot; Scroll or pinch to zoom &middot; Double-click to reframe
+        </p>
       </div>
 
       <div class="preview__actions">
         <p class="preview__seed" id="preview-seed" aria-live="polite">--</p>
         <div class="preview__buttons">
-          <button type="button" class="button button--ghost preview__copy" id="preview-copy">
+          <button type="button" class="button button--glass preview__copy" id="preview-copy">
             Copy link
           </button>
-          <button type="button" class="button button--ghost" id="preview-regenerate">
+          <button type="button" class="button button--glass" id="preview-regenerate">
             Regenerate track
           </button>
           <button type="button" class="button button--primary" id="preview-start">
