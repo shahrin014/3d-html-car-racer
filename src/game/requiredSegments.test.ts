@@ -294,6 +294,49 @@ describe('required segments', () => {
     }
   }, 60_000);
 
+  it('upholds minimum counts in the forced single- and double-crossing layouts', () => {
+    const cases: {
+      kind: Piece['kind'];
+      counts: Partial<Record<Piece['kind'], number>>;
+    }[] = [
+      { kind: 'loop', counts: { loop: 5 } },
+      { kind: 'shift', counts: { shift: 5 } },
+      { kind: 'obstacles', counts: { obstacles: 5 } },
+      { kind: 'hill', counts: { hill: 5 } },
+      {
+        kind: 'kicker',
+        counts: { kicker: 5, gap: 5, landing: 5 },
+      },
+      { kind: 'bridge', counts: { bridge: 5 } },
+      { kind: 'spiral-up', counts: { 'spiral-up': 5 } },
+      { kind: 'spiral-down', counts: { 'spiral-down': 5 } },
+      { kind: 'ramp-up', counts: { 'ramp-up': 5 } },
+      { kind: 'ramp-down', counts: { 'ramp-down': 5 } },
+      { kind: 'steep-ramp', counts: { 'steep-ramp': 5 } },
+      {
+        kind: 'steep-ramp-down',
+        counts: { 'steep-ramp-down': 5 },
+      },
+    ];
+    for (const crossovers of [1, 2] as const) {
+      for (const testCase of cases) {
+        const circuit = generateCircuit(
+          `forced-count-${crossovers}-${testCase.kind}`,
+          1,
+          { crossovers, minimumCounts: testCase.counts },
+        );
+        expect(
+          count(circuit, testCase.kind),
+          `crossovers ${crossovers} ${testCase.kind}`,
+        ).toBeGreaterThanOrEqual(5);
+        expect(
+          validateCircuit(circuit).ok,
+          `crossovers ${crossovers} ${testCase.kind}`,
+        ).toBe(true);
+      }
+    }
+  }, 300_000);
+
   it('rejects a minimum the authored circuit cannot repeat', () => {
     expect(() =>
       generateCircuit('count-boost-three', 1, {

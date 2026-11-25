@@ -135,6 +135,23 @@ test('preview honors minimum counts and races the same rules', async ({
   expect(new URL(page.url()).searchParams.get('crossovers')).toBe('2');
   await expect(page.locator('#preview-start')).toBeEnabled();
 
+  // A single-crossing layout grows its vertical legs to honor loop minimums.
+  await page.goto(
+    '/track.html?seed=circuit-a2a368828acdd044&counts=loop:3,shift:3&crossovers=1',
+  );
+  await expect(page.locator('#preview-crossovers')).toHaveValue('1');
+  await expect(page.locator('#preview-requirements-note')).toContainText(
+    '1 crossover · 2 rules · all met.',
+    { timeout: 30_000 },
+  );
+  const singleLoops = Number(
+    await page
+      .locator('.preview__segment-row[data-kind="loop"] .preview__segment-now')
+      .textContent(),
+  );
+  expect(singleLoops).toBeGreaterThanOrEqual(3);
+  await expect(page.locator('#preview-start')).toBeEnabled();
+
   // A two-crossing layout is generated from catalog pieces, so counts apply.
   await page.goto(
     '/track.html?seed=cross-2-counts&crossovers=2&counts=loop:2,obstacles:1',

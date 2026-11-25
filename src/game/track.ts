@@ -1150,6 +1150,104 @@ function assembleCircuit(
       (requiredBridgeStraight + bridgeTangentRoom) /
         unitLength[bridgeEdge]!,
     );
+
+    // When catalog counts ask for repeated flat features, grow the octagon so
+    // the lower edges can carry them instead of dropping them from the queue.
+    const hasFlatMinimums = (
+      [
+        'loop',
+        'shift',
+        'hill',
+        'kicker',
+        'gap',
+        'landing',
+        'obstacles',
+        'bridge',
+      ] as Piece['kind'][]
+    ).some((kind) => (featureMinimums[kind] ?? 0) > 0);
+    if (hasFlatMinimums) {
+      const jumpRequest = Math.max(
+        featureMinimums.kicker ?? 0,
+        featureMinimums.gap ?? 0,
+        featureMinimums.landing ?? 0,
+      );
+      const sizingLoop = Math.max(
+        0,
+        featureMinimums.loop ?? (allowLoopless ? 0 : 1),
+        featureMinimums.shift ?? 0,
+      );
+      const sizingJump = Math.max(
+        jumpRequest,
+        allowJump && jumpRequest === 0 ? 1 : 0,
+      );
+      const sizingHill = Math.max(
+        featureMinimums.hill ?? 0,
+        allowHill && jumpRequest === 0 ? 1 : 0,
+      );
+      const sizingPlan: number[] = [];
+      for (let index = 0; index < sizingLoop; index += 1) {
+        sizingPlan.push(LOOP_RETURN_LENGTH);
+      }
+      for (let index = 0; index < sizingJump; index += 1) {
+        sizingPlan.push(jumpPlanarLength());
+      }
+      for (let index = 0; index < sizingHill; index += 1) {
+        sizingPlan.push(HILL_LENGTH);
+      }
+      for (let index = 0; index < (featureMinimums.obstacles ?? 0); index += 1) {
+        sizingPlan.push(OBSTACLE_SEGMENT_LENGTH);
+      }
+      for (
+        let index = 0;
+        index < Math.max(0, (featureMinimums.bridge ?? 0) - 1);
+        index += 1
+      ) {
+        sizingPlan.push(BRIDGE_FLAT_LENGTH);
+      }
+      const lowerEdgeIndexes = Array.from({ length: n }, (_, index) => index)
+        .filter((index) => index !== bridgeEdge);
+      const straightAt = (index: number): number =>
+        unitLength[index]! * size -
+        tangent(turnAngle[index]!) -
+        tangent(turnAngle[(index + 1) % n]!);
+      const lowerUnitSum = lowerEdgeIndexes.reduce(
+        (total, index) => total + unitLength[index]!,
+        0,
+      );
+      // Grow the layout until the same greedy pass used by the planner can
+      // place every requested feature. The feature list is largest-first so a
+      // big jump cannot be crowded out by a loop that fit earlier.
+      let guard = 0;
+      while (guard < 64) {
+        guard += 1;
+        const remainingFeatures = [...sizingPlan].sort((a, b) => b - a);
+        const edgeLengths = lowerEdgeIndexes
+          .map(straightAt)
+          .sort((a, b) => b - a);
+        for (const edgeLength of edgeLengths) {
+          let remaining = edgeLength - CIRCUIT_LEAD_STRAIGHT;
+          for (let index = 0; index < remainingFeatures.length; ) {
+            const feature = remainingFeatures[index]!;
+            if (feature <= remaining - CIRCUIT_LEAD_STRAIGHT) {
+              remaining -= feature;
+              remainingFeatures.splice(index, 1);
+            } else {
+              index += 1;
+            }
+          }
+        }
+        if (remainingFeatures.length === 0) {
+          break;
+        }
+        const missing =
+          remainingFeatures.reduce((total, length) => total + length, 0) +
+          2 *
+            CIRCUIT_LEAD_STRAIGHT *
+            Math.min(remainingFeatures.length, edgeLengths.length);
+        size += Math.max(missing / lowerUnitSum, 0.5);
+      }
+    }
+
     const edgeLength = unitLength.map((length) => length * size);
     const straightLength = edgeLength.map(
       (length, index) =>
@@ -1165,6 +1263,7 @@ function assembleCircuit(
     const loopCount = Math.max(
       0,
       featureMinimums.loop ?? (allowLoopless ? 0 : 1),
+      featureMinimums.shift ?? 0,
     );
     const jumpCount = Math.max(
       featureMinimums.kicker ?? 0,
@@ -1178,6 +1277,9 @@ function assembleCircuit(
         (allowHill && !defaultJump && jumpCount === 0 ? 1 : 0),
     );
     const obstacleCount = Math.max(0, featureMinimums.obstacles ?? 0);
+    // The crossing chord already carries one bridge deck. Any further bridge
+    // minimum is spent as extra flat deck segments on the lower edges.
+    const bridgeCount = Math.max(0, (featureMinimums.bridge ?? 0) - 1);
     const queue: PlanSegment[] = [];
     for (let index = 0; index < loopCount; index += 1) {
       queue.push({ kind: 'loop', length: LOOP_RETURN_LENGTH });
@@ -1194,6 +1296,9 @@ function assembleCircuit(
     }
     for (let index = 0; index < obstacleCount; index += 1) {
       queue.push({ kind: 'obstacles', length: OBSTACLE_SEGMENT_LENGTH });
+    }
+    for (let index = 0; index < bridgeCount; index += 1) {
+      queue.push({ kind: 'bridge', length: BRIDGE_FLAT_LENGTH });
     }
 
     const planStraight = (length: number): PlanSegment[] => {
@@ -1223,6 +1328,12 @@ function assembleCircuit(
       ];
     };
 
+    // Largest features first, so the greedy edge pass places them before the
+    // small ones. This only runs when counts are requested, keeping an
+    // unconstrained seed on its original piece order.
+    if (hasFlatMinimums) {
+      queue.sort((left, right) => right.length - left.length);
+    }
     const edgePlan: PlanSegment[][] = Array.from({ length: n }, () => []);
     const lowerEdges = Array.from({ length: n }, (_, index) => index)
       .filter((index) => index !== bridgeEdge)
@@ -1445,14 +1556,217 @@ function assembleCircuit(
           singleCrossoverRoll < 0.5;
 
   if (singleCrossover) {
-    // A single-crossing layout closes when the two vertical legs match and the diagonals are
-    // long enough to absorb the four 135 degree bends. The diagonals cross at
-    // their midpoints, where one carries the raised bridge and the other
-    // carries the loop, so the bridge passes through the loop's opening.
-    const legA = 48 + pick(straights);
-    const diagonal = Math.SQRT2 * legA + 2 * radius;
+    // A single-crossing layout closes when the two vertical legs match and the
+    // diagonals are long enough to absorb the four 135 degree bends. The
+    // diagonals cross at their midpoints, where one carries the raised bridge
+    // and the other carries the loop, so the bridge passes through the loop's
+    // opening.
+    //
+    // The layout always carries one loop, one bridge deck, one hill or jump,
+    // and at most one obstacle corridor. Any minimum above that adds whole
+    // catalog pieces to the two vertical legs, and the legs grow by exactly
+    // their plan length so the bowtie keeps closing.
+    const loopMinimum = Math.max(
+      1,
+      featureMinimums.loop ?? 1,
+      featureMinimums.shift ?? 0,
+    );
+    const jumpMinimum = Math.max(
+      0,
+      featureMinimums.kicker ?? 0,
+      featureMinimums.gap ?? 0,
+      featureMinimums.landing ?? 0,
+    );
+    const builtInJump = !noHillOrJump && jump ? 1 : 0;
+    const builtInHill = !noHillOrJump && !jump ? 1 : 0;
+    const extraLoops = Math.max(0, loopMinimum - 1);
+    const extraHills = allowHill
+      ? Math.max(0, (featureMinimums.hill ?? 0) - builtInHill)
+      : 0;
+    const extraJumps = allowJump
+      ? Math.max(0, jumpMinimum - builtInJump)
+      : 0;
+    const extraBridges = Math.max(0, (featureMinimums.bridge ?? 0) - 1);
+
+    const baseLegA = 48 + pick(straights);
+    // Keep the random stream unchanged for an unconstrained seed: draw both
+    // layout rolls up front, even when a minimum later overrides one.
+    const continueElevatedRoll = random();
+    const obstacleRoll = random();
+    const requestedObstacles = allowObstacles
+      ? (featureMinimums.obstacles ?? 0)
+      : 0;
+    const singleCrossoverObstacle =
+      allowObstacles && (requestedObstacles > 0 || obstacleRoll < 0.4);
+    const extraObstacles = Math.max(
+      0,
+      requestedObstacles - (singleCrossoverObstacle ? 1 : 0),
+    );
+
+    // Elevation counts are spent on the crossing diagonal. The baseline is one
+    // two-level spiral up and one matching descent; requested climbs and
+    // descents are chained on the same plan line, and any height left over is
+    // filled with allowed descents so the route returns to the ground.
+    const requestedRampUp = excludedElevation.has('ramp-up')
+      ? 0
+      : (elevationMinimums['ramp-up'] ?? 0);
+    const requestedSteepUp = excludedElevation.has('steep-ramp')
+      ? 0
+      : (elevationMinimums['steep-ramp'] ?? 0);
+    const requestedSpiralUp = excludedElevation.has('spiral-up')
+      ? 0
+      : (elevationMinimums['spiral-up'] ?? 0);
+    const requestedRampDown = excludedElevation.has('ramp-down')
+      ? 0
+      : (elevationMinimums['ramp-down'] ?? 0);
+    const requestedSteepDown = excludedElevation.has('steep-ramp-down')
+      ? 0
+      : (elevationMinimums['steep-ramp-down'] ?? 0);
+    const requestedSpiralDown = excludedElevation.has('spiral-down')
+      ? 0
+      : (elevationMinimums['spiral-down'] ?? 0);
+    const steepRun = steepRampRun(STEEP_RAMP_HEIGHT);
+    const extraSpiralUps = Math.max(0, requestedSpiralUp - 1);
+    const extraSpiralDowns = Math.max(0, requestedSpiralDown - 1);
+    let climbHeight =
+      SPIRAL_HEIGHT +
+      extraSpiralUps * BRIDGE_HEIGHT +
+      requestedRampUp * BRIDGE_HEIGHT +
+      requestedSteepUp * STEEP_RAMP_HEIGHT;
+    let descentHeight =
+      SPIRAL_HEIGHT +
+      extraSpiralDowns * BRIDGE_HEIGHT +
+      requestedRampDown * BRIDGE_HEIGHT +
+      requestedSteepDown * STEEP_RAMP_HEIGHT;
+    let fillSpiralUps = 0;
+    while (climbHeight < descentHeight) {
+      fillSpiralUps += 1;
+      climbHeight += BRIDGE_HEIGHT;
+    }
+    type DescentKind = 'ramp-down' | 'spiral-down' | 'steep-ramp-down';
+    const descentCycle = (
+      [
+        'ramp-down',
+        'spiral-down',
+        'ramp-down',
+        'steep-ramp-down',
+        'spiral-down',
+      ] as DescentKind[]
+    ).filter((kind) => !excludedElevation.has(kind));
+    const fillDescents: DescentKind[] = [];
+    let fillHeight = climbHeight - descentHeight;
+    if (fillHeight > 0 && descentCycle.length > 0) {
+      let cycleIndex = Math.floor(random() * descentCycle.length);
+      let guard = 0;
+      while (fillHeight > 0 && guard < 64) {
+        guard += 1;
+        const kind = descentCycle[cycleIndex % descentCycle.length]!;
+        const height =
+          kind === 'steep-ramp-down' ? STEEP_RAMP_HEIGHT : BRIDGE_HEIGHT;
+        if (height <= fillHeight) {
+          fillDescents.push(kind);
+          fillHeight -= height;
+        }
+        cycleIndex += 1;
+      }
+    }
+    const upPlan =
+      requestedRampUp * BRIDGE_RAMP_LENGTH + requestedSteepUp * steepRun;
+    const downPlan =
+      requestedRampDown * BRIDGE_RAMP_LENGTH +
+      requestedSteepDown * steepRun +
+      fillDescents.reduce(
+        (total, kind) =>
+          total +
+          (kind === 'ramp-down'
+            ? BRIDGE_RAMP_LENGTH
+            : kind === 'steep-ramp-down'
+              ? steepRun
+              : 0),
+        0,
+      );
+    const transitionPlan = upPlan + downPlan;
+
+    // Extra flat features are shared by the two vertical legs. The legs grow
+    // by the whole extra plan length, so every feature still has its original
+    // pad before the next corner.
+    type FlatExtra = { plan: number; add: () => void };
+    const flatExtras: FlatExtra[] = [];
+    const addLoopReturn = (): void => {
+      addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
+      addPiece(
+        'shift',
+        shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH),
+        LOOP_RETURN_LENGTH,
+      );
+    };
+    for (let index = 0; index < extraLoops; index += 1) {
+      flatExtras.push({ plan: LOOP_RETURN_LENGTH, add: addLoopReturn });
+    }
+    for (let index = 0; index < extraHills; index += 1) {
+      flatExtras.push({
+        plan: HILL_LENGTH,
+        add: () =>
+          addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH),
+      });
+    }
+    for (let index = 0; index < extraJumps; index += 1) {
+      flatExtras.push({ plan: jumpPlanarLength(), add: () => addJump() });
+    }
+    for (let index = 0; index < extraObstacles; index += 1) {
+      flatExtras.push({
+        plan: OBSTACLE_SEGMENT_LENGTH,
+        add: () =>
+          addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH),
+      });
+    }
+    for (let index = 0; index < extraBridges; index += 1) {
+      flatExtras.push({
+        plan: BRIDGE_FLAT_LENGTH,
+        add: () =>
+          addPiece(
+            'bridge',
+            bridgeDeckPath(BRIDGE_FLAT_LENGTH),
+            BRIDGE_FLAT_LENGTH,
+          ),
+      });
+    }
+    const frontExtras: FlatExtra[] = [];
+    const backExtras: FlatExtra[] = [];
+    flatExtras.forEach((feature, index) => {
+      (index % 2 === 0 ? frontExtras : backExtras).push(feature);
+    });
+    const frontExtraPlan = frontExtras.reduce(
+      (total, feature) => total + feature.plan,
+      0,
+    );
+    const backExtraPlan = backExtras.reduce(
+      (total, feature) => total + feature.plan,
+      0,
+    );
+    const flatExtraPlan = frontExtraPlan + backExtraPlan;
+
+    // The crossing loop also needs room before it. Grow the vertical legs when
+    // the elevation chain needs more diagonal, keeping the bowtie closure law
+    // diagonal = sqrt(2) * legA + 2 * radius.
+    const baseLeg = baseLegA + flatExtraPlan;
+    const baseDiagonal = Math.SQRT2 * baseLeg + 2 * radius;
+    const minimumDiagonal =
+      BRIDGE_LENGTH +
+      2 * (Math.max(upPlan, downPlan) + CIRCUIT_LEAD_STRAIGHT);
+    const diagonal = Math.max(baseDiagonal, minimumDiagonal);
+    const legA =
+      diagonal === baseDiagonal
+        ? baseLeg
+        : (diagonal - 2 * radius) / Math.SQRT2;
     const turnAngle = 135;
-    const bridgeLead = (diagonal - BRIDGE_LENGTH) / 2;
+    const halfPlan = (diagonal - BRIDGE_LENGTH) / 2;
+    const leadBefore = halfPlan - upPlan;
+    const leadAfter = halfPlan - downPlan;
+    // An elevation chain stays on the crossing diagonal; otherwise the seed
+    // may keep the bridge elevated past the next corner as before.
+    const continueElevated =
+      continueElevatedRoll < 0.5 && transitionPlan === 0;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
     const featureLength = noHillOrJump
@@ -1467,22 +1781,56 @@ function assembleCircuit(
         addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH);
       }
     }
-    addStraight(legA - CIRCUIT_LEAD_STRAIGHT - featureLength);
+    for (const feature of frontExtras) {
+      feature.add();
+    }
+    addStraight(
+      legA - CIRCUIT_LEAD_STRAIGHT - featureLength - frontExtraPlan,
+    );
     addTurn(turnAngle, true);
 
-    // The crossing leg: a boost straight, then a spiral up to the deck, a
-    // flat crossing, and a spiral back down. The spirals return to their own
-    // plan position, so the deck covers the old ramp-plus-deck length and its
-    // midpoint still sits over the loop.
-    addStraight(Math.max(0, bridgeLead - CIRCUIT_BOOST_LENGTH));
+    // The crossing leg: a boost straight, any extra climbs, the flat crossing,
+    // any descents, then the lead to the next corner. The deck midpoint sits at
+    // the diagonal midpoint, over the loop on the other diagonal.
+    addStraight(Math.max(0, leadBefore - CIRCUIT_BOOST_LENGTH));
     addStraight(CIRCUIT_BOOST_LENGTH, true);
-    addSpiral('spiral-up', spiralUpPath(), spiralArcLength(), SPIRAL_RADIUS, true);
+    addSpiral(
+      'spiral-up',
+      spiralUpPath(),
+      spiralArcLength(),
+      SPIRAL_RADIUS,
+      true,
+    );
+    for (let index = 0; index < requestedRampUp; index += 1) {
+      addPiece(
+        'ramp-up',
+        bridgeRampUpPath(BRIDGE_RAMP_LENGTH, BRIDGE_HEIGHT),
+        BRIDGE_RAMP_LENGTH,
+      );
+    }
+    for (let index = 0; index < requestedSteepUp; index += 1) {
+      addPiece(
+        'steep-ramp',
+        steepRampUpPath(STEEP_RAMP_HEIGHT),
+        steepRun,
+      );
+      const ramp = pieces[pieces.length - 1];
+      if (ramp) {
+        ramp.boost = true;
+      }
+    }
+    for (let index = 0; index < extraSpiralUps + fillSpiralUps; index += 1) {
+      addSpiral(
+        'spiral-up',
+        spiralUpPath(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        SPIRAL_RADIUS,
+        true,
+      );
+    }
     addPiece('bridge', bridgeDeckPath(BRIDGE_LENGTH), BRIDGE_LENGTH);
-    // Some seeds keep the bridge elevated past the crossing and descend after
-    // the next corner, so the exit does not always sit directly over the climb.
-    const continueElevated = random() < 0.5;
     if (continueElevated) {
-      addStraight(bridgeLead);
+      addStraight(leadAfter);
       addTurn(turnAngle, false);
     }
     addSpiral(
@@ -1492,20 +1840,63 @@ function assembleCircuit(
       SPIRAL_RADIUS,
       true,
     );
+    for (let index = 0; index < extraSpiralDowns; index += 1) {
+      addSpiral(
+        'spiral-down',
+        spiralDownPath(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+        SPIRAL_RADIUS,
+        true,
+      );
+    }
+    for (let index = 0; index < requestedRampDown; index += 1) {
+      addPiece(
+        'ramp-down',
+        bridgeRampDownPath(BRIDGE_RAMP_LENGTH, BRIDGE_HEIGHT),
+        BRIDGE_RAMP_LENGTH,
+      );
+    }
+    for (let index = 0; index < requestedSteepDown; index += 1) {
+      addPiece(
+        'steep-ramp-down',
+        steepRampDownPath(STEEP_RAMP_HEIGHT),
+        steepRun,
+      );
+    }
+    for (const kind of fillDescents) {
+      if (kind === 'ramp-down') {
+        addPiece(
+          'ramp-down',
+          bridgeRampDownPath(BRIDGE_RAMP_LENGTH, BRIDGE_HEIGHT),
+          BRIDGE_RAMP_LENGTH,
+        );
+      } else if (kind === 'steep-ramp-down') {
+        addPiece(
+          'steep-ramp-down',
+          steepRampDownPath(STEEP_RAMP_HEIGHT),
+          steepRun,
+        );
+      } else {
+        addSpiral(
+          'spiral-down',
+          spiralDownPath(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+          spiralArcLength(SPIRAL_RADIUS, BRIDGE_HEIGHT, 1),
+          SPIRAL_RADIUS,
+          true,
+        );
+      }
+    }
     if (!continueElevated) {
-      addStraight(bridgeLead);
+      addStraight(leadAfter);
       addTurn(turnAngle, false);
     }
 
-    // The closing vertical leg carries the boost. When this seed draws an
-    // obstacle corridor, it sits just before the boost strip so a car clears
-    // the blocks and is boosted out. The draw is made here, at the last
-    // decision in the single-crossing assembly, so it never re-rolls the bridge
-    // or elevation choices above.
-    const singleCrossoverObstacleRoll = random();
-    const singleCrossoverObstacle =
-      allowObstacles && singleCrossoverObstacleRoll < 0.4;
+    // The closing vertical leg carries the boost. Any requested obstacle
+    // corridor sits just before the boost strip.
     addStraight(CIRCUIT_LEAD_STRAIGHT);
+    for (const feature of backExtras) {
+      feature.add();
+    }
     if (singleCrossoverObstacle) {
       addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH);
     }
@@ -1514,18 +1905,14 @@ function assembleCircuit(
       legA -
         CIRCUIT_LEAD_STRAIGHT -
         CIRCUIT_BOOST_LENGTH -
-        (singleCrossoverObstacle ? OBSTACLE_SEGMENT_LENGTH : 0),
+        (singleCrossoverObstacle ? OBSTACLE_SEGMENT_LENGTH : 0) -
+        backExtraPlan,
     );
     addTurn(turnAngle, false);
 
     // The loop sits exactly at the crossing, so the bridge threads its hole.
     addStraight(diagonal / 2);
-    addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
-    addPiece(
-      'shift',
-      shiftPath(LOOP_OFFSET, LOOP_RETURN_LENGTH),
-      LOOP_RETURN_LENGTH,
-    );
+    addLoopReturn();
     addStraight(diagonal / 2 - LOOP_RETURN_LENGTH);
     addTurn(turnAngle, true);
   } else {

@@ -247,7 +247,10 @@ on any allowed combination of descents, such as a steep climb followed by two
 **Auto**, **0**, **1**, and **2**: 0 forces a polygon, 1 forces the
 single-crossing layout, and 2 forces the double-crossing layout. The
 double-crossing layout is generated from the same catalog pieces, so catalog
-segment counts apply to it like any other layout. The preview SHALL provide a button that randomizes a
+segment counts apply to it like any other layout. The single-crossing layout
+keeps one loop under the bridge and adds extra loop-and-return pairs to its
+vertical legs, growing both legs so the bowtie still closes, when the loop
+minimum asks for more. The preview SHALL provide a button that randomizes a
 compatible mix of counts and regenerates. No count set SHALL be rejected: if the
 requested minimums cannot be assembled, the preview SHALL keep the chosen counts
 in the table, build the seed's best circuit without them, and leave Start race
@@ -281,6 +284,15 @@ Legacy `require` links MAY still be accepted.
 - **WHEN** the track is regenerated
 - **THEN** the circuit contains at least two pieces of that kind
 - **AND** the preview reports the actual count and that the rule is met
+
+#### Scenario: Loop minimum on a single-crossing layout
+
+- **GIVEN** the crossovers control is set to 1 and the loop minimum is 3
+- **WHEN** the track is regenerated
+- **THEN** the layout stays a single-crossing bridge
+- **AND** the circuit contains at least three loops and three loop returns
+- **AND** the loop at the crossing still sits under the bridge
+- **AND** the preview reports that every rule is met
 
 #### Scenario: A minimum does not force a matching descent
 
@@ -348,6 +360,44 @@ Legacy `require` links MAY still be accepted.
 - **WHEN** the player starts the race
 - **THEN** the race circuit meets every minimum
 - **AND** it matches the circuit the preview actually built
+
+### Requirement: Every accepted circuit upholds every positive minimum count
+
+Every positive minimum count SHALL be a hard requirement for every layout
+family: polygon, single-crossing, and double-crossing. Before accepting a
+circuit, the generator SHALL count the assembled pieces by kind and verify that
+the count is at least the requested minimum for every kind. It SHALL search its
+deterministic seed offsets and salted attempts until it finds a playable circuit
+that satisfies the whole set. Repeating a feature SHALL grow the layout where
+it needs room — longer polygon legs, longer single-crossing vertical legs and
+diagonals, or a larger two-crossing octagon — instead of silently dropping the
+piece. A circuit that misses any positive minimum SHALL NOT be accepted. When
+the requested set and forced layout cannot be assembled, the preview SHALL use
+the impossible-set fallback, keep the counts in the table, and report the unmet
+rules rather than claim that every rule is met.
+
+#### Scenario: Every segment kind upholds its minimum
+
+- **GIVEN** any selectable segment kind and a minimum from 1 to 5
+- **WHEN** the circuit is generated for any layout family
+- **THEN** the accepted circuit contains at least that many pieces of that kind
+- **AND** the circuit closes, stays playable, and keeps the elevation clearance
+
+#### Scenario: Repeated features grow the layout
+
+- **GIVEN** the crossovers control forces single-crossing or double-crossing
+  and a minimum repeats a flat or elevation feature
+- **WHEN** the track is regenerated
+- **THEN** the layout grows to fit every requested piece
+- **AND** the preview reports that every rule is met
+
+#### Scenario: An unmet minimum is never presented as met
+
+- **GIVEN** a count set that no layout family can fit
+- **WHEN** the track is regenerated
+- **THEN** no circuit that misses a minimum is reported as meeting it
+- **AND** the preview keeps the chosen counts, reports the unmet rules, and
+  starts the fallback circuit
 
 ### Requirement: Obstacle segments are seeded and leave a gap in every row
 

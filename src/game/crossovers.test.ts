@@ -169,6 +169,36 @@ describe('crossover parameter', () => {
     }
   }, 60_000);
 
+  it('honors loop minimums on a single-crossing layout', () => {
+    const circuit = generateCircuit('circuit-a2a368828acdd044', 1, {
+      crossovers: 1,
+      minimumCounts: { loop: 3, shift: 3 },
+    });
+    expect(circuit.layout).toBe('single-crossing');
+    expect(count(circuit, 'loop')).toBeGreaterThanOrEqual(3);
+    expect(count(circuit, 'shift')).toBeGreaterThanOrEqual(3);
+    expect(validateCircuit(circuit).ok).toBe(true);
+
+    // The bridge still threads the loop that sits at the crossing; the extra
+    // loops are added to the two vertical legs.
+    const bridge = circuit.pieces.find((piece) => piece.kind === 'bridge')!;
+    const deckStart = new THREE.Vector3().setFromMatrixPosition(bridge.matrix);
+    const ahead = new THREE.Vector3(0, 0, bridge.length / 2)
+      .transformDirection(bridge.matrix)
+      .multiplyScalar(bridge.length / 2);
+    const deckMid = deckStart.clone().add(ahead);
+    const threadsLoop = circuit.pieces
+      .filter((piece) => piece.kind === 'loop')
+      .some((piece) => {
+        const ring = new THREE.Vector3().setFromMatrixPosition(piece.matrix);
+        return (
+          Math.hypot(ring.x - deckMid.x, ring.z - deckMid.z) < 3 &&
+          deckMid.y - ring.y > BRIDGE_HEIGHT - 1
+        );
+      });
+    expect(threadsLoop).toBe(true);
+  }, 30_000);
+
   it('honors catalog counts on a two-crossing layout', () => {
     const circuit = generateCircuit('cross-2-count', 1, {
       crossovers: 2,
