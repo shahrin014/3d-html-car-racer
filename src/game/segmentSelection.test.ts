@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { normalizeMinimums, type SegmentMinimums } from './segmentRules';
 import {
   generateCircuit,
   validateCircuit,
@@ -15,22 +16,19 @@ type SegmentSelection = Partial<Record<Piece['kind'], DropdownValue>>;
 
 function minimumCountsFromSelection(
   selection: SegmentSelection,
-): Partial<Record<Piece['kind'], number>> {
-  const counts: Partial<Record<Piece['kind'], number>> = {};
+): SegmentMinimums {
+  const counts: SegmentMinimums = {};
   for (const [kind, value] of Object.entries(selection) as [
     Piece['kind'],
     DropdownValue,
   ][]) {
-    if (value === '0') {
-      continue;
-    }
     const count = Number(value);
     if (!Number.isInteger(count) || count < 0 || count > 5) {
       throw new Error(`Invalid dropdown value for ${kind}: ${value}`);
     }
     counts[kind] = count;
   }
-  return counts;
+  return normalizeMinimums(counts);
 }
 
 /**

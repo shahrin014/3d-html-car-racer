@@ -40,6 +40,11 @@ import {
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
+import {
+  evaluateMinimums,
+  normalizeMinimums,
+  type SegmentMinimums,
+} from './segmentRules';
 
 /** A sampled point on the track with the frame needed to place mesh and car. */
 export interface TrackFrame {
@@ -719,6 +724,14 @@ function seededRandom(seed: string): () => number {
 /** Straight lengths the seeded assembly may choose from, in metres. */
 const HILL_LENGTH = 30;
 const HILL_HEIGHT = 2.4;
+/**
+ * Straight inserted before a repeated loop feature. A loop ring reaches one
+ * radius behind its base, so two loops placed one loop-return apart would
+ * share the same deck space; the gap keeps their rings clear.
+ */
+const LOOP_FEATURE_GAP = CIRCUIT_LEAD_STRAIGHT;
+/** Plan length a repeated loop feature claims on its leg, gap included. */
+const LOOP_FEATURE_LENGTH = LOOP_RETURN_LENGTH + LOOP_FEATURE_GAP;
 /** Extra leg length added when repeated flat features need room. */
 const FEATURE_LEG_EXTRA = 30;
 const TURN_RADII = [18, 14, 10, 8] as const;
@@ -1186,7 +1199,7 @@ function assembleCircuit(
       );
       const sizingPlan: number[] = [];
       for (let index = 0; index < sizingLoop; index += 1) {
-        sizingPlan.push(LOOP_RETURN_LENGTH);
+        sizingPlan.push(LOOP_FEATURE_LENGTH);
       }
       for (let index = 0; index < sizingJump; index += 1) {
         sizingPlan.push(jumpPlanarLength());
@@ -1282,7 +1295,7 @@ function assembleCircuit(
     const bridgeCount = Math.max(0, (featureMinimums.bridge ?? 0) - 1);
     const queue: PlanSegment[] = [];
     for (let index = 0; index < loopCount; index += 1) {
-      queue.push({ kind: 'loop', length: LOOP_RETURN_LENGTH });
+      queue.push({ kind: 'loop', length: LOOP_FEATURE_LENGTH });
     }
     for (
       let index = 0;
@@ -1377,6 +1390,7 @@ function assembleCircuit(
           );
           break;
         case 'loop':
+          addStraight(LOOP_FEATURE_GAP);
           addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
           addPiece(
             'shift',
@@ -1690,7 +1704,8 @@ function assembleCircuit(
     // Extra flat features are shared by the two vertical legs. The legs grow
     // by the whole extra plan length, so every feature still has its original
     // pad before the next corner.
-    type FlatExtra = { plan: number; add: () => void };
+    type FlatExtraKind = 'loop' | 'hill' | 'jump' | 'obstacles' | 'bridge';
+    type FlatExtra = { kind: FlatExtraKind; plan: number; add: () => void };
     const flatExtras: FlatExtra[] = [];
     const addLoopReturn = (): void => {
       addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
@@ -1701,20 +1716,33 @@ function assembleCircuit(
       );
     };
     for (let index = 0; index < extraLoops; index += 1) {
-      flatExtras.push({ plan: LOOP_RETURN_LENGTH, add: addLoopReturn });
+      flatExtras.push({
+        kind: 'loop',
+        plan: LOOP_FEATURE_LENGTH,
+        add: () => {
+          addStraight(LOOP_FEATURE_GAP);
+          addLoopReturn();
+        },
+      });
     }
     for (let index = 0; index < extraHills; index += 1) {
       flatExtras.push({
+        kind: 'hill',
         plan: HILL_LENGTH,
         add: () =>
           addPiece('hill', hillPath(HILL_LENGTH, HILL_HEIGHT), HILL_LENGTH),
       });
     }
     for (let index = 0; index < extraJumps; index += 1) {
-      flatExtras.push({ plan: jumpPlanarLength(), add: () => addJump() });
+      flatExtras.push({
+        kind: 'jump',
+        plan: jumpPlanarLength(),
+        add: () => addJump(),
+      });
     }
     for (let index = 0; index < extraObstacles; index += 1) {
       flatExtras.push({
+        kind: 'obstacles',
         plan: OBSTACLE_SEGMENT_LENGTH,
         add: () =>
           addPiece('obstacles', obstaclesPath(), OBSTACLE_SEGMENT_LENGTH),
@@ -1722,6 +1750,7 @@ function assembleCircuit(
     }
     for (let index = 0; index < extraBridges; index += 1) {
       flatExtras.push({
+        kind: 'bridge',
         plan: BRIDGE_FLAT_LENGTH,
         add: () =>
           addPiece(
@@ -1763,10 +1792,13 @@ function assembleCircuit(
     const halfPlan = (diagonal - BRIDGE_LENGTH) / 2;
     const leadBefore = halfPlan - upPlan;
     const leadAfter = halfPlan - downPlan;
-    // An elevation chain stays on the crossing diagonal; otherwise the seed
-    // may keep the bridge elevated past the next corner as before.
+    // An elevation chain stays on the crossing diagonal. So does a loop on
+    // the closing leg: the loop ring rises above the leg, and keeping the
+    // bridge elevated would put the raised corner and the spiral descent
+    // inside the ring's upper arc.
+    const backLoop = backExtras.some((feature) => feature.kind === 'loop');
     const continueElevated =
-      continueElevatedRoll < 0.5 && transitionPlan === 0;
+      continueElevatedRoll < 0.5 && transitionPlan === 0 && !backLoop;
 
     addStraight(CIRCUIT_LEAD_STRAIGHT);
     const featureLength = noHillOrJump
@@ -1953,7 +1985,7 @@ function assembleCircuit(
   const obstacleExtras = obstacleCount;
   const bridgeExtras = bridgeCount;
   const flatExtraPlan =
-    loopExtras * LOOP_RETURN_LENGTH +
+    loopExtras * LOOP_FEATURE_LENGTH +
     hillExtras * HILL_LENGTH +
     jumpExtras * jumpPlanarLength() +
     obstacleExtras * OBSTACLE_SEGMENT_LENGTH +
@@ -2617,8 +2649,9 @@ function assembleCircuit(
   for (let index = 0; index < loopExtras; index += 1) {
     flatFeatures.push({
       kind: 'loop',
-      plan: LOOP_RETURN_LENGTH,
+      plan: LOOP_FEATURE_LENGTH,
       add: () => {
+        addStraight(LOOP_FEATURE_GAP);
         addPiece('loop', loopPath(loopRadius), Math.PI * 2 * loopRadius);
         addPiece(
           'shift',
@@ -2681,7 +2714,14 @@ function assembleCircuit(
   flatFeatures.sort((a, b) => b.plan - a.plan);
   for (const feature of flatFeatures) {
     const candidates = featureBudgets
-      .map((budget, index) => (budget >= feature.plan ? index : -1))
+      .map((budget, index) =>
+        budget >= feature.plan &&
+        // A loop ring rises past every elevation transition on its leg, so a
+        // repeated loop never shares a leg with a climb or descent.
+        !(feature.kind === 'loop' && transitions.has(index))
+          ? index
+          : -1,
+      )
       .filter((index) => index >= 0);
     if (candidates.length === 0) {
       continue;
@@ -3048,22 +3088,18 @@ export function generateCircuit(
     'steep-ramp-down',
   ];
 
-  const hasSatisfied = (circuit: Circuit): boolean => {
-    if (counts.size === 0) {
-      return true;
-    }
-    const actual = new Map<Piece['kind'], number>();
-    for (const piece of circuit.pieces) {
-      actual.set(piece.kind, (actual.get(piece.kind) ?? 0) + 1);
-    }
-    for (const [kind, minimum] of counts) {
-      const count = actual.get(kind) ?? 0;
-      if (count < minimum) {
-        return false;
-      }
-    }
-    return true;
-  };
+  // One rule set for acceptance and planning. Normalizing applies the same
+  // coupling the preview uses (jump trio, loop/return pair, bridge needs a
+  // loop), so the generator cannot accept a circuit the preview calls unmet.
+  const minimums = normalizeMinimums(
+    Object.fromEntries(counts) as SegmentMinimums,
+  );
+
+  const hasSatisfied = (circuit: Circuit): boolean =>
+    counts.size === 0 ||
+    evaluateMinimums(circuit.pieces, minimums).every(
+      (result) => result.met,
+    );
 
   const elevationKinds: Piece['kind'][] = [
     'spiral-up',
@@ -3076,7 +3112,7 @@ export function generateCircuit(
   ];
   const elevationMinimums: Partial<Record<Piece['kind'], number>> = {};
   for (const kind of plannerElevationKinds) {
-    const minimum = counts.get(kind);
+    const minimum = minimums[kind];
     if (minimum !== undefined && minimum > 0) {
       elevationMinimums[kind] = minimum;
     }
@@ -3093,7 +3129,7 @@ export function generateCircuit(
   ];
   const featureMinimums: Partial<Record<Piece['kind'], number>> = {};
   for (const kind of flatFeatureKinds) {
-    const minimum = counts.get(kind);
+    const minimum = minimums[kind];
     if (minimum !== undefined && minimum > 0) {
       featureMinimums[kind] = minimum;
     }

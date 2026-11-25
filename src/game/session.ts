@@ -1,4 +1,5 @@
 import type { Piece } from './track';
+import { normalizeMinimums, type SegmentMinimums } from './segmentRules';
 
 /**
  * Handoff between the menu, the track preview, and the race page.
@@ -72,21 +73,16 @@ export function clearPendingRequirements(): void {
 }
 
 /** Hand the previewed minimum piece counts to the race page. */
-export function markPendingCounts(
-  counts: Partial<Record<Piece['kind'], number>>,
-): void {
+export function markPendingCounts(counts: SegmentMinimums): void {
   try {
-    const entries = Object.entries(counts).filter(
-      (entry): entry is [string, number] =>
-        typeof entry[1] === 'number' && Number.isFinite(entry[1]),
-    );
-    if (entries.length === 0) {
+    const normalized = normalizeMinimums(counts);
+    if (Object.keys(normalized).length === 0) {
       window.sessionStorage.removeItem(PENDING_COUNTS_KEY);
       return;
     }
     window.sessionStorage.setItem(
       PENDING_COUNTS_KEY,
-      JSON.stringify(Object.fromEntries(entries)),
+      JSON.stringify(normalized),
     );
   } catch {
     // Without session storage the race still draws its own circuit.
@@ -94,7 +90,7 @@ export function markPendingCounts(
 }
 
 /** Read and clear the previewed minimum piece counts. */
-export function takePendingCounts(): Partial<Record<Piece['kind'], number>> {
+export function takePendingCounts(): SegmentMinimums {
   try {
     const raw = window.sessionStorage.getItem(PENDING_COUNTS_KEY);
     window.sessionStorage.removeItem(PENDING_COUNTS_KEY);
@@ -105,13 +101,13 @@ export function takePendingCounts(): Partial<Record<Piece['kind'], number>> {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return {};
     }
-    const counts: Partial<Record<Piece['kind'], number>> = {};
+    const counts: SegmentMinimums = {};
     for (const [kind, value] of Object.entries(parsed)) {
       if (typeof value === 'number' && Number.isFinite(value)) {
         counts[kind as Piece['kind']] = Math.max(0, Math.floor(value));
       }
     }
-    return counts;
+    return normalizeMinimums(counts);
   } catch {
     return {};
   }

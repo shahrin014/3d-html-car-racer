@@ -250,7 +250,10 @@ double-crossing layout is generated from the same catalog pieces, so catalog
 segment counts apply to it like any other layout. The single-crossing layout
 keeps one loop under the bridge and adds extra loop-and-return pairs to its
 vertical legs, growing both legs so the bowtie still closes, when the loop
-minimum asks for more. The preview SHALL provide a button that randomizes a
+minimum asks for more. Each repeated loop SHALL enter on a lead straight so its
+ring clears the previous feature and any other loop, and when the closing leg
+carries a loop the bridge's descent SHALL stay on the crossing diagonal so the
+ring clears the raised corner and the spiral. The preview SHALL provide a button that randomizes a
 compatible mix of counts and regenerates. No count set SHALL be rejected: if the
 requested minimums cannot be assembled, the preview SHALL keep the chosen counts
 in the table, build the seed's best circuit without them, and leave Start race
@@ -259,7 +262,7 @@ that was actually built to the race, so the race uses the same circuit. The
 preview SHALL keep the seed and every non-zero count in the URL as
 `?seed=<seed>&counts=<kind>:<value>,...&crossovers=0|1|2` and SHALL provide a control to copy
 that link. Loading the link SHALL reproduce the same circuit. Legacy
-Legacy `require` links MAY still be accepted.
+`require` links MAY still be accepted.
 
 #### Scenario: Crossover count is forced
 
@@ -374,7 +377,9 @@ diagonals, or a larger two-crossing octagon — instead of silently dropping the
 piece. A circuit that misses any positive minimum SHALL NOT be accepted. When
 the requested set and forced layout cannot be assembled, the preview SHALL use
 the impossible-set fallback, keep the counts in the table, and report the unmet
-rules rather than claim that every rule is met.
+rules rather than claim that every rule is met. A repeated loop SHALL also keep
+its ring clear of other track: stacked loops are separated by a lead straight,
+and a repeated loop never shares a polygon leg with an elevation transition.
 
 #### Scenario: Every segment kind upholds its minimum
 
@@ -382,6 +387,14 @@ rules rather than claim that every rule is met.
 - **WHEN** the circuit is generated for any layout family
 - **THEN** the accepted circuit contains at least that many pieces of that kind
 - **AND** the circuit closes, stays playable, and keeps the elevation clearance
+
+#### Scenario: Repeated loops keep their clearance
+
+- **GIVEN** a loop minimum above one on a polygon or single-crossing layout
+- **WHEN** the track is regenerated
+- **THEN** every repeated loop keeps its ring clear of the spiral ramps, the
+  raised corner, and every other loop
+- **AND** the circuit still closes and validates
 
 #### Scenario: Repeated features grow the layout
 
