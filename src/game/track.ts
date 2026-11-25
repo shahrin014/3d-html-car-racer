@@ -40,6 +40,11 @@ import {
   TRACK_THICKNESS,
   TRACK_WIDTH,
 } from './constants';
+import {
+  evaluateMinimums,
+  normalizeMinimums,
+  type SegmentMinimums,
+} from './segmentRules';
 
 /** A sampled point on the track with the frame needed to place mesh and car. */
 export interface TrackFrame {
@@ -3048,22 +3053,18 @@ export function generateCircuit(
     'steep-ramp-down',
   ];
 
-  const hasSatisfied = (circuit: Circuit): boolean => {
-    if (counts.size === 0) {
-      return true;
-    }
-    const actual = new Map<Piece['kind'], number>();
-    for (const piece of circuit.pieces) {
-      actual.set(piece.kind, (actual.get(piece.kind) ?? 0) + 1);
-    }
-    for (const [kind, minimum] of counts) {
-      const count = actual.get(kind) ?? 0;
-      if (count < minimum) {
-        return false;
-      }
-    }
-    return true;
-  };
+  // One rule set for acceptance and planning. Normalizing applies the same
+  // coupling the preview uses (jump trio, loop/return pair, bridge needs a
+  // loop), so the generator cannot accept a circuit the preview calls unmet.
+  const minimums = normalizeMinimums(
+    Object.fromEntries(counts) as SegmentMinimums,
+  );
+
+  const hasSatisfied = (circuit: Circuit): boolean =>
+    counts.size === 0 ||
+    evaluateMinimums(circuit.pieces, minimums).every(
+      (result) => result.met,
+    );
 
   const elevationKinds: Piece['kind'][] = [
     'spiral-up',
@@ -3076,7 +3077,7 @@ export function generateCircuit(
   ];
   const elevationMinimums: Partial<Record<Piece['kind'], number>> = {};
   for (const kind of plannerElevationKinds) {
-    const minimum = counts.get(kind);
+    const minimum = minimums[kind];
     if (minimum !== undefined && minimum > 0) {
       elevationMinimums[kind] = minimum;
     }
@@ -3093,7 +3094,7 @@ export function generateCircuit(
   ];
   const featureMinimums: Partial<Record<Piece['kind'], number>> = {};
   for (const kind of flatFeatureKinds) {
-    const minimum = counts.get(kind);
+    const minimum = minimums[kind];
     if (minimum !== undefined && minimum > 0) {
       featureMinimums[kind] = minimum;
     }

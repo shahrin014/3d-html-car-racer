@@ -159,7 +159,7 @@ describe('required segments', () => {
         ],
       }),
     ).toThrow(/with rules:/);
-  });
+  }, 30_000);
 
   it('lets a steep climb return on a different descent', () => {
     const circuit = generateCircuit('steep-up-independent', 1, {

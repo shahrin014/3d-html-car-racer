@@ -30,6 +30,12 @@ import {
   type TrackFrame,
 } from './game/track';
 import {
+  describeMinimums,
+  evaluateMinimums,
+  normalizeMinimums,
+  type SegmentMinimums,
+} from './game/segmentRules';
+import {
   buildTrackMesh,
   splitCircuitPieces,
   type TrackMesh,
@@ -611,14 +617,14 @@ function refreshCountUi(): void {
   }
 }
 
-function selectedCounts(): Partial<Record<Piece['kind'], number>> {
-  const counts: Partial<Record<Piece['kind'], number>> = {};
+function selectedCounts(): SegmentMinimums {
+  const counts: SegmentMinimums = {};
   for (const [kind, value] of segmentCounts) {
-    if (!structuralKinds.has(kind) && value > 0) {
+    if (!structuralKinds.has(kind)) {
       counts[kind] = value;
     }
   }
-  return counts;
+  return normalizeMinimums(counts);
 }
 
 function setCount(kind: Piece['kind'], value: SegmentCount): void {
@@ -627,60 +633,29 @@ function setCount(kind: Piece['kind'], value: SegmentCount): void {
   }
   value = Math.min(MAX_COUNT, Math.max(0, value));
   segmentCounts.set(kind, value);
-  if (JUMP_KINDS.includes(kind)) {
-    for (const member of JUMP_KINDS) {
-      segmentCounts.set(member, value);
-    }
-  }
-  if (kind === 'loop' || kind === 'shift') {
-    segmentCounts.set('loop', value);
-    segmentCounts.set('shift', value);
-  }
-  if (kind === 'bridge' && value > 0) {
-    if ((segmentCounts.get('loop') ?? 0) <= 0) {
-      segmentCounts.set('loop', 1);
-      segmentCounts.set('shift', 1);
-    }
-  }
   normalizeCounts();
   refreshCountUi();
   showCounts();
   scheduleBuild();
 }
 
+/**
+ * Clamp the dropdown values and apply the catalog coupling in one place. The
+ * rule set itself comes from `segmentRules`, so the preview table, the note,
+ * and the generator cannot disagree about what a count implies.
+ */
 function normalizeCounts(): void {
-  for (const kind of structuralKinds) {
-    segmentCounts.set(kind, 0);
-  }
+  const capped: SegmentMinimums = {};
   for (const [kind, value] of segmentCounts) {
-    if (value > MAX_COUNT) {
-      segmentCounts.set(kind, MAX_COUNT);
+    capped[kind] = Math.min(MAX_COUNT, Math.max(0, value));
+  }
+  const normalized = normalizeMinimums(capped);
+  for (const kind of selectableKinds) {
+    if (structuralKinds.has(kind)) {
+      segmentCounts.set(kind, 0);
+    } else {
+      segmentCounts.set(kind, normalized[kind] ?? 0);
     }
-  }
-
-  const jumpActive = Math.max(
-    0,
-    ...JUMP_KINDS.map((kind) => segmentCounts.get(kind) ?? 0),
-  );
-  if (jumpActive > 0) {
-    for (const kind of JUMP_KINDS) {
-      segmentCounts.set(kind, jumpActive);
-    }
-  }
-
-  const loopActive = Math.max(
-    segmentCounts.get('loop') ?? 0,
-    segmentCounts.get('shift') ?? 0,
-  );
-  if (loopActive > 0) {
-    segmentCounts.set('loop', loopActive);
-    segmentCounts.set('shift', loopActive);
-  }
-
-  const bridge = segmentCounts.get('bridge') ?? 0;
-  if (bridge > 0 && (segmentCounts.get('loop') ?? 0) <= 0) {
-    segmentCounts.set('loop', 1);
-    segmentCounts.set('shift', 1);
   }
 }
 
@@ -729,7 +704,7 @@ let seed = randomSeed();
 let crossovers: 0 | 1 | 2 | null = null;
 let busy = false;
 let buildFailed = false;
-let effectiveCounts: Partial<Record<Piece['kind'], number>> = {};
+let effectiveCounts: SegmentMinimums = {};
 let requirementsDirty = false;
 let hasCircuit = false;
 let buildQueued: string | null = null;
@@ -805,16 +780,15 @@ function showCounts(): void {
 }
 
 function updateRequirementsNote(
-  counts: Partial<Record<Piece['kind'], number>>,
+  counts: SegmentMinimums,
   circuit: Circuit | null,
 ): void {
   requirementsNote.classList.remove('is-error');
-  const entries = Object.entries(counts) as [Piece['kind'], number][];
   const crossoverLabel =
     crossovers === null
       ? null
       : `${crossovers} crossover${crossovers === 1 ? '' : 's'}`;
-  if (entries.length === 0) {
+  if (Object.keys(counts).length === 0) {
     requirementsNote.textContent =
       crossoverLabel ?? 'Set a minimum count; 0 means 0 or more.';
     return;
@@ -822,33 +796,29 @@ function updateRequirementsNote(
   if (!circuit) {
     return;
   }
-  const actual = new Map<Piece['kind'], number>();
-  for (const piece of circuit.pieces) {
-    actual.set(piece.kind, (actual.get(piece.kind) ?? 0) + 1);
-  }
-  const failures: string[] = [];
-  for (const [kind, minimum] of entries) {
-    const count = actual.get(kind) ?? 0;
-    if (count < minimum) {
-      failures.push(`${kind} ${count}/${minimum}`);
-    }
-  }
-  if (failures.length > 0) {
-    requirementsNote.textContent = `${
-      entries.length - failures.length
-    }/${entries.length} rules met.`;
+  const summary = describeMinimums(evaluateMinimums(circuit.pieces, counts));
+  if (!summary.allMet) {
+    requirementsNote.textContent = `${summary.met}/${summary.total} rules met.`;
     return;
   }
   requirementsNote.textContent = `${
     crossoverLabel ? `${crossoverLabel} · ` : ''
-  }${entries.length} rule${entries.length === 1 ? '' : 's'} · all met.`;
+  }${summary.total} rule${summary.total === 1 ? '' : 's'} · all met.`;
 }
 
-function updateSegmentStatuses(circuit: Circuit | null): void {
+function updateSegmentStatuses(
+  circuit: Circuit | null,
+  counts: SegmentMinimums,
+): void {
   const actual = new Map<Piece['kind'], number>();
   for (const piece of circuit?.pieces ?? []) {
     actual.set(piece.kind, (actual.get(piece.kind) ?? 0) + 1);
   }
+  const results = new Map(
+    evaluateMinimums(circuit?.pieces ?? [], counts).map(
+      (result) => [result.kind, result] as const,
+    ),
+  );
   for (const [kind, status] of segmentStatuses) {
     if (!circuit) {
       status.textContent = '–';
@@ -857,16 +827,12 @@ function updateSegmentStatuses(circuit: Circuit | null): void {
     }
     const count = actual.get(kind) ?? 0;
     status.textContent = String(count);
-    if (structuralKinds.has(kind)) {
+    const result = results.get(kind);
+    if (structuralKinds.has(kind) || !result) {
       status.dataset.state = 'neutral';
       continue;
     }
-    const minimum = segmentCounts.get(kind) ?? 0;
-    if (minimum === 0) {
-      status.dataset.state = 'neutral';
-      continue;
-    }
-    status.dataset.state = count >= minimum ? 'met' : 'failed';
+    status.dataset.state = result.met ? 'met' : 'failed';
   }
 }
 
@@ -892,7 +858,7 @@ function build(next: string): void {
       hasCircuit = true;
       effectiveCounts = counts;
       updateRequirementsNote(counts, circuit);
-      updateSegmentStatuses(circuit);
+      updateSegmentStatuses(circuit, counts);
       showSeed(next);
     } catch (error) {
       // A rule mix that cannot fit is input, not an app fault. Keep the chosen
@@ -906,14 +872,14 @@ function build(next: string): void {
           hasCircuit = true;
           effectiveCounts = {};
           updateRequirementsNote(counts, circuit);
-          updateSegmentStatuses(circuit);
+          updateSegmentStatuses(circuit, counts);
           showSeed(next);
         }
       } catch (fallbackError) {
         console.warn('The track preview fallback failed.', fallbackError);
         buildFailed = true;
         requirementsNote.textContent = 'Track unavailable';
-        updateSegmentStatuses(null);
+        updateSegmentStatuses(null, counts);
         if (!hasCircuit) {
           seedElement.textContent = 'Track unavailable';
           loading.textContent = 'Track unavailable';
