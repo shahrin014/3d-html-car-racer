@@ -32,7 +32,10 @@ function loopClearanceFailures(circuit: Circuit): string[] {
 
   const clouds = pieces.map((piece) => {
     const points: THREE.Vector3[] = [];
-    const samples = piece.kind === 'loop' ? 120 : 60;
+    const samples = Math.max(
+      piece.kind === 'loop' ? 120 : 60,
+      Math.ceil(piece.length / (piece.kind === 'loop' ? 0.5 : 1)),
+    );
     for (let index = 0; index <= samples; index += 1) {
       points.push(
         piece.path(index / samples).position
@@ -102,6 +105,35 @@ describe('repeated loop clearance', () => {
       expect(validateCircuit(circuit).ok, seed).toBe(true);
       expect(loopClearanceFailures(circuit), seed).toEqual([]);
     }
+  }, 120_000);
+
+  it('keeps repeated double-crossing loops clear of the elevated bridge', () => {
+    // Regression: this seed and count combination used to place the third
+    // loop's ring through the raised bridge deck. The loop's base sat on the
+    // lower crossing chord while its ring rose into the deck above, making the
+    // race impossible to finish.
+    const circuit = generateCircuit('circuit-a32274a84c196456', 1, {
+      crossovers: 2,
+      minimumCounts: {
+        loop: 4,
+        shift: 4,
+        hill: 5,
+        kicker: 5,
+        gap: 5,
+        landing: 5,
+        obstacles: 5,
+      },
+    });
+    expect(circuit.layout).toBe('double-crossing');
+    expect(count(circuit, 'loop')).toBeGreaterThanOrEqual(4);
+    expect(count(circuit, 'shift')).toBeGreaterThanOrEqual(4);
+    expect(count(circuit, 'hill')).toBeGreaterThanOrEqual(5);
+    expect(count(circuit, 'kicker')).toBeGreaterThanOrEqual(5);
+    expect(count(circuit, 'gap')).toBeGreaterThanOrEqual(5);
+    expect(count(circuit, 'landing')).toBeGreaterThanOrEqual(5);
+    expect(count(circuit, 'obstacles')).toBeGreaterThanOrEqual(5);
+    expect(validateCircuit(circuit).ok).toBe(true);
+    expect(loopClearanceFailures(circuit)).toEqual([]);
   }, 120_000);
 
   it('keeps repeated polygon loops off the elevation legs', () => {
