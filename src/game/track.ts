@@ -767,6 +767,8 @@ interface PlanPoint {
   y: number;
   z: number;
   s: number;
+  /** Index of the piece this sample belongs to. */
+  piece: number;
 }
 
 /**
@@ -2832,15 +2834,50 @@ function assembleCircuit(
   };
 }
 
-/** Sample a circuit's horizontal footprint without the vertical loop ring. */
+/**
+ * True when the two samples belong to adjacent pieces and one of them is a
+ * loop. A loop starts and ends on the deck that feeds it, so its ring naturally
+ * touches the neighbouring piece; the loop return shift is part of the same
+ * authored module.
+ */
+function isLoopModuleNeighbour(
+  circuit: Circuit,
+  a: PlanPoint,
+  b: PlanPoint,
+): boolean {
+  const count = circuit.pieces.length;
+  if (count < 2) {
+    return false;
+  }
+  const delta = Math.abs(a.piece - b.piece);
+  if (delta !== 1 && delta !== count - 1) {
+    return false;
+  }
+  return (
+    circuit.pieces[a.piece]?.kind === 'loop' ||
+    circuit.pieces[b.piece]?.kind === 'loop'
+  );
+}
+
+/**
+ * Sample a circuit's horizontal footprint. The vertical loop ring is included:
+ * its lower arc can cut through a neighbouring road even though the loop base
+ * itself sits clear, so leaving it out would accept a track the car cannot
+ * drive.
+ */
 function planPoints(circuit: Circuit): PlanPoint[] {
   const points: PlanPoint[] = [];
   let distance = 0;
-  for (const piece of circuit.pieces) {
-    if (piece.kind === 'loop') {
-      continue;
-    }
-    const count = Math.max(2, Math.ceil(piece.length));
+  for (
+    let pieceIndex = 0;
+    pieceIndex < circuit.pieces.length;
+    pieceIndex += 1
+  ) {
+    const piece = circuit.pieces[pieceIndex]!;
+    const count = Math.max(
+      2,
+      Math.ceil(piece.length / (piece.kind === 'loop' ? 0.5 : 1)),
+    );
     for (let index = 0; index <= count; index += 1) {
       if (
         index === count &&
@@ -2855,6 +2892,7 @@ function planPoints(circuit: Circuit): PlanPoint[] {
         y: position.y,
         z: position.z,
         s: distance + (index / count) * piece.length,
+        piece: pieceIndex,
       });
     }
     distance += piece.length;
@@ -2939,6 +2977,44 @@ export function validateCircuit(
   const total = lastPoint ? lastPoint.s : 0;
   const adjacentArc = TRACK_WIDTH * 2;
   const clearance = TRACK_WIDTH + CAR_WIDTH;
+  // A crossing loop is authored to have a bridge deck pass through its hole.
+  // Exempt only pairs where that loop's base sits under the bridge's midpoint;
+  // every other loop sample is held to the deck width so a ring cannot cut
+  // through a neighbouring road.
+  const bridgeMids = new Map<number, THREE.Vector3>();
+  const loopBases = new Map<number, THREE.Vector3>();
+  circuit.pieces.forEach((piece, index) => {
+    if (piece.kind === 'loop') {
+      loopBases.set(
+        index,
+        new THREE.Vector3().setFromMatrixPosition(piece.matrix),
+      );
+    }
+    if (piece.kind === 'bridge') {
+      bridgeMids.set(
+        index,
+        new THREE.Vector3()
+          .setFromMatrixPosition(piece.matrix)
+          .add(
+            new THREE.Vector3(0, 0, piece.length / 2)
+              .transformDirection(piece.matrix)
+              .multiplyScalar(piece.length / 2),
+          ),
+      );
+    }
+  });
+  const loopThreadsBridge = (
+    loopIndex: number,
+    bridgeIndex: number,
+  ): boolean => {
+    const base = loopBases.get(loopIndex);
+    const mid = bridgeMids.get(bridgeIndex);
+    return (
+      base !== undefined &&
+      mid !== undefined &&
+      Math.hypot(base.x - mid.x, base.z - mid.z) < 5
+    );
+  };
   for (let index = 0; index < points.length; index += 1) {
     const a = points[index];
     if (!a) {
@@ -2954,8 +3030,22 @@ export function validateCircuit(
       if (arc < adjacentArc) {
         continue;
       }
+      const aKind = circuit.pieces[a.piece]?.kind;
+      const bKind = circuit.pieces[b.piece]?.kind;
+      const loop = aKind === 'loop' || bKind === 'loop';
+      if (loop && isLoopModuleNeighbour(circuit, a, b)) {
+        continue;
+      }
+      if (
+        (aKind === 'loop' &&
+          loopThreadsBridge(a.piece, b.piece)) ||
+        (bKind === 'loop' && loopThreadsBridge(b.piece, a.piece))
+      ) {
+        continue;
+      }
+      const required = loop ? TRACK_WIDTH : clearance;
       const distance = Math.hypot(a.x - b.x, a.z - b.z);
-      if (distance >= clearance - 0.01) {
+      if (distance >= required - 0.01) {
         continue;
       }
       // Sections may overlap in plan when one is on a bridge: the vertical
