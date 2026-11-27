@@ -988,10 +988,12 @@ cooldown so one pass cannot retrigger continuously.
 
 ### Requirement: Impacts damage the car and reduce performance
 
-Collisions above the configured impulse threshold SHALL increase damage. Damage
-SHALL reduce engine force and top speed, and SHALL be reported in the HUD. At
-maximum damage the car SHALL enter a limp mode, and the race SHALL continue. The
-damage value SHALL NOT end the race or reset the lap.
+Collisions with a rail or a hazard above the configured impulse threshold SHALL
+increase damage. Contact with the driving surface is not a crash, even when the
+guide presses the chassis into the deck through a bank or a seam. Damage SHALL
+reduce engine force and top speed, and SHALL be reported in the HUD. At maximum
+damage the car SHALL enter a limp mode, and the race SHALL continue. The damage
+value SHALL NOT end the race or reset the lap.
 
 #### Scenario: First impact
 
@@ -999,6 +1001,13 @@ damage value SHALL NOT end the race or reset the lap.
 - **THEN** damage increases
 - **AND** the top speed is lower than before the impact
 - **AND** sparks fly from the contact point on the car's body
+
+#### Scenario: Deck contact is not a crash
+
+- **GIVEN** the car is driving on the deck
+- **WHEN** the guide presses the chassis into the surface through a bank or seam
+- **THEN** damage does not increase
+- **AND** no impact sparks appear
 
 #### Scenario: Limp mode
 

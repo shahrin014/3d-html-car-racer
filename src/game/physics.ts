@@ -155,6 +155,11 @@ export async function createPhysics(
     throw new Error('Cannot create physics without track frames');
   }
 
+  // Only rails and hazards count as crashes. The chassis rests on the deck,
+  // and the guide presses it into the surface through banks and seams, so deck
+  // contacts regularly exceed the force threshold without being a crash.
+  const crashColliders = new Set<number>();
+
   const addSurface = (
     middle: THREE.Vector3,
     frame: TrackFrame,
@@ -213,7 +218,7 @@ export async function createPhysics(
         .clone()
         .addScaledVector(frame.right, side * (frame.halfWidth - RAIL_WIDTH / 2))
         .addScaledVector(frame.up, RAIL_HEIGHT / 2);
-      world.createCollider(
+      const collider = world.createCollider(
         RAPIER.ColliderDesc.cuboid(
           RAIL_WIDTH / 2,
           RAIL_HEIGHT / 2,
@@ -226,6 +231,7 @@ export async function createPhysics(
           .setCollisionGroups(groups(GROUP_RAIL, GROUP_CHASSIS)),
         track,
       );
+      crashColliders.add(collider.handle);
     }
   }
 
@@ -233,7 +239,7 @@ export async function createPhysics(
   // collide with the deck or rails, and rivals pass through them along their
   // own lanes (which stay clear of every block).
   for (const obstacle of options.obstacles ?? []) {
-    world.createCollider(
+    const collider = world.createCollider(
       RAPIER.ColliderDesc.cuboid(
         obstacle.halfExtents.x,
         obstacle.halfExtents.y,
@@ -250,6 +256,7 @@ export async function createPhysics(
         .setCollisionGroups(groups(GROUP_OBSTACLE, GROUP_CHASSIS)),
       track,
     );
+    crashColliders.add(collider.handle);
   }
 
   const start = first.position
@@ -577,18 +584,25 @@ export async function createPhysics(
       world.timestep = dt;
       world.step(events);
       events.drainContactForceEvents((event) => {
+        const first = event.collider1();
+        const second = event.collider2();
         // Bumping a rival is part of racing, not a crash: kinematic bodies can
         // produce large solver forces, so their contacts never add damage.
-        if (
-          opponentColliders.has(event.collider1()) ||
-          opponentColliders.has(event.collider2())
-        ) {
+        if (opponentColliders.has(first) || opponentColliders.has(second)) {
+          return;
+        }
+        const other =
+          first === chassis.handle
+            ? second
+            : second === chassis.handle
+              ? first
+              : -1;
+        // Deck contact is the car resting on the road, not a crash.
+        if (!crashColliders.has(other)) {
           return;
         }
         const impulse = event.totalForceMagnitude() * dt;
         if (impulse > (pendingEvent?.magnitude ?? 0)) {
-          const first = event.collider1();
-          const other = first === chassis.handle ? event.collider2() : first;
           pendingEvent = recordImpact(other, impulse);
         }
       });

@@ -168,7 +168,7 @@ export function createSparkSystem(scene: THREE.Scene): SparkSystem {
       const length = Math.hypot(dx, dy, dz) || 1;
       const speed =
         DRIFT_SPEED[0] + random() * (DRIFT_SPEED[1] - DRIFT_SPEED[0]);
-      const size = 0.16 + random() * 0.16;
+      const size = 0.38 + random() * 0.22;
       const color = DRIFT_COLORS[Math.floor(random() * DRIFT_COLORS.length)]!;
       return {
         position: [
@@ -180,7 +180,7 @@ export function createSparkSystem(scene: THREE.Scene): SparkSystem {
         scale: [size, size, size],
         rotation: [0, 0, 0],
         rotationSpeed: [0, 0, 0],
-        lifetime: [elapsed, 0.14 + random() * 0.22],
+        lifetime: [elapsed, 0.22 + random() * 0.28],
         colorStart: color.start,
         colorEnd: color.end,
         speed: [speed],
