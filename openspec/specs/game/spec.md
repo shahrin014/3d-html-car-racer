@@ -960,6 +960,7 @@ restore normal grip and centre the car again.
 - **THEN** the nose points further off the tangent than normal steering
 - **AND** the car travels wider toward the outside of the turn
 - **AND** it does not spin out or leave the guide
+- **AND** sparks fly from the rear tyres while they are sliding sideways
 
 #### Scenario: Releasing the drift
 
@@ -997,6 +998,7 @@ damage value SHALL NOT end the race or reset the lap.
 - **GIVEN** an undamaged car hits a rail
 - **THEN** damage increases
 - **AND** the top speed is lower than before the impact
+- **AND** sparks fly from the contact point on the car's body
 
 #### Scenario: Limp mode
 

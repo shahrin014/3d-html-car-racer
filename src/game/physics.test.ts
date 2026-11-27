@@ -384,6 +384,7 @@ describe('obstacles', () => {
     physics.reset(frames[0]!);
 
     let impact = 0;
+    let event: ReturnType<typeof physics.takeImpactEvent> = null;
     for (let step = 0; step < 120 * 5; step += 1) {
       const state = physics.read();
       const index = Math.max(
@@ -395,14 +396,25 @@ describe('obstacles', () => {
         { throttle: 1, brake: false, steer: 0 },
         frames[index]!,
       );
-      impact = Math.max(impact, physics.takeImpact());
+      const hit = physics.takeImpactEvent();
+      if (hit && hit.magnitude >= impact) {
+        impact = hit.magnitude;
+        event = hit;
+      }
     }
 
     const end = physics.read();
     physics.dispose();
     // The block is solid: the car cannot drive through it, and the contact
-    // force is reported as an impact so the race can add damage.
+    // force is reported as an impact so the race can add damage. The event
+    // carries the contact point so the renderer can put sparks on the hit.
     expect(impact).toBeGreaterThan(0);
+    expect(event).not.toBeNull();
+    expect(Number.isFinite(event!.position.x)).toBe(true);
+    expect(Number.isFinite(event!.position.y)).toBe(true);
+    expect(event!.position.z).toBeGreaterThan(20);
+    expect(event!.position.z).toBeLessThan(blockZ);
+    expect(event!.normal.length()).toBeCloseTo(1, 3);
     expect(end.position.z).toBeLessThan(blockZ);
   }, 30_000);
 });

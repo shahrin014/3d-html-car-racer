@@ -154,6 +154,7 @@ src/game/
   car-spec.mjs       car envelope, wheel positions, selectable cars, default colour
   cockpitCamera.ts   driver's-eye camera pose
   cockpit.ts         PNG cockpit frame and rotating steering wheel
+  sparks.ts          impact and drifting-tyre sparks on a pooled VFX system
   assets/            cockpit frame and wheel PNGs
   constants.ts       all tuning values
 public/              manifest, service worker, generated icons, favicon

@@ -29,7 +29,8 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
-    "three": "^0.187.0"
+    "three": "^0.187.0",
+    "wawa-vfx-vanilla": "^1.2.10"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",

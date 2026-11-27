@@ -134,8 +134,25 @@ export const PHYSICS_DRIFT_SPEED_MULT = 2.8;
 export const PHYSICS_DRIFT_LATERAL_GAIN = 9;
 /** Weaker centring so a drift carries the car wide instead of snapping back. */
 export const PHYSICS_DRIFT_CENTRE_GAIN = 0.5;
+
+/**
+ * Tyre sparks. A drift only throws them once the body is actually sliding:
+ * holding the control on a straight should not light the wheels up.
+ */
+export const DRIFT_SPARK_MIN_SPEED = 6;
+/** Sideways speed of the tyres, in m/s, before a drift sparks. */
+export const DRIFT_SPARK_SLIP_SPEED = 1.4;
+/** Sparks per second from each rear wheel at the grip limit. */
+export const DRIFT_SPARK_RATE = 110;
+
 /** Contact force above this is treated as a crash. */
 export const IMPACT_THRESHOLD = 40;
+/** Sparks in a hit, before the impulse adds more. */
+export const IMPACT_SPARK_BASE = 10;
+/** Extra sparks per unit of impact impulse. */
+export const IMPACT_SPARK_PER_IMPULSE = 5;
+/** Ceiling on one hit's burst, so a hard landing cannot swamp the pool. */
+export const IMPACT_SPARK_MAX = 34;
 
 /**
  * Speed ceiling at zero damage. The car is three times as fast as the original
