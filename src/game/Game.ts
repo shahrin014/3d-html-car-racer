@@ -11,7 +11,13 @@ import {
   DAMAGE_IMPULSE_FLOOR,
   DEFAULT_LEVEL,
   DEFAULT_OPPONENT_COUNT,
+  DRIFT_SPARK_MIN_SPEED,
+  DRIFT_SPARK_RATE,
+  DRIFT_SPARK_SLIP_SPEED,
   FIXED_STEP,
+  IMPACT_SPARK_BASE,
+  IMPACT_SPARK_MAX,
+  IMPACT_SPARK_PER_IMPULSE,
   JUMP_FAIL_GRACE_SECONDS,
   LAPS,
   MAX_DAMAGE,
@@ -54,6 +60,7 @@ import {
   type Scenery,
 } from './scenery';
 import { buildSkybox, disposeSkyboxes } from './skybox';
+import { createSparkSystem, type SparkSystem } from './sparks';
 import {
   buildFrames,
   generateCircuit,
@@ -158,10 +165,15 @@ export class Game {
     up: new THREE.Vector3(),
   };
   private readonly carUp = new THREE.Vector3();
+  private readonly carRight = new THREE.Vector3();
   private readonly opponentUp = new THREE.Vector3();
   private readonly carTarget = new THREE.Vector3();
   private readonly visualPose = createSmoothedPose();
   private readonly chaseRig = createChaseRig();
+  private readonly sparks: SparkSystem;
+  private driftSparkAccumulator = 0;
+  private readonly sparkPoint = new THREE.Vector3();
+  private readonly sparkDirection = new THREE.Vector3();
 
   constructor(
     container: HTMLElement,
@@ -206,6 +218,7 @@ export class Game {
     this.scene.environmentIntensity = 0.45;
 
     this.clockLights();
+    this.sparks = createSparkSystem(this.scene);
 
     this.seed = seed;
     let circuit: Circuit;
@@ -401,6 +414,8 @@ export class Game {
     this.wheelSpin = 0;
     this.brake = false;
     this.drift = false;
+    this.driftSparkAccumulator = 0;
+    this.sparks.clear();
     if (this.pendingPhysics) {
       this.physics = this.pendingPhysics;
       this.pendingPhysics = null;
@@ -438,6 +453,8 @@ export class Game {
     this.speed = 0;
     this.damage = 0;
     this.jumpFailTime = 0;
+    this.driftSparkAccumulator = 0;
+    this.sparks.clear();
     const first = this.frames[0];
     if (this.physics && first) {
       this.physics.reset(first);
@@ -582,6 +599,7 @@ export class Game {
     this.scenery?.dispose();
     this.skyboxRevision += 1;
     disposeSkyboxes();
+    this.sparks.dispose();
     this.cockpit.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -735,6 +753,7 @@ export class Game {
     }
     this.updateCarVisuals(delta);
     this.updateOpponentVisuals(delta);
+    this.updateSparks(delta);
     this.updateCamera(delta);
     this.renderer.render(this.scene, this.camera);
     this.report();
@@ -805,12 +824,23 @@ export class Game {
       return;
     }
 
-    const impact = physics.takeImpact();
-    if (impact > DAMAGE_IMPULSE_FLOOR) {
+    const impact = physics.takeImpactEvent();
+    if (impact && impact.magnitude > DAMAGE_IMPULSE_FLOOR) {
       this.damage = Math.min(
         MAX_DAMAGE,
-        this.damage + Math.min(20, (impact * impact) / 25),
+        this.damage + Math.min(20, (impact.magnitude * impact.magnitude) / 25),
       );
+      // Reduced motion keeps the damage readout but drops the flashy debris.
+      if (!this.reducedMotion.matches) {
+        const count = Math.round(
+          IMPACT_SPARK_BASE + impact.magnitude * IMPACT_SPARK_PER_IMPULSE,
+        );
+        this.sparks.burst(
+          impact.position,
+          impact.normal,
+          Math.min(IMPACT_SPARK_MAX, count),
+        );
+      }
     }
 
     const count = this.frames.length;
@@ -904,6 +934,77 @@ export class Game {
       this.s = retry.s;
       this.lastFrameIndex = retryIndex >= 0 ? retryIndex : index;
       this.physicsAccumulator = 0;
+    }
+  }
+
+  /**
+   * Drift sparks come from the rear tyres only while the body is actually
+   * sliding, not merely because the drift control is held.
+   */
+  private updateSparks(delta: number): void {
+    if (this.state === 'racing' && !this.reducedMotion.matches) {
+      this.emitDriftSparks(delta);
+    }
+    if (this.state !== 'paused') {
+      this.sparks.update(delta);
+    }
+  }
+
+  private emitDriftSparks(delta: number): void {
+    const physics = this.physics;
+    if (!this.drift || !physics) {
+      this.driftSparkAccumulator = 0;
+      return;
+    }
+    const state = physics.read();
+    if (state.speed < DRIFT_SPARK_MIN_SPEED) {
+      this.driftSparkAccumulator = 0;
+      return;
+    }
+    this.carRight.set(1, 0, 0).applyQuaternion(state.quaternion);
+    const slip = Math.abs(state.velocity.dot(this.carRight));
+    if (slip < DRIFT_SPARK_SLIP_SPEED) {
+      this.driftSparkAccumulator = 0;
+      return;
+    }
+    const frame = this.frames[this.lastFrameIndex] ?? this.frameAt(this.s);
+    if (
+      !frame.solid ||
+      this.carUp.dot(frame.up) < 0.2 ||
+      state.position.distanceTo(frame.position) > TRACK_WIDTH
+    ) {
+      this.driftSparkAccumulator = 0;
+      return;
+    }
+
+    const intensity = clamp(slip / 4, 0.35, 1);
+    this.driftSparkAccumulator += delta * DRIFT_SPARK_RATE * intensity;
+    const perWheel = Math.floor(this.driftSparkAccumulator);
+    if (perWheel <= 0) {
+      return;
+    }
+    this.driftSparkAccumulator -= perWheel;
+
+    // Spark debris trails behind the car and is flung to the outside of the
+    // slide, the way a tyre scrubbing sideways throws it.
+    this.sparkDirection.copy(state.velocity).normalize().multiplyScalar(-1);
+    const outside = Math.sign(state.velocity.dot(this.carRight));
+    this.sparkDirection
+      .addScaledVector(this.carRight, outside * 0.35)
+      .normalize();
+    if (!Number.isFinite(this.sparkDirection.x)) {
+      this.sparkDirection.set(0, 0, -1);
+    }
+
+    // The rear pair comes first in the car's wheel list.
+    for (let index = 0; index < 2; index += 1) {
+      const wheel = this.car.wheels[index];
+      if (!wheel) {
+        continue;
+      }
+      wheel.getWorldPosition(this.sparkPoint);
+      this.sparkPoint.addScaledVector(this.carUp, -WHEEL_RADIUS + 0.02);
+      this.sparks.spray(this.sparkPoint, this.sparkDirection, perWheel);
     }
   }
 

@@ -68,6 +68,16 @@ export interface OpponentState extends VehicleState {
   travelled: number;
 }
 
+/** A damaging collision that the renderer can dress with sparks. */
+export interface ImpactEvent {
+  /** Impulse-shaped force magnitude, used for damage and spark count. */
+  magnitude: number;
+  /** World-space contact point, on the player's chassis. */
+  position: THREE.Vector3;
+  /** World-space direction the debris should leave the body, roughly. */
+  normal: THREE.Vector3;
+}
+
 export interface PhysicsOptions {
   /** Rivals to drive around the circuit as kinematic bodies. */
   opponents?: OpponentSpec[];
@@ -83,8 +93,11 @@ export interface PhysicsHandle {
   read: () => VehicleState;
   /** Current poses of the opponents, in the order they were created. */
   readOpponents: () => OpponentState[];
-  /** Impulse-shaped impact magnitude accumulated since the last call. */
-  takeImpact: () => number;
+  /**
+   * The strongest damaging impact since the last call, including where it hit.
+   * Returns `null` when the car has not crashed.
+   */
+  takeImpactEvent: () => ImpactEvent | null;
   /** Forward impulse for a boost strip, in newton-seconds. */
   boost: (impulse: number) => void;
   reset: (frame: TrackFrame) => void;
@@ -251,7 +264,7 @@ export async function createPhysics(
       .setCanSleep(false),
   );
 
-  world.createCollider(
+  const chassis = world.createCollider(
     RAPIER.ColliderDesc.roundCuboid(
       CAR_WIDTH / 2 - PHYSICS_CHASSIS_ROUNDING,
       CHASSIS_HALF_HEIGHT - PHYSICS_CHASSIS_ROUNDING,
@@ -315,7 +328,57 @@ export async function createPhysics(
   const angularRate = new THREE.Vector3();
   const toSurface = new THREE.Vector3();
   const carPosition = new THREE.Vector3();
-  let pendingImpact = 0;
+  const contactPoint = new THREE.Vector3();
+  const samplePoint = new THREE.Vector3();
+  const contactNormal = new THREE.Vector3();
+  let pendingEvent: ImpactEvent | null = null;
+
+  /**
+   * Contact point and outward direction for an impact event. The solver keeps
+   * its contacts anchored in body-local space, so `world.contactPair` is asked
+   * for the world-space solver points after the step.
+   */
+  const recordImpact = (handle: number, impulse: number): ImpactEvent => {
+    contactPoint.set(0, 0, 0);
+    let samples = 0;
+    const other = world.getCollider(handle);
+    if (other) {
+      world.contactPair(chassis, other, (manifold) => {
+        const count = manifold.numSolverContacts();
+        for (let index = 0; index < count; index += 1) {
+          const point = manifold.solverContactPoint(index, samplePoint);
+          if (point) {
+            contactPoint.add(point);
+            samples += 1;
+          }
+        }
+      });
+    }
+    if (samples > 0) {
+      contactPoint.multiplyScalar(1 / samples);
+    } else {
+      // A force event can arrive without a surviving manifold on a very short
+      // contact. Put the sparks on the car's nose instead of hiding the hit.
+      contactPoint.copy(carPosition).addScaledVector(up, 0.2);
+      contactPoint.addScaledVector(forward, CAR_LENGTH / 2);
+    }
+    // Spray away from the body: the car centre to the contact point points out
+    // past the rail or obstacle, where the chase camera can see the sparks.
+    // A contact on the centreline falls back to the car's up axis.
+    contactNormal.copy(contactPoint).sub(carPosition);
+    if (contactNormal.lengthSq() < 1e-6 || contactNormal.dot(up) < 0) {
+      // A contact below the body (a hard landing) throws sparks up off the
+      // deck, not through it.
+      contactNormal.copy(up);
+    } else {
+      contactNormal.normalize();
+    }
+    return {
+      magnitude: impulse,
+      position: contactPoint.clone(),
+      normal: contactNormal.clone(),
+    };
+  };
 
   return {
     step: (dt, input, frame) => {
@@ -523,7 +586,11 @@ export async function createPhysics(
           return;
         }
         const impulse = event.totalForceMagnitude() * dt;
-        pendingImpact = Math.max(pendingImpact, impulse);
+        if (impulse > (pendingEvent?.magnitude ?? 0)) {
+          const first = event.collider1();
+          const other = first === chassis.handle ? event.collider2() : first;
+          pendingEvent = recordImpact(other, impulse);
+        }
       });
     },
 
@@ -572,10 +639,10 @@ export async function createPhysics(
         };
       }),
 
-    takeImpact: () => {
-      const impact = pendingImpact;
-      pendingImpact = 0;
-      return impact;
+    takeImpactEvent: () => {
+      const event = pendingEvent;
+      pendingEvent = null;
+      return event;
     },
 
     boost: (impulse) => {
@@ -606,7 +673,7 @@ export async function createPhysics(
       car.setRotation(orientation, true);
       car.setLinvel({ x: 0, y: 0, z: 0 }, true);
       car.setAngvel({ x: 0, y: 0, z: 0 }, true);
-      pendingImpact = 0;
+      pendingEvent = null;
       for (const racer of opponents) {
         racer.distance = racer.spec.start;
         racer.travelled = racer.spec.start;
