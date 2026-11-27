@@ -143,7 +143,7 @@ export const DRIFT_SPARK_MIN_SPEED = 6;
 /** Sideways speed of the tyres, in m/s, before a drift sparks. */
 export const DRIFT_SPARK_SLIP_SPEED = 1.4;
 /** Sparks per second from each rear wheel at the grip limit. */
-export const DRIFT_SPARK_RATE = 110;
+export const DRIFT_SPARK_RATE = 180;
 
 /** Contact force above this is treated as a crash. */
 export const IMPACT_THRESHOLD = 40;

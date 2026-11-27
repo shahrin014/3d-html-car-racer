@@ -419,6 +419,107 @@ describe('obstacles', () => {
   }, 30_000);
 });
 
+describe('impact filtering', () => {
+  const straightFrames = (): TrackFrame[] => {
+    const frames: TrackFrame[] = [];
+    for (let z = 0; z <= 60; z += 1) {
+      frames.push({
+        position: new THREE.Vector3(0, 0, z),
+        tangent: new THREE.Vector3(0, 0, 1),
+        up: new THREE.Vector3(0, 1, 0),
+        right: new THREE.Vector3(1, 0, 0),
+        s: z,
+        solid: true,
+        halfWidth: TRACK_WIDTH / 2,
+        rails: true,
+      });
+    }
+    return frames;
+  };
+
+  it('does not report deck contact as an impact while driving straight', async () => {
+    const frames = straightFrames();
+    const physics = await createPhysics(frames);
+    physics.reset(frames[0]!);
+
+    let impacts = 0;
+    for (let step = 0; step < 120 * 5; step += 1) {
+      const state = physics.read();
+      const index = Math.max(
+        0,
+        Math.min(frames.length - 1, Math.floor(state.position.z)),
+      );
+      physics.step(
+        FIXED_STEP,
+        { throttle: 1, brake: false, steer: 0 },
+        frames[index]!,
+      );
+      if (physics.takeImpactEvent()) {
+        impacts += 1;
+      }
+    }
+
+    const end = physics.read();
+    physics.dispose();
+    expect(end.position.z).toBeGreaterThan(20);
+    expect(impacts).toBe(0);
+  }, 30_000);
+
+  it('does not report deck contact while weaving without drift', async () => {
+    const frames = straightFrames();
+    const physics = await createPhysics(frames);
+    physics.reset(frames[0]!);
+
+    let impacts = 0;
+    for (let step = 0; step < 120 * 5; step += 1) {
+      const state = physics.read();
+      const index = Math.max(
+        0,
+        Math.min(frames.length - 1, Math.floor(state.position.z)),
+      );
+      const steer = Math.sin(step / 60) * 0.35;
+      physics.step(
+        FIXED_STEP,
+        { throttle: 1, brake: false, steer },
+        frames[index]!,
+      );
+      if (physics.takeImpactEvent()) {
+        impacts += 1;
+      }
+    }
+
+    const end = physics.read();
+    physics.dispose();
+    expect(end.position.z).toBeGreaterThan(20);
+    expect(impacts).toBe(0);
+  }, 30_000);
+
+  it('reports a rail hit as an impact', async () => {
+    const frames = straightFrames();
+    const physics = await createPhysics(frames);
+    physics.reset(frames[0]!);
+
+    let hit: ReturnType<typeof physics.takeImpactEvent> = null;
+    for (let step = 0; step < 120 * 4 && !hit; step += 1) {
+      const state = physics.read();
+      const index = Math.max(
+        0,
+        Math.min(frames.length - 1, Math.floor(state.position.z)),
+      );
+      physics.step(
+        FIXED_STEP,
+        { throttle: 1, brake: false, steer: 1 },
+        frames[index]!,
+      );
+      hit = physics.takeImpactEvent();
+    }
+
+    physics.dispose();
+    expect(hit).not.toBeNull();
+    expect(hit!.magnitude).toBeGreaterThan(0);
+  }, 30_000);
+});
+
 describe('bridges', () => {
   it('drives up the ramp and across the raised deck', async () => {
     let frames: TrackFrame[] | null = null;
